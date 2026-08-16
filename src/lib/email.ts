@@ -20,10 +20,21 @@ export async function sendUniversityVerificationEmail(params: {
     return;
   }
 
-  await resend.emails.send({
+  const { error } = await resend.emails.send({
     from: process.env.EMAIL_FROM ?? "CampusConnect <onboarding@resend.dev>",
     to,
     subject: `Verify your ${universityName} email for CampusConnect`,
     html: `<p>Confirm this is your ${universityName} email to get your verified badge on CampusConnect.</p><p><a href="${verifyUrl}">Verify my university email</a></p><p>This link expires in 48 hours.</p>`,
   });
+
+  // The Resend SDK returns { error } instead of throwing — without this
+  // check, a failed send (e.g. the sandbox sender's recipient restriction)
+  // looks identical to success and the caller has no way to know.
+  if (error) {
+    console.error(
+      `[email] Failed to send university verification to ${to}:`,
+      error,
+    );
+    throw new Error(`Failed to send verification email: ${error.message}`);
+  }
 }

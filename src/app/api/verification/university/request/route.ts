@@ -64,11 +64,23 @@ export async function POST(request: Request) {
   });
 
   const verifyUrl = `${new URL(request.url).origin}/verify?token=${token}`;
-  await sendUniversityVerificationEmail({
-    to: email,
-    verifyUrl,
-    universityName: universityDomain.universityName,
-  });
+  try {
+    await sendUniversityVerificationEmail({
+      to: email,
+      verifyUrl,
+      universityName: universityDomain.universityName,
+    });
+  } catch {
+    // The VerificationRecord above is still valid — the token just wasn't
+    // emailed. Tell the caller explicitly rather than reporting success.
+    return NextResponse.json(
+      {
+        error:
+          "Couldn't send the verification email. Try again in a moment, or contact support if this keeps happening.",
+      },
+      { status: 502 },
+    );
+  }
 
   return NextResponse.json({ ok: true });
 }
