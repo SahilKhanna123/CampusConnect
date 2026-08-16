@@ -1,26 +1,24 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { prisma } from "@/lib/prisma";
+import { syncUserFromAuth } from "@/lib/onboarding";
 
 // Lands here after a user clicks the Supabase confirmation link from
 // signUp() (or, later, an OAuth/magic-link flow) — @supabase/ssr uses the
 // PKCE flow, so the link carries a `code` to exchange for a session.
 //
-// On first arrival for a given Supabase Auth user, this is also where the
-// corresponding Prisma User row is created — Supabase's own account exists
-// in auth.users, which Prisma doesn't manage, so app code is what bridges
-// the two. Since reaching this route means Supabase already confirmed
-// control of the email, we also record VerificationRecord(type=email) here
-// rather than reinventing basic email verification.
+// This is one of TWO paths that can complete signup — the other is OTP-based
+// (src/app/api/auth/sync/route.ts, driven from the sign-up page itself).
+// Both exist because email security scanners at some domains (notably many
+// .edu mail gateways) pre-fetch links in incoming mail to scan them, which
+// silently consumes this route's single-use token before the real user ever
+// clicks it — confirmed by a real test where Supabase's own
+// confirmation_sent_at/email_confirmed_at were 7 seconds apart. The OTP path
+// is immune to that since a scanner can't type a code into a form. Keep
+// both: the link still works fine for domains without aggressive prefetching.
 //
-// Signup email IS the university-verification input: there's no separate
-// "enter your .edu address" step for the primary flow. If the confirmed
-// email's domain matches a SupportedUniversityDomain, the university badge
-// is granted right here, same trip. This only auto-verifies accounts that
-// signed up directly with a supported .edu address — someone who signs up
-// with a personal email lands on "/" unverified and can still add a
-// university badge later via the standalone /verify form, which stays in
-// place as a self-serve fallback (e.g. for alumni, or a mistyped domain).
+// Either way, syncUserFromAuth (src/lib/onboarding.ts) is what actually
+// creates the Prisma User row and grants verification badges — Supabase's
+// own account lives in auth.users, which Prisma doesn't manage.
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
@@ -37,58 +35,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(`${origin}/sign-up?error=auth_failed`);
   }
 
-  const { user: authUser } = data;
-  const fullName =
-    (authUser.user_metadata?.full_name as string | undefined) ??
-    authUser.email?.split("@")[0] ??
-    "New User";
-
-  await prisma.user.upsert({
-    where: { id: authUser.id },
-    update: {},
-    create: {
-      id: authUser.id,
-      email: authUser.email!,
-      name: fullName,
-    },
-  });
-
-  await prisma.verificationRecord.upsert({
-    where: { userId_type: { userId: authUser.id, type: "email" } },
-    update: { status: "verified", verifiedAt: new Date() },
-    create: {
-      userId: authUser.id,
-      type: "email",
-      status: "verified",
-      verifiedValue: authUser.email,
-      verifiedAt: new Date(),
-    },
-  });
-
-  const domain = authUser.email?.split("@")[1]?.toLowerCase();
-  const universityDomain = domain
-    ? await prisma.supportedUniversityDomain.findUnique({ where: { domain } })
-    : null;
-
-  if (universityDomain) {
-    await prisma.verificationRecord.upsert({
-      where: { userId_type: { userId: authUser.id, type: "university" } },
-      update: {
-        status: "verified",
-        verifiedValue: authUser.email,
-        verifiedAt: new Date(),
-        metadata: { university: universityDomain.universityName, domain },
-      },
-      create: {
-        userId: authUser.id,
-        type: "university",
-        status: "verified",
-        verifiedValue: authUser.email,
-        verifiedAt: new Date(),
-        metadata: { university: universityDomain.universityName, domain },
-      },
-    });
-  }
+  await syncUserFromAuth(data.user);
 
   return NextResponse.redirect(`${origin}${next}`);
 }
