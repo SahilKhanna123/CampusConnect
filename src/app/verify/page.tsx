@@ -1,13 +1,150 @@
-// University email verification landing page — confirms the signed,
-// single-use, expiring token from the verification email and marks the
-// matching VerificationRecord(type=university) as verified.
-// TODO: read ?token= from searchParams, POST to /api/verification/university/confirm.
+"use client";
 
+import { Suspense, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
+
+// University email verification — this single page covers both halves of
+// the flow: submitting the .edu address (no ?token in the URL) and landing
+// back here from the emailed link to confirm it (?token=...).
 export default function VerifyPage() {
+  return (
+    <Suspense fallback={<h1>Verify Your University Email</h1>}>
+      <VerifyPageContent />
+    </Suspense>
+  );
+}
+
+function VerifyPageContent() {
+  const searchParams = useSearchParams();
+  const token = searchParams.get("token");
+
+  if (token) return <ConfirmToken token={token} />;
+  return <RequestForm />;
+}
+
+function RequestForm() {
+  const [email, setEmail] = useState("");
+  const [status, setStatus] = useState<"idle" | "submitting" | "sent">(
+    "idle",
+  );
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setStatus("submitting");
+
+    const res = await fetch("/api/verification/university/request", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    });
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      setError(body.error ?? "Something went wrong. Try again.");
+      setStatus("idle");
+      return;
+    }
+
+    setStatus("sent");
+  }
+
+  if (status === "sent") {
+    return (
+      <div>
+        <h1>Check your inbox</h1>
+        <p>
+          We sent a verification link to <strong>{email}</strong>. Click it
+          to get your verified badge.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div>
       <h1>Verify Your University Email</h1>
-      <p>Confirming your verification link…</p>
+      <p>Required to post, request, or message on CampusConnect.</p>
+      <form onSubmit={handleSubmit}>
+        <div>
+          <label htmlFor="email">University email</label>
+          <input
+            id="email"
+            type="email"
+            placeholder="you@uci.edu"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+        </div>
+        {error && <p role="alert">{error}</p>}
+        <button type="submit" disabled={status === "submitting"}>
+          {status === "submitting" ? "Sending…" : "Send verification link"}
+        </button>
+      </form>
+    </div>
+  );
+}
+
+function ConfirmToken({ token }: { token: string }) {
+  const [state, setState] = useState<"confirming" | "success" | "error">(
+    "confirming",
+  );
+  const [message, setMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    fetch("/api/verification/university/confirm", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token }),
+    })
+      .then(async (res) => {
+        if (cancelled) return;
+        const body = await res.json().catch(() => ({}));
+        if (res.ok) {
+          setState("success");
+        } else {
+          setState("error");
+          setMessage(body.error ?? "Verification failed.");
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setState("error");
+          setMessage("Something went wrong. Try again.");
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
+
+  if (state === "confirming") {
+    return (
+      <div>
+        <h1>Verify Your University Email</h1>
+        <p>Confirming your verification link…</p>
+      </div>
+    );
+  }
+
+  if (state === "success") {
+    return (
+      <div>
+        <h1>✓ University Verified</h1>
+        <p>Your badge is live. You can now post, request, and message.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <h1>Verification Failed</h1>
+      <p>{message}</p>
     </div>
   );
 }

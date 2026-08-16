@@ -66,7 +66,10 @@ enum ReportStatus {
 }
 
 model User {
-  id           String    @id @default(uuid())
+  // Matches Supabase Auth's auth.users.id exactly — set explicitly by app
+  // code in the auth callback (src/app/auth/callback/route.ts), never
+  // generated here. One User row per Supabase Auth account.
+  id           String    @id
   email        String    @unique
   name         String
   photoUrl     String?
@@ -111,7 +114,10 @@ model VerificationRecord {
   verifiedAt       DateTime?
   createdAt       DateTime            @default(now())
 
-  @@index([userId, type])
+  // One record per verification type per user — a re-request updates this
+  // row in place (new token, status reset to pending) rather than piling up
+  // duplicates.
+  @@unique([userId, type])
 }
 
 model SupportedUniversityDomain {

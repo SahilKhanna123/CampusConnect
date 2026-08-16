@@ -25,6 +25,20 @@ The full architecture rationale, options considered, and tradeoffs live in the a
 
 Messaging is polling-based (no websockets) in MVP by design — see the plan doc §14.
 
+## Auth Architecture
+
+Supabase Auth owns account credentials (`auth.users`); Prisma's `User` table is a separate, app-owned table keyed on the **same id** (`User.id = auth.users.id`). Nothing in Prisma generates that id — it's always the Supabase-issued UUID, written by app code.
+
+- **Signup** (`src/app/(auth)/sign-up/page.tsx`, client component) calls `supabase.auth.signUp()`, which emails a confirmation link pointing at `emailRedirectTo: {origin}/auth/callback`.
+- **`src/app/auth/callback/route.ts`** is where that link lands. It exchanges the PKCE `code` for a session, then — on first arrival for that Supabase user — upserts the matching Prisma `User` row and a `VerificationRecord(type=email, status=verified)`. Reaching this route already proves Supabase confirmed the email, so this is real basic email verification, not a stand-in.
+- From there the student is redirected to `/verify` to submit their `.edu` address — university verification is a **separate, required second step**, not implied by basic email confirmation. `/verify` posts to `/api/verification/university/request` (checks the domain against `SupportedUniversityDomain`, emails a single-use expiring token) and, when landed on with `?token=`, to `/api/verification/university/confirm`.
+- **`src/middleware.ts`** + **`src/lib/supabase/middleware.ts`** refresh the session cookie on every request — required by the `@supabase/ssr` pattern since Server Components can't write cookies themselves.
+- **`src/lib/supabase/client.ts`** / **`server.ts`** are the two Supabase client constructors (browser vs. cookie-reading server); **`src/lib/auth.ts`**'s `getCurrentUser()` is the one place that joins a Supabase session to a Prisma `User` (with `verifications` included) — use it from Server Components/route handlers rather than calling Supabase directly, so verification-badge logic stays in one place (see `isUniversityVerified` / `universityBadgeLabel`).
+- Parents still never sign up through `/sign-up` — `src/app/api/family/invite/accept/route.ts` remains their only account-creation path (still a stub; wire it the same way once needed: create the Supabase Auth user, then the Prisma `User` row with matching id).
+- Login (`/login`) and sign-out (`POST /api/auth/signout`) are minimal, included because an auth setup isn't testable without them — kept intentionally small.
+
+**Not yet wired:** enforcing the "no posting/requesting/messaging until university-verified" gate inside the `trips`/`requests`/`conversations` API routes — those are still `501` stubs. When implementing them, check `isUniversityVerified(user)` (or the equivalent parent-link-approved check) server-side before any write.
+
 ## Architecture Summary
 
 **Core entities** (`prisma/schema.prisma`): `User`, `VerificationRecord`, `SupportedUniversityDomain`, `ParentStudentInvite`, `ParentStudentLink`, `Region`, `City`, `RouteCommunity`, `Trip`, `Request`, `Conversation`/`ConversationParticipant`/`Message`, `Review`, `Report`, `Block`.
@@ -45,20 +59,26 @@ Messaging is polling-based (no websockets) in MVP by design — see the plan doc
 prisma/schema.prisma          Database schema — source of truth for all entities/relationships
 prisma/seed.ts                Launch data: Bay Area / UCI regions & cities, featured RouteCommunity, uci.edu domain
 src/app/                      Next.js App Router
-  layout.tsx                  Root layout + primary nav (Home/Explore/Post/Messages/Profile)
+  layout.tsx                  Root layout + primary nav + auth status (signed-in name/badge or Log in/Sign up)
   page.tsx                    Home — personalized around the user's featured route
   explore/page.tsx            Explore — browse route communities and trips
   post/page.tsx                Post — Offer a Ride / Need a Ride / Offer Package Space / Need Delivery
   messages/page.tsx           Messages — conversation list
   profile/page.tsx            Profile — badges, rating, history
   family/page.tsx             Parent/student invite + link management
-  (auth)/sign-up/page.tsx      Signup (student university-email verification required inline)
-  verify/page.tsx              University email verification landing (token confirm)
+  auth/callback/route.ts       Supabase email-confirm landing — creates the Prisma User + email VerificationRecord
+  (auth)/sign-up/page.tsx      Signup — supabase.auth.signUp(), then on to /verify
+  (auth)/login/page.tsx        Login — supabase.auth.signInWithPassword()
+  verify/page.tsx              University email step: submit .edu address, or confirm ?token=
   api/                         One subfolder per backend module (see below)
+  api/auth/signout/route.ts     Sign-out endpoint
 src/lib/
   prisma.ts                    Prisma client singleton
+  auth.ts                       getCurrentUser() — joins Supabase session -> Prisma User; verification-badge helpers
+  email.ts                      Resend wrapper (falls back to console.log without RESEND_API_KEY)
   supabase/client.ts            Browser Supabase client
   supabase/server.ts            Server Supabase client (reads cookies)
+  supabase/middleware.ts         Session-refresh helper used by src/middleware.ts
   rate-limit.ts                 Posting rate-limit helper (10 / 12h)
 ```
 
