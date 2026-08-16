@@ -1,0 +1,353 @@
+// CampusConnect database schema.
+// Mirrors the approved architecture plan at C:\Users\sahil\.claude\plans\i-am-building-a-wise-sutton.md
+// Do not "simplify" the nullable Request.tripId, the composable VerificationRecord.type,
+// or the ParentStudentLink approval gate — each encodes a resolved product decision.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum VerificationType {
+  email
+  university
+  parent_relationship
+  identity
+}
+
+enum VerificationStatus {
+  pending
+  verified
+  revoked
+}
+
+enum ParentStudentInviteStatus {
+  pending
+  accepted
+  expired
+  revoked
+}
+
+enum ParentStudentLinkStatus {
+  pending_student_approval
+  approved
+  revoked
+}
+
+enum RequestType {
+  ride
+  package
+}
+
+enum RequestStatus {
+  pending
+  accepted
+  declined
+  completed
+  cancelled
+}
+
+enum TripStatus {
+  active
+  completed
+  cancelled
+}
+
+enum ReportStatus {
+  open
+  under_review
+  resolved
+  dismissed
+}
+
+model User {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  name         String
+  photoUrl     String?
+  collegeName  String?
+  homeRegionId String?
+  homeRegion   Region?   @relation(fields: [homeRegionId], references: [id])
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  verifications        VerificationRecord[]
+  tripsAsTraveler       Trip[]                     @relation("TripTraveler")
+  requestsPosted         Request[]                  @relation("RequestPostedBy")
+  requestsBeneficiary     Request[]                  @relation("RequestBeneficiary")
+  parentLinksAsParent    ParentStudentLink[]        @relation("LinkParent")
+  parentLinksAsStudent    ParentStudentLink[]        @relation("LinkStudent")
+  invitesSent            ParentStudentInvite[]      @relation("InviteStudent")
+  conversationsIn         ConversationParticipant[]
+  messagesSent            Message[]                  @relation("MessageSender")
+  reviewsGiven            Review[]                   @relation("ReviewReviewer")
+  reviewsReceived          Review[]                   @relation("ReviewReviewee")
+  reportsFiled             Report[]                   @relation("ReportReporter")
+  reportsAgainst           Report[]                   @relation("ReportReported")
+  blocksInitiated          Block[]                    @relation("BlockBlocker")
+  blocksReceived           Block[]                    @relation("BlockBlocked")
+
+  @@index([homeRegionId])
+}
+
+// One row per independent verification fact. Deliberately not a single boolean/enum
+// on User — badges must be able to exist independently, and a future `identity`
+// (government ID) type must slot in without a migration.
+model VerificationRecord {
+  id             String              @id @default(uuid())
+  userId         String
+  user           User                @relation(fields: [userId], references: [id])
+  type           VerificationType
+  status         VerificationStatus  @default(pending)
+  verifiedValue   String?
+  metadata        Json?
+  token           String?             @unique
+  tokenExpiresAt   DateTime?
+  verifiedAt       DateTime?
+  createdAt       DateTime            @default(now())
+
+  @@index([userId, type])
+}
+
+model SupportedUniversityDomain {
+  id              String  @id @default(uuid())
+  domain          String  @unique
+  universityName   String
+  regionId         String
+  region           Region  @relation(fields: [regionId], references: [id])
+}
+
+// The only path to a parent account existing: a student-initiated invite.
+model ParentStudentInvite {
+  id           String                     @id @default(uuid())
+  studentId    String
+  student      User                       @relation("InviteStudent", fields: [studentId], references: [id])
+  parentEmail   String
+  token         String                     @unique
+  status        ParentStudentInviteStatus  @default(pending)
+  expiresAt      DateTime
+  createdAt      DateTime                   @default(now())
+
+  @@index([studentId])
+}
+
+// Two-step trust: parent accepts the invite, THEN the student must separately
+// approve. A parent has no read/write capability anywhere in the app until
+// status = approved — enforce this in every parent-facing API route.
+model ParentStudentLink {
+  id          String                    @id @default(uuid())
+  parentId    String
+  parent      User                      @relation("LinkParent", fields: [parentId], references: [id])
+  studentId   String
+  student     User                      @relation("LinkStudent", fields: [studentId], references: [id])
+  status      ParentStudentLinkStatus   @default(pending_student_approval)
+  approvedAt   DateTime?
+  createdAt    DateTime                  @default(now())
+
+  @@unique([parentId, studentId])
+}
+
+model Region {
+  id      String  @id @default(uuid())
+  name    String  @unique // "Bay Area", "UC Irvine Area"
+  slug    String  @unique
+
+  cities         City[]
+  users          User[]
+  domains        SupportedUniversityDomain[]
+  routesAsA      RouteCommunity[]            @relation("RouteRegionA")
+  routesAsB      RouteCommunity[]            @relation("RouteRegionB")
+}
+
+// Cities are open-ended, not a closed Bay-Area-only allowlist — a student can
+// post a trip against any city (e.g. an LAX airport entry outside every
+// seeded region). Pre-seed common ones; support adding more on demand.
+model City {
+  id        String  @id @default(uuid())
+  name      String
+  regionId   String
+  region     Region  @relation(fields: [regionId], references: [id])
+
+  tripsAsOrigin        Trip[]     @relation("TripOrigin")
+  tripsAsDestination    Trip[]     @relation("TripDestination")
+  requestsAsOrigin       Request[] @relation("RequestOrigin")
+  requestsAsDestination   Request[] @relation("RequestDestination")
+
+  @@unique([name, regionId])
+}
+
+// A RouteCommunity being `active` controls what Home *features* by default
+// (Bay Area <-> UCI at launch). It does NOT gate what Trip/Request can be
+// created against — that's determined purely by City selection.
+model RouteCommunity {
+  id         String  @id @default(uuid())
+  regionAId   String
+  regionA     Region  @relation("RouteRegionA", fields: [regionAId], references: [id])
+  regionBId   String
+  regionB     Region  @relation("RouteRegionB", fields: [regionBId], references: [id])
+  active      Boolean @default(false)
+
+  @@unique([regionAId, regionBId])
+}
+
+model Trip {
+  id                     String     @id @default(uuid())
+  travelerId              String
+  traveler                User       @relation("TripTraveler", fields: [travelerId], references: [id])
+  originCityId             String
+  originCity               City       @relation("TripOrigin", fields: [originCityId], references: [id])
+  destinationCityId         String
+  destinationCity           City       @relation("TripDestination", fields: [destinationCityId], references: [id])
+  departureDate             DateTime
+  departureTime              String?
+  seatsTotal                 Int        @default(0)
+  seatsRemaining              Int        @default(0)
+  packageSpaceAvailable        Boolean    @default(false)
+  packageCapacityNote           String?
+  // Free text describing the TRIP (e.g. "driving my own car" vs. "organizing
+  // a shared ride") — never a contribution/gas-money/payment field.
+  tripNotes                     String?
+  status                        TripStatus @default(active)
+  createdAt                     DateTime   @default(now())
+
+  requests        Request[]
+  conversations    Conversation[]
+
+  @@index([originCityId, destinationCityId, departureDate])
+  @@index([travelerId])
+}
+
+// Unified ride + package request. type discriminates the two; tripId is
+// nullable so a "requester posts first" flow (need a ride before any
+// matching trip exists) is representable without a second model.
+model Request {
+  id                  String        @id @default(uuid())
+  type                RequestType
+  tripId               String?
+  trip                 Trip?         @relation(fields: [tripId], references: [id])
+
+  // Only used when tripId is null (standalone request).
+  originCityId          String?
+  originCity             City?         @relation("RequestOrigin", fields: [originCityId], references: [id])
+  destinationCityId       String?
+  destinationCity         City?         @relation("RequestDestination", fields: [destinationCityId], references: [id])
+  neededDate               DateTime?
+
+  postedById                String
+  postedBy                  User          @relation("RequestPostedBy", fields: [postedById], references: [id])
+  beneficiaryId              String
+  beneficiary                User          @relation("RequestBeneficiary", fields: [beneficiaryId], references: [id])
+
+  status                     RequestStatus @default(pending)
+
+  // ride-specific
+  seatsRequested               Int?
+
+  // package-specific
+  packageDescription            String?
+  packageSize                    String?
+  neededByDate                    DateTime?
+
+  createdAt                      DateTime      @default(now())
+  respondedAt                     DateTime?
+  completedAt                     DateTime?
+
+  conversation      Conversation?
+  reviews             Review[]
+
+  @@index([postedById])
+  @@index([beneficiaryId])
+  @@index([tripId])
+}
+
+// Scoped to (trip, counterpart) so a prospective requester can ask questions
+// before a formal Request exists. requestId is attached once one is created.
+model Conversation {
+  id           String                     @id @default(uuid())
+  tripId        String
+  trip          Trip                       @relation(fields: [tripId], references: [id])
+  requestId      String?                    @unique
+  request        Request?                   @relation(fields: [requestId], references: [id])
+  createdAt        DateTime                   @default(now())
+
+  participants  ConversationParticipant[]
+  messages       Message[]
+
+  @@index([tripId])
+}
+
+model ConversationParticipant {
+  id               String       @id @default(uuid())
+  conversationId    String
+  conversation      Conversation @relation(fields: [conversationId], references: [id])
+  userId             String
+  user               User         @relation(fields: [userId], references: [id])
+
+  @@unique([conversationId, userId])
+}
+
+model Message {
+  id               String        @id @default(uuid())
+  conversationId    String
+  conversation      Conversation  @relation(fields: [conversationId], references: [id])
+  senderId           String
+  sender              User          @relation("MessageSender", fields: [senderId], references: [id])
+  body                 String
+  // Reserved for future rich messaging (photos, quick replies, payment
+  // requests) — unused in MVP, present now so that's additive, not a migration.
+  attachmentUrl          String?
+  attachmentType          String?
+  sentAt                    DateTime      @default(now())
+
+  @@index([conversationId, sentAt])
+}
+
+// Fraud-resistant by construction: only on a completed Request, only its
+// participants, one review per (request, reviewer) pair.
+model Review {
+  id            String   @id @default(uuid())
+  requestId      String
+  request        Request  @relation(fields: [requestId], references: [id])
+  reviewerId      String
+  reviewer        User     @relation("ReviewReviewer", fields: [reviewerId], references: [id])
+  revieweeId       String
+  reviewee         User     @relation("ReviewReviewee", fields: [revieweeId], references: [id])
+  rating            Int
+  comment            String?
+  createdAt           DateTime @default(now())
+
+  @@unique([requestId, reviewerId])
+  @@index([revieweeId])
+}
+
+model Report {
+  id                String       @id @default(uuid())
+  reporterId          String
+  reporter            User         @relation("ReportReporter", fields: [reporterId], references: [id])
+  reportedUserId        String
+  reportedUser          User         @relation("ReportReported", fields: [reportedUserId], references: [id])
+  contextType             String? // "trip" | "request" | "message" | "profile"
+  contextId                String?
+  reason                    String
+  detail                     String?
+  status                     ReportStatus @default(open)
+  createdAt                   DateTime     @default(now())
+
+  @@index([reportedUserId])
+}
+
+model Block {
+  id            String   @id @default(uuid())
+  blockerId      String
+  blocker        User     @relation("BlockBlocker", fields: [blockerId], references: [id])
+  blockedId       String
+  blocked         User     @relation("BlockBlocked", fields: [blockedId], references: [id])
+  createdAt        DateTime @default(now())
+
+  @@unique([blockerId, blockedId])
+}
