@@ -3,9 +3,12 @@
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
-// Sign up — creates the Supabase Auth account. Students still have a
-// required second step after this: entering + verifying their university
-// email (src/app/verify/page.tsx) before the account can post/request/message.
+// Sign up — creates the Supabase Auth account. Signup email doubles as the
+// university-verification input: src/app/auth/callback/route.ts checks the
+// confirmed email's domain and auto-grants the university badge in the same
+// trip if it matches a supported school, so students who sign up with their
+// .edu address need no separate step. Anyone who signs up with a personal
+// email can still add a university badge later via /verify.
 // Parents never land here directly — the only path to a parent account is
 // accepting a ParentStudentInvite (src/app/api/family/invite/accept).
 export default function SignUpPage() {
@@ -47,7 +50,7 @@ export default function SignUpPage() {
         <h1>Check your email</h1>
         <p>
           We sent a confirmation link to <strong>{email}</strong>. Click it
-          to activate your account, then verify your university email.
+          to activate your account.
         </p>
       </div>
     );
@@ -76,6 +79,10 @@ export default function SignUpPage() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
           />
+          <p>
+            Using your university email (e.g. @uci.edu)? We&apos;ll
+            auto-verify it — no separate step needed.
+          </p>
         </div>
         <div>
           <label htmlFor="password">Password</label>

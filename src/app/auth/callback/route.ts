@@ -12,10 +12,19 @@ import { prisma } from "@/lib/prisma";
 // the two. Since reaching this route means Supabase already confirmed
 // control of the email, we also record VerificationRecord(type=email) here
 // rather than reinventing basic email verification.
+//
+// Signup email IS the university-verification input: there's no separate
+// "enter your .edu address" step for the primary flow. If the confirmed
+// email's domain matches a SupportedUniversityDomain, the university badge
+// is granted right here, same trip. This only auto-verifies accounts that
+// signed up directly with a supported .edu address — someone who signs up
+// with a personal email lands on "/" unverified and can still add a
+// university badge later via the standalone /verify form, which stays in
+// place as a self-serve fallback (e.g. for alumni, or a mistyped domain).
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
-  const next = searchParams.get("next") ?? "/verify";
+  const next = searchParams.get("next") ?? "/";
 
   if (!code) {
     return NextResponse.redirect(`${origin}/sign-up?error=missing_code`);
@@ -55,6 +64,31 @@ export async function GET(request: NextRequest) {
       verifiedAt: new Date(),
     },
   });
+
+  const domain = authUser.email?.split("@")[1]?.toLowerCase();
+  const universityDomain = domain
+    ? await prisma.supportedUniversityDomain.findUnique({ where: { domain } })
+    : null;
+
+  if (universityDomain) {
+    await prisma.verificationRecord.upsert({
+      where: { userId_type: { userId: authUser.id, type: "university" } },
+      update: {
+        status: "verified",
+        verifiedValue: authUser.email,
+        verifiedAt: new Date(),
+        metadata: { university: universityDomain.universityName, domain },
+      },
+      create: {
+        userId: authUser.id,
+        type: "university",
+        status: "verified",
+        verifiedValue: authUser.email,
+        verifiedAt: new Date(),
+        metadata: { university: universityDomain.universityName, domain },
+      },
+    });
+  }
 
   return NextResponse.redirect(`${origin}${next}`);
 }
