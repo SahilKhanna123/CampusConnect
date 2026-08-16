@@ -103,11 +103,11 @@ npm run prisma:seed           # seed launch data: Bay Area / UCI regions, cities
 
 ## Environment Variables
 
-Copy `.env.example` to `.env` and fill in:
-- `DATABASE_URL` / `DIRECT_URL` — Postgres connection strings (Supabase provides both)
+Copy `.env.example` to `.env` (never fill real values into `.env.example` itself — it's committed to the repo) and fill in:
+- `DATABASE_URL` / `DIRECT_URL` — Postgres connection strings (Supabase provides both). See the comments in `.env.example` for two non-obvious gotchas already hit once: `DATABASE_URL` needs `?pgbouncer=true` (transaction-pooler prepared-statement conflicts), and `DIRECT_URL` should point at the session pooler (port 5432, same host as `DATABASE_URL`) rather than Supabase's plain `db.<ref>.supabase.co` host, which is IPv6-only and unreachable from IPv4-only networks.
 - `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` — Supabase client config
-- `SUPABASE_SERVICE_ROLE_KEY` — server-only, never expose to the client
-- `RESEND_API_KEY` / `EMAIL_FROM` — transactional email for verification + invite links
+- `SUPABASE_SERVICE_ROLE_KEY` — server-only, never expose to the client. Not yet used by any code path — reserved for future admin-style operations that need to bypass row-level security.
+- `RESEND_API_KEY` / `EMAIL_FROM` — transactional email for verification + invite links. Optional: without it, `src/lib/email.ts` logs the verification link to the console instead of sending it, which is fine for local dev.
 
 ## Explicitly Not MVP
 
