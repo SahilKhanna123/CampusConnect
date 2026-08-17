@@ -1,7 +1,11 @@
 // CampusConnect database schema.
 // Mirrors the approved architecture plan at C:\Users\sahil\.claude\plans\i-am-building-a-wise-sutton.md
 // Do not "simplify" the nullable Request.tripId, the composable VerificationRecord.type,
-// or the ParentStudentLink approval gate — each encodes a resolved product decision.
+// the StudentRecord/ParentStudentLink duplicate-prevention pattern, or the
+// three-state ParentStudentLinkStatus (otp_verified/approved/revoked, which
+// deliberately revises an earlier "no capability until approved" decision —
+// see the security note on ParentStudentLink) — each encodes a resolved
+// product decision.
 
 generator client {
   provider = "prisma-client-js"
@@ -33,8 +37,16 @@ enum ParentStudentInviteStatus {
   revoked
 }
 
+// otp_verified: the parent proved access to the student's university inbox
+// via OTP -- they can already act (post on the student's behalf), but the
+// student has not confirmed anything yet. approved: the actual student
+// explicitly confirmed the relationship (either because they initiated the
+// invite themselves, or because they later reviewed and confirmed an
+// OTP-established link). revoked: either side severed it, or the student
+// used the no-account-required objection link. See ParentStudentLink for
+// the full security rationale.
 enum ParentStudentLinkStatus {
-  pending_student_approval
+  otp_verified
   approved
   revoked
 }
@@ -69,31 +81,35 @@ model User {
   // Matches Supabase Auth's auth.users.id exactly — set explicitly by app
   // code in the auth callback (src/app/auth/callback/route.ts), never
   // generated here. One User row per Supabase Auth account.
-  id           String    @id
-  email        String    @unique
+  id           String   @id
+  email        String   @unique
   name         String
   photoUrl     String?
   collegeName  String?
   homeRegionId String?
-  homeRegion   Region?   @relation(fields: [homeRegionId], references: [id])
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  homeRegion   Region?  @relation(fields: [homeRegionId], references: [id])
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-  verifications        VerificationRecord[]
-  tripsAsTraveler       Trip[]                     @relation("TripTraveler")
-  requestsPosted         Request[]                  @relation("RequestPostedBy")
-  requestsBeneficiary     Request[]                  @relation("RequestBeneficiary")
-  parentLinksAsParent    ParentStudentLink[]        @relation("LinkParent")
-  parentLinksAsStudent    ParentStudentLink[]        @relation("LinkStudent")
-  invitesSent            ParentStudentInvite[]      @relation("InviteStudent")
-  conversationsIn         ConversationParticipant[]
-  messagesSent            Message[]                  @relation("MessageSender")
-  reviewsGiven            Review[]                   @relation("ReviewReviewer")
-  reviewsReceived          Review[]                   @relation("ReviewReviewee")
-  reportsFiled             Report[]                   @relation("ReportReporter")
-  reportsAgainst           Report[]                   @relation("ReportReported")
-  blocksInitiated          Block[]                    @relation("BlockBlocker")
-  blocksReceived           Block[]                    @relation("BlockBlocked")
+  verifications            VerificationRecord[]
+  tripsAsTraveler          Trip[]                    @relation("TripTraveler")
+  requestsPosted           Request[]                 @relation("RequestPostedBy")
+  requestsBeneficiary      Request[]                 @relation("RequestBeneficiary")
+  // A User's own StudentRecord, if they signed up (or later claimed) with a
+  // supported university email. Nullable -- parents/alumni/travelers never
+  // have one. The reverse of StudentRecord.userId.
+  studentRecord            StudentRecord?
+  parentLinksAsParent      ParentStudentLink[]       @relation("LinkParent")
+  parentStudentOtpRequests ParentStudentOtpRequest[]
+  invitesSent              ParentStudentInvite[]     @relation("InviteStudent")
+  conversationsIn          ConversationParticipant[]
+  messagesSent             Message[]                 @relation("MessageSender")
+  reviewsGiven             Review[]                  @relation("ReviewReviewer")
+  reviewsReceived          Review[]                  @relation("ReviewReviewee")
+  reportsFiled             Report[]                  @relation("ReportReporter")
+  reportsAgainst           Report[]                  @relation("ReportReported")
+  blocksInitiated          Block[]                   @relation("BlockBlocker")
+  blocksReceived           Block[]                   @relation("BlockBlocked")
 
   @@index([homeRegionId])
 }
@@ -102,17 +118,17 @@ model User {
 // on User — badges must be able to exist independently, and a future `identity`
 // (government ID) type must slot in without a migration.
 model VerificationRecord {
-  id             String              @id @default(uuid())
+  id             String             @id @default(uuid())
   userId         String
-  user           User                @relation(fields: [userId], references: [id])
+  user           User               @relation(fields: [userId], references: [id])
   type           VerificationType
-  status         VerificationStatus  @default(pending)
-  verifiedValue   String?
-  metadata        Json?
-  token           String?             @unique
-  tokenExpiresAt   DateTime?
-  verifiedAt       DateTime?
-  createdAt       DateTime            @default(now())
+  status         VerificationStatus @default(pending)
+  verifiedValue  String?
+  metadata       Json?
+  token          String?            @unique
+  tokenExpiresAt DateTime?
+  verifiedAt     DateTime?
+  createdAt      DateTime           @default(now())
 
   // One record per verification type per user — a re-request updates this
   // row in place (new token, status reset to pending) rather than piling up
@@ -121,68 +137,175 @@ model VerificationRecord {
 }
 
 model SupportedUniversityDomain {
-  id              String  @id @default(uuid())
-  domain          String  @unique
-  universityName   String
-  regionId         String
-  region           Region  @relation(fields: [regionId], references: [id])
+  id             String @id @default(uuid())
+  domain         String @unique
+  universityName String
+  regionId       String
+  region         Region @relation(fields: [regionId], references: [id])
+
+  studentRecords StudentRecord[]
+  otpRequests    ParentStudentOtpRequest[]
+}
+
+// A student, identified by a university email, that can exist independently
+// of a CampusConnect User account -- this is what lets a parent be the first
+// person to use the product for a given student (see ParentStudentLink).
+// universityEmail is the SOLE duplicate-prevention mechanism: every creation
+// path (a parent's OTP-confirm, or a student's own signup) MUST go through a
+// real atomic upsert keyed on this field -- never a separate find-then-create,
+// which races under concurrent requests. Claiming (attaching userId) is a
+// second, different race: it must be a conditional update
+// (WHERE userId IS NULL) checking affected-row-count, not just relying on
+// the @unique on userId, which only stops one User claiming two records.
+model StudentRecord {
+  id                        String                    @id @default(uuid())
+  fullName                  String
+  // Normalized: lowercased + trimmed only. Do NOT apply Gmail-style
+  // dot-stripping or +alias collapsing -- that's a Gmail-specific quirk that
+  // would be actively wrong for arbitrary university mail systems.
+  universityEmail           String                    @unique
+  universityDomainId        String
+  universityDomain          SupportedUniversityDomain @relation(fields: [universityDomainId], references: [id])
+  // Source of truth for "is this .edu email proven reachable" -- set either
+  // when a parent's OTP confirms, or when the student verifies it themselves
+  // via their own signup. The User-facing VerificationRecord(type=university)
+  // badge is a synced cache of this fact, not the other way around.
+  universityEmailVerifiedAt DateTime?
+  // Null = unclaimed (a parent created this before the student ever signed
+  // up). Set once a student claims it -- either by signing up directly with
+  // this exact email, or by an explicit later claim action.
+  userId                    String?                   @unique
+  user                      User?                     @relation(fields: [userId], references: [id])
+  createdAt                 DateTime                  @default(now())
+  updatedAt                 DateTime                  @updatedAt
+
+  parentLinks ParentStudentLink[]
+
+  @@index([universityDomainId])
+}
+
+// Ephemeral pending state for a parent proving access to a student's
+// university inbox -- deliberately NOT stored on StudentRecord, because a
+// StudentRecord should only ever be created at successful-OTP-confirm time,
+// not speculatively when a parent merely types an email (typos would
+// otherwise accumulate as junk unclaimed records). Deleted once consumed.
+//
+// Cannot reuse Supabase's own OTP system here: Supabase's OTP is inherently
+// tied to the auth account being signed into/created for that email, and
+// this is a parent proving access to a THIRD PARTY's inbox, not their own --
+// so this reuses the custom token/email/confirm pattern already built for
+// src/app/api/verification/university/{request,confirm}/route.ts, just with
+// a short numeric code (more brute-forceable than a 32-byte hex token, hence
+// the hash + expiry + attempt cap) instead of a link.
+model ParentStudentOtpRequest {
+  id                 String                    @id @default(uuid())
+  parentId           String
+  parent             User                      @relation(fields: [parentId], references: [id])
+  studentEmail       String // normalized; NOT unique -- a parent may retry a corrected email
+  universityDomainId String
+  universityDomain   SupportedUniversityDomain @relation(fields: [universityDomainId], references: [id])
+  otpCodeHash        String // hashed (sha256) -- unlike the long hex tokens elsewhere, an 8-digit code is guessable without this
+  otpExpiresAt       DateTime
+  attemptCount       Int                       @default(0)
+  createdAt          DateTime                  @default(now())
+
+  @@index([parentId])
 }
 
 // The only path to a parent account existing: a student-initiated invite.
 model ParentStudentInvite {
-  id           String                     @id @default(uuid())
-  studentId    String
-  student      User                       @relation("InviteStudent", fields: [studentId], references: [id])
-  parentEmail   String
-  token         String                     @unique
-  status        ParentStudentInviteStatus  @default(pending)
-  expiresAt      DateTime
-  createdAt      DateTime                   @default(now())
+  id          String                    @id @default(uuid())
+  studentId   String
+  student     User                      @relation("InviteStudent", fields: [studentId], references: [id])
+  parentEmail String
+  token       String                    @unique
+  status      ParentStudentInviteStatus @default(pending)
+  expiresAt   DateTime
+  createdAt   DateTime                  @default(now())
 
   @@index([studentId])
 }
 
-// Two-step trust: parent accepts the invite, THEN the student must separately
-// approve. A parent has no read/write capability anywhere in the app until
-// status = approved — enforce this in every parent-facing API route.
+// Points at a StudentRecord, not a User directly -- this is what lets the
+// link exist before the student ever has a CampusConnect account, and means
+// existing links stay valid automatically once the student later claims the
+// record (no relinking needed at claim time).
+//
+// SECURITY NOTE (revises an earlier decision -- see plan doc): OTP
+// possession alone (otp_verified) already lets the parent post "for" the
+// student, rather than blocking until a further approval. This was a
+// deliberate tradeoff, not an oversight: walking through every parent
+// capability in the spec, none of them expose private student data at
+// otp_verified -- creating own trips/requests needs no link at all, and
+// "view information explicitly shared with them" is self-gating (nothing
+// exists to share until an account-holding student opts in). The only
+// capability actually gated by link status is posting a PUBLIC "for my
+// student" request using data the parent themselves typed in -- so the real
+// risk at otp_verified is reputational/representation harm (an unwanted
+// parent publicly claiming a connection), not data disclosure. That's also
+// why an OTP alone can't fully prove the real student consented -- the code
+// only proves whoever typed it could read that inbox at that moment, which
+// could mean the parent has direct (possibly unwanted) access, or the
+// student cooperatively relayed it out-of-band; the product can't tell
+// these apart. Mitigations, all required together, not optional:
+//   1. Any Request posted while status=otp_verified renders publicly marked
+//      "connection not yet confirmed by student" to every other viewer.
+//   2. The student notice email (sent at otp_verified, distinct from the
+//      OTP email) includes objectionToken below -- a one-click,
+//      no-account-required revoke, so the student doesn't have to ever sign
+//      up to shut this down.
+//   3. The parent's OWN email must already be verified before they can
+//      start this flow -- always a traceable, accountable adult identity.
 model ParentStudentLink {
-  id          String                    @id @default(uuid())
-  parentId    String
-  parent      User                      @relation("LinkParent", fields: [parentId], references: [id])
-  studentId   String
-  student     User                      @relation("LinkStudent", fields: [studentId], references: [id])
-  status      ParentStudentLinkStatus   @default(pending_student_approval)
-  approvedAt   DateTime?
-  createdAt    DateTime                  @default(now())
+  id              String                  @id @default(uuid())
+  parentId        String
+  parent          User                    @relation("LinkParent", fields: [parentId], references: [id])
+  studentRecordId String
+  studentRecord   StudentRecord           @relation(fields: [studentRecordId], references: [id])
+  status          ParentStudentLinkStatus @default(otp_verified)
+  // objectionToken powers the no-account-required "this wasn't me" link in
+  // the student notice email. Landing on it shows a confirmation page
+  // requiring an explicit button click (POST) before revoking -- NEVER
+  // auto-revoke on the GET/page-load itself, since email security scanners
+  // commonly pre-fetch links (confirmed firsthand this session: Supabase's
+  // own confirmation link got silently consumed by exactly this before the
+  // real user could click it -- an auto-acting GET here would let a scanner
+  // falsely revoke a legitimate connection).
+  objectionToken  String?                 @unique
+  otpVerifiedAt   DateTime?
+  approvedAt      DateTime?
+  revokedAt       DateTime?
+  createdAt       DateTime                @default(now())
 
-  @@unique([parentId, studentId])
+  @@unique([parentId, studentRecordId])
+  @@index([studentRecordId])
 }
 
 model Region {
-  id      String  @id @default(uuid())
-  name    String  @unique // "Bay Area", "UC Irvine Area"
-  slug    String  @unique
+  id   String @id @default(uuid())
+  name String @unique // "Bay Area", "UC Irvine Area"
+  slug String @unique
 
-  cities         City[]
-  users          User[]
-  domains        SupportedUniversityDomain[]
-  routesAsA      RouteCommunity[]            @relation("RouteRegionA")
-  routesAsB      RouteCommunity[]            @relation("RouteRegionB")
+  cities    City[]
+  users     User[]
+  domains   SupportedUniversityDomain[]
+  routesAsA RouteCommunity[]            @relation("RouteRegionA")
+  routesAsB RouteCommunity[]            @relation("RouteRegionB")
 }
 
 // Cities are open-ended, not a closed Bay-Area-only allowlist — a student can
 // post a trip against any city (e.g. an LAX airport entry outside every
 // seeded region). Pre-seed common ones; support adding more on demand.
 model City {
-  id        String  @id @default(uuid())
-  name      String
-  regionId   String
-  region     Region  @relation(fields: [regionId], references: [id])
+  id       String @id @default(uuid())
+  name     String
+  regionId String
+  region   Region @relation(fields: [regionId], references: [id])
 
-  tripsAsOrigin        Trip[]     @relation("TripOrigin")
-  tripsAsDestination    Trip[]     @relation("TripDestination")
-  requestsAsOrigin       Request[] @relation("RequestOrigin")
-  requestsAsDestination   Request[] @relation("RequestDestination")
+  tripsAsOrigin         Trip[]    @relation("TripOrigin")
+  tripsAsDestination    Trip[]    @relation("TripDestination")
+  requestsAsOrigin      Request[] @relation("RequestOrigin")
+  requestsAsDestination Request[] @relation("RequestDestination")
 
   @@unique([name, regionId])
 }
@@ -191,38 +314,38 @@ model City {
 // (Bay Area <-> UCI at launch). It does NOT gate what Trip/Request can be
 // created against — that's determined purely by City selection.
 model RouteCommunity {
-  id         String  @id @default(uuid())
-  regionAId   String
-  regionA     Region  @relation("RouteRegionA", fields: [regionAId], references: [id])
-  regionBId   String
-  regionB     Region  @relation("RouteRegionB", fields: [regionBId], references: [id])
-  active      Boolean @default(false)
+  id        String  @id @default(uuid())
+  regionAId String
+  regionA   Region  @relation("RouteRegionA", fields: [regionAId], references: [id])
+  regionBId String
+  regionB   Region  @relation("RouteRegionB", fields: [regionBId], references: [id])
+  active    Boolean @default(false)
 
   @@unique([regionAId, regionBId])
 }
 
 model Trip {
-  id                     String     @id @default(uuid())
-  travelerId              String
-  traveler                User       @relation("TripTraveler", fields: [travelerId], references: [id])
-  originCityId             String
-  originCity               City       @relation("TripOrigin", fields: [originCityId], references: [id])
-  destinationCityId         String
-  destinationCity           City       @relation("TripDestination", fields: [destinationCityId], references: [id])
-  departureDate             DateTime
-  departureTime              String?
-  seatsTotal                 Int        @default(0)
-  seatsRemaining              Int        @default(0)
-  packageSpaceAvailable        Boolean    @default(false)
-  packageCapacityNote           String?
+  id                    String     @id @default(uuid())
+  travelerId            String
+  traveler              User       @relation("TripTraveler", fields: [travelerId], references: [id])
+  originCityId          String
+  originCity            City       @relation("TripOrigin", fields: [originCityId], references: [id])
+  destinationCityId     String
+  destinationCity       City       @relation("TripDestination", fields: [destinationCityId], references: [id])
+  departureDate         DateTime
+  departureTime         String?
+  seatsTotal            Int        @default(0)
+  seatsRemaining        Int        @default(0)
+  packageSpaceAvailable Boolean    @default(false)
+  packageCapacityNote   String?
   // Free text describing the TRIP (e.g. "driving my own car" vs. "organizing
   // a shared ride") — never a contribution/gas-money/payment field.
-  tripNotes                     String?
-  status                        TripStatus @default(active)
-  createdAt                     DateTime   @default(now())
+  tripNotes             String?
+  status                TripStatus @default(active)
+  createdAt             DateTime   @default(now())
 
-  requests        Request[]
-  conversations    Conversation[]
+  requests      Request[]
+  conversations Conversation[]
 
   @@index([originCityId, destinationCityId, departureDate])
   @@index([travelerId])
@@ -232,39 +355,39 @@ model Trip {
 // nullable so a "requester posts first" flow (need a ride before any
 // matching trip exists) is representable without a second model.
 model Request {
-  id                  String        @id @default(uuid())
-  type                RequestType
-  tripId               String?
-  trip                 Trip?         @relation(fields: [tripId], references: [id])
+  id     String      @id @default(uuid())
+  type   RequestType
+  tripId String?
+  trip   Trip?       @relation(fields: [tripId], references: [id])
 
   // Only used when tripId is null (standalone request).
-  originCityId          String?
-  originCity             City?         @relation("RequestOrigin", fields: [originCityId], references: [id])
-  destinationCityId       String?
-  destinationCity         City?         @relation("RequestDestination", fields: [destinationCityId], references: [id])
-  neededDate               DateTime?
+  originCityId      String?
+  originCity        City?     @relation("RequestOrigin", fields: [originCityId], references: [id])
+  destinationCityId String?
+  destinationCity   City?     @relation("RequestDestination", fields: [destinationCityId], references: [id])
+  neededDate        DateTime?
 
-  postedById                String
-  postedBy                  User          @relation("RequestPostedBy", fields: [postedById], references: [id])
-  beneficiaryId              String
-  beneficiary                User          @relation("RequestBeneficiary", fields: [beneficiaryId], references: [id])
+  postedById    String
+  postedBy      User   @relation("RequestPostedBy", fields: [postedById], references: [id])
+  beneficiaryId String
+  beneficiary   User   @relation("RequestBeneficiary", fields: [beneficiaryId], references: [id])
 
-  status                     RequestStatus @default(pending)
+  status RequestStatus @default(pending)
 
   // ride-specific
-  seatsRequested               Int?
+  seatsRequested Int?
 
   // package-specific
-  packageDescription            String?
-  packageSize                    String?
-  neededByDate                    DateTime?
+  packageDescription String?
+  packageSize        String?
+  neededByDate       DateTime?
 
-  createdAt                      DateTime      @default(now())
-  respondedAt                     DateTime?
-  completedAt                     DateTime?
+  createdAt   DateTime  @default(now())
+  respondedAt DateTime?
+  completedAt DateTime?
 
-  conversation      Conversation?
-  reviews             Review[]
+  conversation Conversation?
+  reviews      Review[]
 
   @@index([postedById])
   @@index([beneficiaryId])
@@ -274,41 +397,41 @@ model Request {
 // Scoped to (trip, counterpart) so a prospective requester can ask questions
 // before a formal Request exists. requestId is attached once one is created.
 model Conversation {
-  id           String                     @id @default(uuid())
-  tripId        String
-  trip          Trip                       @relation(fields: [tripId], references: [id])
-  requestId      String?                    @unique
-  request        Request?                   @relation(fields: [requestId], references: [id])
-  createdAt        DateTime                   @default(now())
+  id        String   @id @default(uuid())
+  tripId    String
+  trip      Trip     @relation(fields: [tripId], references: [id])
+  requestId String?  @unique
+  request   Request? @relation(fields: [requestId], references: [id])
+  createdAt DateTime @default(now())
 
-  participants  ConversationParticipant[]
-  messages       Message[]
+  participants ConversationParticipant[]
+  messages     Message[]
 
   @@index([tripId])
 }
 
 model ConversationParticipant {
-  id               String       @id @default(uuid())
-  conversationId    String
-  conversation      Conversation @relation(fields: [conversationId], references: [id])
-  userId             String
-  user               User         @relation(fields: [userId], references: [id])
+  id             String       @id @default(uuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id])
+  userId         String
+  user           User         @relation(fields: [userId], references: [id])
 
   @@unique([conversationId, userId])
 }
 
 model Message {
-  id               String        @id @default(uuid())
-  conversationId    String
-  conversation      Conversation  @relation(fields: [conversationId], references: [id])
-  senderId           String
-  sender              User          @relation("MessageSender", fields: [senderId], references: [id])
-  body                 String
+  id             String       @id @default(uuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id])
+  senderId       String
+  sender         User         @relation("MessageSender", fields: [senderId], references: [id])
+  body           String
   // Reserved for future rich messaging (photos, quick replies, payment
   // requests) — unused in MVP, present now so that's additive, not a migration.
-  attachmentUrl          String?
-  attachmentType          String?
-  sentAt                    DateTime      @default(now())
+  attachmentUrl  String?
+  attachmentType String?
+  sentAt         DateTime     @default(now())
 
   @@index([conversationId, sentAt])
 }
@@ -316,44 +439,44 @@ model Message {
 // Fraud-resistant by construction: only on a completed Request, only its
 // participants, one review per (request, reviewer) pair.
 model Review {
-  id            String   @id @default(uuid())
-  requestId      String
-  request        Request  @relation(fields: [requestId], references: [id])
-  reviewerId      String
-  reviewer        User     @relation("ReviewReviewer", fields: [reviewerId], references: [id])
-  revieweeId       String
-  reviewee         User     @relation("ReviewReviewee", fields: [revieweeId], references: [id])
-  rating            Int
-  comment            String?
-  createdAt           DateTime @default(now())
+  id         String   @id @default(uuid())
+  requestId  String
+  request    Request  @relation(fields: [requestId], references: [id])
+  reviewerId String
+  reviewer   User     @relation("ReviewReviewer", fields: [reviewerId], references: [id])
+  revieweeId String
+  reviewee   User     @relation("ReviewReviewee", fields: [revieweeId], references: [id])
+  rating     Int
+  comment    String?
+  createdAt  DateTime @default(now())
 
   @@unique([requestId, reviewerId])
   @@index([revieweeId])
 }
 
 model Report {
-  id                String       @id @default(uuid())
-  reporterId          String
-  reporter            User         @relation("ReportReporter", fields: [reporterId], references: [id])
-  reportedUserId        String
-  reportedUser          User         @relation("ReportReported", fields: [reportedUserId], references: [id])
-  contextType             String? // "trip" | "request" | "message" | "profile"
-  contextId                String?
-  reason                    String
-  detail                     String?
-  status                     ReportStatus @default(open)
-  createdAt                   DateTime     @default(now())
+  id             String       @id @default(uuid())
+  reporterId     String
+  reporter       User         @relation("ReportReporter", fields: [reporterId], references: [id])
+  reportedUserId String
+  reportedUser   User         @relation("ReportReported", fields: [reportedUserId], references: [id])
+  contextType    String? // "trip" | "request" | "message" | "profile"
+  contextId      String?
+  reason         String
+  detail         String?
+  status         ReportStatus @default(open)
+  createdAt      DateTime     @default(now())
 
   @@index([reportedUserId])
 }
 
 model Block {
-  id            String   @id @default(uuid())
-  blockerId      String
-  blocker        User     @relation("BlockBlocker", fields: [blockerId], references: [id])
-  blockedId       String
-  blocked         User     @relation("BlockBlocked", fields: [blockedId], references: [id])
-  createdAt        DateTime @default(now())
+  id        String   @id @default(uuid())
+  blockerId String
+  blocker   User     @relation("BlockBlocker", fields: [blockerId], references: [id])
+  blockedId String
+  blocked   User     @relation("BlockBlocked", fields: [blockedId], references: [id])
+  createdAt DateTime @default(now())
 
   @@unique([blockerId, blockedId])
 }

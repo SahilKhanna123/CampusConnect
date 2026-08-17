@@ -42,3 +42,25 @@ export function universityBadgeLabel(user: CurrentUser): string | null {
     ?.university;
   return `✓ ${universityName ?? "University"} Verified`;
 }
+
+/**
+ * True once a parent has proven access to a student's university inbox via
+ * OTP (status otp_verified or approved) and the link hasn't been revoked —
+ * this is what gates posting a Request "for" that student. It does NOT gate
+ * anything else a parent can do (their own trips/requests need no link at
+ * all), and it deliberately does not require `approved` — see the security
+ * note on ParentStudentLink in prisma/schema.prisma for why OTP possession
+ * alone is treated as sufficient for this one, narrow, publicly-labeled
+ * capability, and what mitigates the interim trust gap.
+ */
+export async function canActOnBehalfOf(
+  parentUserId: string,
+  studentRecordId: string,
+) {
+  const link = await prisma.parentStudentLink.findUnique({
+    where: {
+      parentId_studentRecordId: { parentId: parentUserId, studentRecordId },
+    },
+  });
+  return link !== null && link.status !== "revoked";
+}

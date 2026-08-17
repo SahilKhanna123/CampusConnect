@@ -18,6 +18,9 @@
 *.pem
 npm-debug.log*
 
+# local Claude Code session state
+.claude/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

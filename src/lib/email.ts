@@ -4,37 +4,96 @@ const resend = process.env.RESEND_API_KEY
   ? new Resend(process.env.RESEND_API_KEY)
   : null;
 
-export async function sendUniversityVerificationEmail(params: {
+async function send(params: {
   to: string;
-  verifyUrl: string;
-  universityName: string;
+  subject: string;
+  html: string;
+  devLogLabel: string;
 }) {
-  const { to, verifyUrl, universityName } = params;
+  const { to, subject, html, devLogLabel } = params;
 
   if (!resend) {
     // Local dev without RESEND_API_KEY configured — don't block the flow,
-    // just surface the link so it can be clicked manually.
-    console.log(
-      `[email:dev] University verification link for ${to} (${universityName}): ${verifyUrl}`,
-    );
+    // just log so the content can still be inspected/acted on manually.
+    console.log(`[email:dev] ${devLogLabel} for ${to}:\n${html}`);
     return;
   }
 
   const { error } = await resend.emails.send({
     from: process.env.EMAIL_FROM ?? "CampusConnect <onboarding@resend.dev>",
     to,
-    subject: `Verify your ${universityName} email for CampusConnect`,
-    html: `<p>Confirm this is your ${universityName} email to get your verified badge on CampusConnect.</p><p><a href="${verifyUrl}">Verify my university email</a></p><p>This link expires in 48 hours.</p>`,
+    subject,
+    html,
   });
 
   // The Resend SDK returns { error } instead of throwing — without this
   // check, a failed send (e.g. the sandbox sender's recipient restriction)
   // looks identical to success and the caller has no way to know.
   if (error) {
-    console.error(
-      `[email] Failed to send university verification to ${to}:`,
-      error,
-    );
-    throw new Error(`Failed to send verification email: ${error.message}`);
+    console.error(`[email] Failed to send "${devLogLabel}" to ${to}:`, error);
+    throw new Error(`Failed to send email: ${error.message}`);
   }
+}
+
+export async function sendUniversityVerificationEmail(params: {
+  to: string;
+  verifyUrl: string;
+  universityName: string;
+}) {
+  const { to, verifyUrl, universityName } = params;
+  await send({
+    to,
+    subject: `Verify your ${universityName} email for CampusConnect`,
+    html: `<p>Confirm this is your ${universityName} email to get your verified badge on CampusConnect.</p><p><a href="${verifyUrl}">Verify my university email</a></p><p>This link expires in 48 hours.</p>`,
+    devLogLabel: "University verification link",
+  });
+}
+
+// Sent to the STUDENT's inbox on a parent's behalf — the student never
+// initiated this, so the copy has to make that unambiguous and explain
+// what entering the code actually does.
+export async function sendParentConnectionOtpEmail(params: {
+  to: string;
+  parentName: string;
+  otpCode: string;
+}) {
+  const { to, parentName, otpCode } = params;
+  await send({
+    to,
+    subject: "Parent Connection Request — CampusConnect",
+    html: `
+      <p><strong>${parentName}</strong> is requesting to connect with you on CampusConnect as your parent/guardian.</p>
+      <p>If you approve this connection, give them this verification code to enter in CampusConnect:</p>
+      <p style="font-size: 24px; font-weight: bold; letter-spacing: 2px;">${otpCode}</p>
+      <p>This code expires in 20 minutes. If you don't recognize this request, you can safely ignore this email — no connection will be made without the code above.</p>
+    `,
+    devLogLabel: "Parent connection OTP",
+  });
+}
+
+// Sent immediately once a parent's OTP confirms — distinct from the OTP
+// email above, and the primary safety mechanism for the interim window
+// before the student has confirmed anything: a one-click, no-account-
+// required way to shut the connection down. The link lands on a
+// confirmation PAGE requiring an explicit click, never an auto-acting GET —
+// email security scanners are known to pre-fetch links (confirmed
+// firsthand in this project), and an auto-revoking GET would let a scanner
+// falsely reject a legitimate connection.
+export async function sendParentConnectionNoticeEmail(params: {
+  to: string;
+  parentName: string;
+  objectionUrl: string;
+}) {
+  const { to, parentName, objectionUrl } = params;
+  await send({
+    to,
+    subject: "A parent has connected with you on CampusConnect",
+    html: `
+      <p><strong>${parentName}</strong> has connected with you as a parent/guardian on CampusConnect using this email address.</p>
+      <p>They can now post rides and package requests on your behalf, clearly labeled as posted by them, for you. They do not have access to your CampusConnect account, messages, or any account you create.</p>
+      <p>If you don't recognize this or don't want this connection, you can remove it without needing to create an account:</p>
+      <p><a href="${objectionUrl}">This wasn't me — remove this connection</a></p>
+    `,
+    devLogLabel: "Parent connection notice",
+  });
 }
