@@ -19,6 +19,7 @@ export default async function ConnectStudentPage() {
       initialName={user.name}
       initialPhotoUrl={user.photoUrl}
       initialHomeCityId={user.homeCityId}
+      initialPhone={user.phone}
       citiesByRegion={citiesByRegion}
       skipProfileStep={hasCompletedOnboarding(user)}
     />

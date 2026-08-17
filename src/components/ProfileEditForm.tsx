@@ -2,19 +2,28 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { LOOKING_FOR_OPTIONS } from "@/lib/lookingFor";
 
 type CityGroup = { regionName: string; cities: { id: string; name: string }[] };
 
 // Shared by the student onboarding page, step 0 of the parent
 // /family/connect-student wizard, and self-editing on /profile -- all three
-// collect the same name/photo/home-city fields via PATCH /api/profile.
-// University, badges, and any other verification-derived data are
-// deliberately not present here at all: they're never user-editable.
+// collect name/photo/home-city, plus a persona-specific set of optional
+// enrichment fields gated by `isParent`: students get major/year/travel
+// preferences/looking-for, parents get a phone number. University, badges,
+// and any other verification-derived data are deliberately not present
+// here at all: they're never user-editable.
 export function ProfileEditForm({
   initialName,
   initialPhotoUrl,
   initialHomeCityId,
   citiesByRegion,
+  isParent,
+  initialMajor,
+  initialYear,
+  initialTravelPreferences,
+  initialLookingFor,
+  initialPhone,
   submitLabel,
   redirectTo,
   onSaved,
@@ -23,6 +32,12 @@ export function ProfileEditForm({
   initialPhotoUrl: string | null;
   initialHomeCityId: string | null;
   citiesByRegion: CityGroup[];
+  isParent: boolean;
+  initialMajor: string | null;
+  initialYear: string | null;
+  initialTravelPreferences: string | null;
+  initialLookingFor: string[];
+  initialPhone: string | null;
   submitLabel: string;
   redirectTo?: string;
   onSaved?: () => void;
@@ -34,6 +49,13 @@ export function ProfileEditForm({
     initialPhotoUrl,
   );
   const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [major, setMajor] = useState(initialMajor ?? "");
+  const [year, setYear] = useState(initialYear ?? "");
+  const [travelPreferences, setTravelPreferences] = useState(
+    initialTravelPreferences ?? "",
+  );
+  const [lookingFor, setLookingFor] = useState<string[]>(initialLookingFor);
+  const [phone, setPhone] = useState(initialPhone ?? "");
   const [status, setStatus] = useState<"idle" | "submitting">("idle");
   const [error, setError] = useState<string | null>(null);
 
@@ -41,6 +63,14 @@ export function ProfileEditForm({
     const file = e.target.files?.[0] ?? null;
     setPhotoFile(file);
     if (file) setPhotoPreview(URL.createObjectURL(file));
+  }
+
+  function toggleLookingFor(value: string) {
+    setLookingFor((prev) =>
+      prev.includes(value)
+        ? prev.filter((v) => v !== value)
+        : [...prev, value],
+    );
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -52,6 +82,14 @@ export function ProfileEditForm({
     formData.set("name", name);
     formData.set("homeCityId", homeCityId);
     if (photoFile) formData.set("photo", photoFile);
+    if (isParent) {
+      formData.set("phone", phone);
+    } else {
+      formData.set("major", major);
+      formData.set("year", year);
+      formData.set("travelPreferences", travelPreferences);
+      lookingFor.forEach((value) => formData.append("lookingFor", value));
+    }
 
     const res = await fetch("/api/profile", { method: "PATCH", body: formData });
 
@@ -121,6 +159,67 @@ export function ProfileEditForm({
           ))}
         </select>
       </div>
+
+      {isParent ? (
+        <div>
+          <label htmlFor="phone">Phone number (optional)</label>
+          <input
+            id="phone"
+            type="tel"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+          />
+          <p>Private -- never shown on your public profile.</p>
+        </div>
+      ) : (
+        <>
+          <div>
+            <label htmlFor="major">Major (optional)</label>
+            <input
+              id="major"
+              type="text"
+              value={major}
+              onChange={(e) => setMajor(e.target.value)}
+            />
+          </div>
+          <div>
+            <label htmlFor="year">Year (optional)</label>
+            <input
+              id="year"
+              type="text"
+              placeholder="e.g. Junior, or 2027"
+              value={year}
+              onChange={(e) => setYear(e.target.value)}
+            />
+          </div>
+          <div>
+            <label htmlFor="travelPreferences">
+              Travel preferences (optional)
+            </label>
+            <textarea
+              id="travelPreferences"
+              placeholder="e.g. usually travels weekends, prefer driving over flying"
+              value={travelPreferences}
+              onChange={(e) => setTravelPreferences(e.target.value)}
+            />
+          </div>
+          <fieldset>
+            <legend>What are you looking for? (optional)</legend>
+            {LOOKING_FOR_OPTIONS.map((option) => (
+              <label key={option.value} style={{ display: "block" }}>
+                <input
+                  type="checkbox"
+                  checked={lookingFor.includes(option.value)}
+                  onChange={() => toggleLookingFor(option.value)}
+                />
+                {" "}
+                {option.label}
+              </label>
+            ))}
+          </fieldset>
+        </>
+      )}
+
       {error && <p role="alert">{error}</p>}
       <button type="submit" disabled={status === "submitting"}>
         {status === "submitting" ? "Saving…" : submitLabel}

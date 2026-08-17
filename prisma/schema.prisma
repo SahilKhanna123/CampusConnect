@@ -108,6 +108,23 @@ model User {
   // rather than inferring completion from homeCityId being non-null, so the
   // signal stays stable even if home-area later becomes editable-to-blank.
   onboardingCompletedAt DateTime?
+  // Student-only onboarding fields below -- all optional, free text (not
+  // enums), and all public (same visibility tier as name/photo/university).
+  // "year" is deliberately a free string, not a class-year enum, so a
+  // student can write "Junior" or "2027" or whatever reads naturally to
+  // them; over-structuring this wasn't worth it for what's a display field.
+  major             String?
+  year              String?
+  travelPreferences String?
+  // Multi-select against LOOKING_FOR_OPTIONS (src/lib/lookingFor.ts) --
+  // reuses the Post page's own vocabulary (Offer a Ride / Need a Ride /
+  // Offer Package Space / Need Delivery) rather than inventing new
+  // categories. A stated interest, not a capability grant -- doesn't gate
+  // anything, purely descriptive on the profile.
+  lookingFor        String[] @default([])
+  // Parent-only onboarding field. Private -- same visibility tier as email,
+  // never surfaced on the public profile (see src/lib/profile.ts).
+  phone             String?
   // A factual record of onboarding path, NOT a permanent role -- doesn't
   // restrict what this account can do (still USER != ROLE: a parent can
   // request rides for themselves, offer package space, etc. exactly like

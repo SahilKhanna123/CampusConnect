@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { getPublicProfile } from "@/lib/profile";
+import { lookingForLabel } from "@/lib/lookingFor";
 
 // Public profile view of another user -- only the fields getPublicProfile
 // (src/lib/profile.ts) allowlists: name, photo, university, general home
@@ -32,7 +33,19 @@ export default async function PublicProfilePage({
       )}
       <h1>{profile.name}</h1>
       {profile.university && <p>{profile.university}</p>}
+      {(profile.major || profile.year) && (
+        <p>
+          {[profile.major, profile.year].filter(Boolean).join(" · ")}
+        </p>
+      )}
       {profile.homeArea && <p>{profile.homeArea}</p>}
+      {profile.travelPreferences && <p>{profile.travelPreferences}</p>}
+      {profile.lookingFor.length > 0 && (
+        <p>
+          Looking for:{" "}
+          {profile.lookingFor.map(lookingForLabel).join(", ")}
+        </p>
+      )}
       <ul>
         {profile.badges.email && <li>✓ Email Verified</li>}
         {profile.badges.university && <li>✓ University Verified</li>}

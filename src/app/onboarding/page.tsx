@@ -31,6 +31,12 @@ export default async function OnboardingPage() {
         initialPhotoUrl={user.photoUrl}
         initialHomeCityId={user.homeCityId}
         citiesByRegion={citiesByRegion}
+        isParent={false}
+        initialMajor={user.major}
+        initialYear={user.year}
+        initialTravelPreferences={user.travelPreferences}
+        initialLookingFor={user.lookingFor}
+        initialPhone={user.phone}
         submitLabel="Continue"
         redirectTo="/"
       />

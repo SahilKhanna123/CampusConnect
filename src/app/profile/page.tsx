@@ -57,6 +57,12 @@ export default async function ProfilePage() {
         initialPhotoUrl={user.photoUrl}
         initialHomeCityId={user.homeCityId}
         citiesByRegion={citiesByRegion}
+        isParent={user.signedUpAsParent}
+        initialMajor={user.major}
+        initialYear={user.year}
+        initialTravelPreferences={user.travelPreferences}
+        initialLookingFor={user.lookingFor}
+        initialPhone={user.phone}
         submitLabel="Save changes"
       />
 
