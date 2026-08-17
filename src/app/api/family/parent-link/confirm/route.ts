@@ -5,6 +5,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { hashOtpCode, generateObjectionToken, OTP_MAX_ATTEMPTS } from "@/lib/otp";
 import { claimOrCreateStudentRecord } from "@/lib/onboarding";
 import { sendParentConnectionNoticeEmail } from "@/lib/email";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 const bodySchema = z.object({
   studentEmail: z.string().email(),
@@ -127,6 +128,52 @@ export async function POST(request: Request) {
   });
 
   await prisma.parentStudentOtpRequest.delete({ where: { id: pending.id } });
+
+  // Grants the parent's own "✓ Verified Parent of <University> Student"
+  // badge -- a parent is never expected to have their own university email
+  // verified (see src/app/api/auth/parent-signup), but successfully OTP-
+  // linking to a student IS a real, independent verification fact about
+  // THIS account, hence its own VerificationRecord type rather than
+  // reusing "university" (which specifically means "this account holder's
+  // own email was proven"). otp_verified is sufficient here, same as it is
+  // for hasLinkedStudent/canActOnBehalfOf -- see the security note on
+  // ParentStudentLink in prisma/schema.prisma. If this parent links a
+  // second student later at a different university, this simply overwrites
+  // metadata.university to the most recent one (only one university is
+  // seeded at launch, so this doesn't matter in practice yet).
+  await prisma.verificationRecord.upsert({
+    where: { userId_type: { userId: user.id, type: "parent_relationship" } },
+    update: {
+      status: "verified",
+      verifiedAt: new Date(),
+      metadata: { university: pending.universityDomain.universityName },
+    },
+    create: {
+      userId: user.id,
+      type: "parent_relationship",
+      status: "verified",
+      verifiedAt: new Date(),
+      metadata: { university: pending.universityDomain.universityName },
+    },
+  });
+
+  // Denormalized, edge-readable copy of "this parent has a non-revoked
+  // link" onto the Supabase Auth user -- src/middleware.ts checks this
+  // (not Prisma, which isn't reachable from the default Edge middleware
+  // runtime here) to enforce the parent-link gate on every navigation, not
+  // just the first page load. Best-effort: Prisma's ParentStudentLink
+  // above is the real source of truth (see hasLinkedStudent in
+  // src/lib/auth.ts), so a failure here shouldn't roll back an otherwise
+  // successful link -- worst case, the middleware gate stays stuck showing
+  // this page again, which is safe, just not ideal.
+  try {
+    const admin = createAdminClient();
+    await admin.auth.admin.updateUserById(user.id, {
+      app_metadata: { hasLinkedStudent: true },
+    });
+  } catch (err) {
+    console.error("Failed to set hasLinkedStudent app_metadata:", err);
+  }
 
   const objectionUrl = `${new URL(request.url).origin}/family/link-objection?token=${link.objectionToken}`;
   // Notice email failing shouldn't roll back a link that's otherwise
