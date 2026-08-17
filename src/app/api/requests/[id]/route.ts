@@ -1,35 +1,34 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
-import { tripFieldsSchema } from "@/lib/postSchemas";
+import { requestFieldsSchema } from "@/lib/postSchemas";
 
-// GET /api/trips/:id
+// GET /api/requests/:id
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
-  const trip = await prisma.trip.findUnique({
+  const found = await prisma.request.findUnique({
     where: { id },
     include: {
       originCity: { include: { region: true } },
       destinationCity: { include: { region: true } },
-      traveler: { select: { id: true, name: true, photoUrl: true } },
+      postedBy: { select: { id: true, name: true, photoUrl: true } },
     },
   });
-  if (!trip) {
+  if (!found) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
-  return NextResponse.json({ trip });
+  return NextResponse.json({ request: found });
 }
 
-// PATCH /api/trips/:id
-// Body: tripFieldsSchema (same shape as create -- the edit form always
-// submits the full set, mirroring PATCH /api/profile's convention). Caller
-// must be the Trip's own traveler; there is no separate "manager" role.
-// Changing seatsTotal resets seatsRemaining to match it -- safe because
-// nothing can have booked a seat yet (accept/decline is still a stub, i.e.
-// matching is deliberately not built).
+// PATCH /api/requests/:id
+// Body: requestFieldsSchema (same shape as create -- the edit form always
+// submits the full set). Caller must be the Request's own poster
+// (postedById), not necessarily its beneficiary -- there is no on-behalf-of
+// posting wired up yet (see the POST handler in ../route.ts), so today
+// these are always the same person anyway.
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
@@ -40,17 +39,20 @@ export async function PATCH(
   }
 
   const { id } = await params;
-  const trip = await prisma.trip.findUnique({ where: { id } });
-  if (!trip) {
+  const found = await prisma.request.findUnique({ where: { id } });
+  if (!found) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
-  if (trip.travelerId !== user.id) {
+  if (found.postedById !== user.id) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const parsed = tripFieldsSchema.safeParse(await request.json());
+  const parsed = requestFieldsSchema.safeParse(await request.json());
   if (!parsed.success) {
-    return NextResponse.json({ error: "Invalid trip details." }, { status: 400 });
+    return NextResponse.json(
+      { error: "Invalid request details." },
+      { status: 400 },
+    );
   }
   const data = parsed.data;
 
@@ -65,32 +67,29 @@ export async function PATCH(
     );
   }
 
-  await prisma.trip.update({
+  await prisma.request.update({
     where: { id },
     data: {
+      type: data.type,
       originCityId: data.originCityId,
       destinationCityId: data.destinationCityId,
-      departureDate: new Date(data.departureDate),
-      departureTime: data.departureTime || null,
+      neededDate: data.neededDate ? new Date(data.neededDate) : null,
+      neededTime: data.neededTime || null,
       flexibleTime: data.flexibleTime ?? false,
-      seatsTotal: data.seatsTotal,
-      seatsRemaining: data.seatsTotal,
-      packageSpaceAvailable: data.packageSpaceAvailable ?? false,
-      packageCapacityNote: data.packageCapacityNote || null,
-      tripNotes: data.tripNotes || null,
+      seatsRequested: data.type === "ride" ? (data.seatsRequested ?? 1) : null,
+      packageDescription:
+        data.type === "package" ? data.packageDescription || null : null,
+      packageSize: data.type === "package" ? data.packageSize || null : null,
+      notes: data.notes || null,
     },
   });
 
   return NextResponse.json({ ok: true });
 }
 
-// DELETE /api/trips/:id
-// A soft delete (status -> cancelled), not a row removal -- consistent
-// with how every other lifecycle in this schema works via a status enum,
-// never a hard delete, and avoids FK issues once Conversation/Request rows
-// can reference a Trip (accept/decline is still a stub, so none exist yet,
-// but the pattern should hold once that's built). Caller must be the
-// Trip's own traveler.
+// DELETE /api/requests/:id
+// A soft delete (status -> cancelled), not a row removal -- same reasoning
+// as DELETE /api/trips/:id. Caller must be the Request's own poster.
 export async function DELETE(
   _request: Request,
   { params }: { params: Promise<{ id: string }> },
@@ -101,15 +100,18 @@ export async function DELETE(
   }
 
   const { id } = await params;
-  const trip = await prisma.trip.findUnique({ where: { id } });
-  if (!trip) {
+  const found = await prisma.request.findUnique({ where: { id } });
+  if (!found) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
-  if (trip.travelerId !== user.id) {
+  if (found.postedById !== user.id) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  await prisma.trip.update({ where: { id }, data: { status: "cancelled" } });
+  await prisma.request.update({
+    where: { id },
+    data: { status: "cancelled" },
+  });
 
   return NextResponse.json({ ok: true });
 }

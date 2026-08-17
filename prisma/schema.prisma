@@ -394,6 +394,10 @@ model Trip {
   destinationCity       City       @relation("TripDestination", fields: [destinationCityId], references: [id])
   departureDate         DateTime
   departureTime         String?
+  // Poster is open to some slack around departureDate/departureTime rather
+  // than requiring an exact match -- purely descriptive for now (no
+  // matching/search logic reads this yet).
+  flexibleTime          Boolean    @default(false)
   seatsTotal            Int        @default(0)
   seatsRemaining        Int        @default(0)
   packageSpaceAvailable Boolean    @default(false)
@@ -426,6 +430,13 @@ model Request {
   destinationCityId String?
   destinationCity   City?     @relation("RequestDestination", fields: [destinationCityId], references: [id])
   neededDate        DateTime?
+  neededTime        String?
+  // Mirrors Trip.flexibleTime -- purely descriptive, no matching/search
+  // logic reads this yet.
+  flexibleTime      Boolean   @default(false)
+  // General notes, distinct from packageDescription (package-specific
+  // details) -- applies to ride and package requests alike.
+  notes             String?
 
   postedById    String
   postedBy      User   @relation("RequestPostedBy", fields: [postedById], references: [id])

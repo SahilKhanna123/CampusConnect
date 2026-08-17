@@ -21,6 +21,7 @@ const NAV_ITEMS = [
   { href: "/", label: "Home" },
   { href: "/explore", label: "Explore" },
   { href: "/post", label: "Post" },
+  { href: "/my-posts", label: "My Posts" },
   { href: "/messages", label: "Messages" },
   { href: "/profile", label: "Profile" },
 ];
