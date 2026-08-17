@@ -61,7 +61,7 @@ export default function SignUpPage() {
     const supabase = createClient();
     const { error: verifyError } = await supabase.auth.verifyOtp({
       email,
-      token: code,
+      token: code.trim(),
       type: "signup",
     });
 
