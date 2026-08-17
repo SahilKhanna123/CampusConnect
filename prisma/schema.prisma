@@ -81,15 +81,24 @@ model User {
   // Matches Supabase Auth's auth.users.id exactly — set explicitly by app
   // code in the auth callback (src/app/auth/callback/route.ts), never
   // generated here. One User row per Supabase Auth account.
-  id           String   @id
-  email        String   @unique
-  name         String
-  photoUrl     String?
-  collegeName  String?
-  homeRegionId String?
-  homeRegion   Region?  @relation(fields: [homeRegionId], references: [id])
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id               String   @id
+  email            String   @unique
+  name             String
+  photoUrl         String?
+  collegeName      String?
+  homeRegionId     String?
+  homeRegion       Region?  @relation(fields: [homeRegionId], references: [id])
+  // A factual record of onboarding path, NOT a permanent role -- doesn't
+  // restrict what this account can do (still USER != ROLE: a parent can
+  // request rides for themselves, offer package space, etc. exactly like
+  // anyone else). Its only purpose is deciding whether the
+  // "must link a student before using the app" gate applies (see
+  // hasLinkedStudent() in src/lib/auth.ts and the check in
+  // src/app/layout.tsx) -- set once at creation via
+  // src/app/api/auth/parent-signup, never changed afterward.
+  signedUpAsParent Boolean  @default(false)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   verifications            VerificationRecord[]
   tripsAsTraveler          Trip[]                    @relation("TripTraveler")

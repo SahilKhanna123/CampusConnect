@@ -17,7 +17,7 @@ export async function getCurrentUser() {
 
   return prisma.user.findUnique({
     where: { id: authUser.id },
-    include: { verifications: true },
+    include: { verifications: true, parentLinksAsParent: true },
   });
 }
 
@@ -44,14 +44,28 @@ export function universityBadgeLabel(user: CurrentUser): string | null {
 }
 
 /**
- * True once a parent has proven access to a student's university inbox via
- * OTP (status otp_verified or approved) and the link hasn't been revoked —
- * this is what gates posting a Request "for" that student. It does NOT gate
- * anything else a parent can do (their own trips/requests need no link at
- * all), and it deliberately does not require `approved` — see the security
- * note on ParentStudentLink in prisma/schema.prisma for why OTP possession
- * alone is treated as sufficient for this one, narrow, publicly-labeled
- * capability, and what mitigates the interim trust gap.
+ * True once this account has at least one non-revoked ParentStudentLink
+ * (otp_verified or approved) to ANY student. This is the entry gate for a
+ * parent-signup account: per product decision, a parent must have a
+ * university-email-verified student linked before they can use the app AT
+ * ALL -- not just before posting "for" that student. Mirrors how
+ * isUniversityVerified gates a student account. See the redirect check in
+ * src/app/layout.tsx, which is what actually enforces this.
+ */
+export function hasLinkedStudent(user: CurrentUser): boolean {
+  return user.parentLinksAsParent.some((link) => link.status !== "revoked");
+}
+
+/**
+ * True once a parent has proven access to a SPECIFIC student's university
+ * inbox via OTP (status otp_verified or approved) and that link hasn't been
+ * revoked — this is the finer-grained check for posting a Request "for"
+ * that particular student (distinct from hasLinkedStudent above, which only
+ * checks "linked to *someone*" for the app-wide entry gate). Deliberately
+ * does not require `approved` — see the security note on ParentStudentLink
+ * in prisma/schema.prisma for why OTP possession alone is treated as
+ * sufficient for this narrow, publicly-labeled capability, and what
+ * mitigates the interim trust gap.
  */
 export async function canActOnBehalfOf(
   parentUserId: string,

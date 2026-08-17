@@ -14,6 +14,9 @@ export async function syncUserFromAuth(authUser: SupabaseUser) {
     (authUser.user_metadata?.full_name as string | undefined) ??
     authUser.email?.split("@")[0] ??
     "New User";
+  // Set only from src/app/api/auth/parent-signup's user_metadata -- other
+  // signup paths never pass this, so it correctly defaults to false there.
+  const signedUpAsParent = authUser.user_metadata?.persona === "parent";
 
   await prisma.user.upsert({
     where: { id: authUser.id },
@@ -22,6 +25,7 @@ export async function syncUserFromAuth(authUser: SupabaseUser) {
       id: authUser.id,
       email: authUser.email!,
       name: fullName,
+      signedUpAsParent,
     },
   });
 

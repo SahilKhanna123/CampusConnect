@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 import "./globals.css";
-import { getCurrentUser, universityBadgeLabel } from "@/lib/auth";
+import { getCurrentUser, universityBadgeLabel, hasLinkedStudent } from "@/lib/auth";
 
 export const metadata: Metadata = {
   title: "CampusConnect",
@@ -17,10 +19,23 @@ const NAV_ITEMS = [
   { href: "/profile", label: "Profile" },
 ];
 
+// A parent-signup account can't use the rest of the app until they've
+// linked at least one student via OTP -- per product decision, this
+// mirrors how university verification gates a student account. This is the
+// ONE page a gated parent can still reach; every other page redirects here.
+const PARENT_LINK_GATE_EXEMPT_PATH = "/family/connect-student";
+
 export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   const user = await getCurrentUser();
+
+  if (user?.signedUpAsParent && !hasLinkedStudent(user)) {
+    const pathname = (await headers()).get("x-pathname");
+    if (pathname !== PARENT_LINK_GATE_EXEMPT_PATH) {
+      redirect(PARENT_LINK_GATE_EXEMPT_PATH);
+    }
+  }
 
   return (
     <html lang="en">

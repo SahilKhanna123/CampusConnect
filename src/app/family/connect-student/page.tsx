@@ -10,6 +10,13 @@ import { useRouter } from "next/navigation";
 // what happens server-side, and the security note on ParentStudentLink in
 // prisma/schema.prisma for why OTP possession alone is treated as
 // sufficient to establish otp_verified (not full trust) status.
+//
+// This is also the mandatory gate a parent-signup account can't get past
+// (see src/app/layout.tsx / hasLinkedStudent in src/lib/auth.ts) -- a
+// parent must link at least one student before using any other part of the
+// app. The copy below is written for that first-time case; a parent who
+// already has a linked student and lands here again (e.g. to add a second
+// student) sees the same flow, just without needing it to unlock anything.
 export default function ConnectStudentPage() {
   const router = useRouter();
   const [studentEmail, setStudentEmail] = useState("");
@@ -66,10 +73,10 @@ export default function ConnectStudentPage() {
       <div>
         <h1>You&apos;re Connected</h1>
         <p>
-          You can now post rides and package requests on behalf of your
-          student. We&apos;ve also emailed {studentEmail} to let them know,
-          with an easy way for them to remove the connection if this wasn&apos;t
-          expected.
+          You can now use CampusConnect, including posting rides and package
+          requests on behalf of your student. We&apos;ve also emailed{" "}
+          {studentEmail} to let them know, with an easy way for them to
+          remove the connection if this wasn&apos;t expected.
         </p>
         <button onClick={() => router.push("/")}>Go to Home</button>
       </div>
@@ -111,8 +118,9 @@ export default function ConnectStudentPage() {
     <div>
       <h1>Connect Your Student</h1>
       <p>
-        Enter your student&apos;s university email. We&apos;ll send a
-        verification code there — not to you — to confirm this is really
+        To use CampusConnect, connect at least one student. Enter your
+        student&apos;s university email below — we&apos;ll send a
+        verification code there, not to you, to confirm this is really
         their school email before connecting your accounts.
       </p>
       <form onSubmit={handleSubmitEmail}>

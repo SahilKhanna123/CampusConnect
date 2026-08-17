@@ -39,7 +39,9 @@ Supabase Auth owns account credentials (`auth.users`); Prisma's `User` table is 
 - **`src/lib/supabase/client.ts`** / **`server.ts`** are the two Supabase client constructors (browser vs. cookie-reading server); **`src/lib/auth.ts`**'s `getCurrentUser()` is the one place that joins a Supabase session to a Prisma `User` (with `verifications` included) — use it from Server Components/route handlers rather than calling Supabase directly, so verification-badge logic stays in one place (see `isUniversityVerified` / `universityBadgeLabel`).
 - Login (`/login`) and sign-out (`POST /api/auth/signout`) are minimal, included because an auth setup isn't testable without them — kept intentionally small.
 
-**Not yet wired:** enforcing the "no posting/requesting/messaging until university-verified" gate inside the `trips`/`requests`/`conversations` API routes — those are still `501` stubs. When implementing them, check `isUniversityVerified(user)` server-side before any write, and `canActOnBehalfOf(parentUserId, studentRecordId)` (`src/lib/auth.ts`) before letting a parent set a Request's beneficiary — that field doesn't exist on `Request` yet, see the Parent/Student Linking section for the open fork on how it should be added.
+**Two entry gates exist, enforced differently:**
+- **Parent-signup accounts (`User.signedUpAsParent = true`)**: cannot reach *any* other page until `hasLinkedStudent(user)` is true (linked to at least one student, any student, via OTP) — enforced as a hard `redirect()` in `src/app/layout.tsx` itself, so it applies before any page even renders. `/family/connect-student` is the sole exempt path. This is a real, currently-working gate, not a TODO.
+- **Everything else is still a TODO**: the "no posting/requesting/messaging until university-verified" gate for students, and the `canActOnBehalfOf(parentUserId, studentRecordId)` (`src/lib/auth.ts`) check for a parent posting "for" a *specific* student, both belong inside the `trips`/`requests`/`conversations` API routes — those are still `501` stubs, so neither is wired in yet. When implementing them: check `isUniversityVerified(user)` server-side before any student write, and `canActOnBehalfOf` before letting a parent set a Request's beneficiary (that field doesn't exist on `Request` yet — see the Parent/Student Linking section for the open fork on how it should be added). Don't confuse this finer-grained per-student check with the coarser `hasLinkedStudent` app-wide gate above — they answer different questions ("can this parent act for *this* student" vs. "can this parent use the app *at all*").
 
 ## Parent/Student Linking (StudentRecord Architecture)
 
@@ -75,7 +77,7 @@ Supabase Auth owns account credentials (`auth.users`); Prisma's `User` table is 
 prisma/schema.prisma          Database schema — source of truth for all entities/relationships
 prisma/seed.ts                Launch data: Bay Area / UCI regions & cities, featured RouteCommunity, uci.edu domain
 src/app/                      Next.js App Router
-  layout.tsx                  Root layout + primary nav + auth status (signed-in name/badge or Log in/Sign up)
+  layout.tsx                  Root layout + primary nav + auth status; also enforces the parent-must-link-a-student gate (redirects to /family/connect-student)
   page.tsx                    Home — personalized around the user's featured route
   explore/page.tsx            Explore — browse route communities and trips
   post/page.tsx                Post — Offer a Ride / Need a Ride / Offer Package Space / Need Delivery
@@ -95,7 +97,7 @@ src/app/                      Next.js App Router
   api/family/link-objection/[token]/reject/route.ts   Public: revoke via the student notice email's link
 src/lib/
   prisma.ts                    Prisma client singleton
-  auth.ts                       getCurrentUser() — joins Supabase session -> Prisma User; verification-badge + canActOnBehalfOf helpers
+  auth.ts                       getCurrentUser() — joins Supabase session -> Prisma User (incl. parentLinksAsParent); verification-badge, hasLinkedStudent (app-wide parent gate), canActOnBehalfOf (per-student check) helpers
   onboarding.ts                  syncUserFromAuth() + claimOrCreateStudentRecord() — the one place Prisma User/StudentRecord rows get created from a confirmed email
   otp.ts                         Numeric-code generation/hashing for the parent->student OTP flow
   email.ts                      Resend wrapper (falls back to console.log without RESEND_API_KEY)

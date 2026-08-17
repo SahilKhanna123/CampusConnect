@@ -4,8 +4,16 @@ import { NextResponse, type NextRequest } from "next/server";
 // Refreshes the Supabase session cookie on every request. Required by the
 // @supabase/ssr cookie-based auth pattern — without this, sessions expire
 // silently in Server Components (which can't write cookies themselves).
+//
+// Also propagates the current pathname as a request header (x-pathname) --
+// Server Components have no other way to read the current URL, and
+// src/app/layout.tsx needs it to know whether to redirect a not-yet-linked
+// parent account away from a page other than /family/connect-student.
 export async function updateSession(request: NextRequest) {
-  let response = NextResponse.next({ request });
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-pathname", request.nextUrl.pathname);
+
+  let response = NextResponse.next({ request: { headers: requestHeaders } });
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -25,7 +33,9 @@ export async function updateSession(request: NextRequest) {
           cookiesToSet.forEach(({ name, value }) =>
             request.cookies.set(name, value),
           );
-          response = NextResponse.next({ request });
+          response = NextResponse.next({
+            request: { headers: requestHeaders },
+          });
           cookiesToSet.forEach(({ name, value, options }) =>
             response.cookies.set(name, value, options),
           );

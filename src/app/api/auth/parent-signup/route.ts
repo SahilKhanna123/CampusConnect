@@ -34,7 +34,10 @@ export async function POST(request: Request) {
     email,
     password,
     email_confirm: true,
-    user_metadata: { full_name: name },
+    // persona: 'parent' travels through to syncUserFromAuth (src/lib/onboarding.ts),
+    // which reads it to set User.signedUpAsParent -- the flag that decides
+    // whether the "must link a student before using the app" gate applies.
+    user_metadata: { full_name: name, persona: "parent" },
   });
 
   if (error) {
