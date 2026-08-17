@@ -52,8 +52,12 @@ export default function SignUpPage() {
   >("idle");
   const [error, setError] = useState<string | null>(null);
 
+  // Student/alumni/traveler land on /onboarding to fill in name/photo/home
+  // area (a soft nudge, not a hard gate -- see src/app/layout.tsx). Parent
+  // lands on /family/connect-student, which folds the equivalent profile
+  // step in as step 0 ahead of the (mandatory) student-linking steps.
   const postConfirmPath =
-    persona === "parent" ? "/family/connect-student" : "/";
+    persona === "parent" ? "/family/connect-student" : "/onboarding";
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

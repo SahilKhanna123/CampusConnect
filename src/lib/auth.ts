@@ -17,7 +17,14 @@ export async function getCurrentUser() {
 
   return prisma.user.findUnique({
     where: { id: authUser.id },
-    include: { verifications: true, parentLinksAsParent: true },
+    include: {
+      verifications: true,
+      parentLinksAsParent: {
+        include: { studentRecord: { include: { universityDomain: true } } },
+      },
+      homeCity: { include: { region: true } },
+      studentRecord: { include: { universityDomain: { include: { region: true } } } },
+    },
   });
 }
 
@@ -44,6 +51,26 @@ export function universityBadgeLabel(user: CurrentUser): string | null {
 }
 
 /**
+ * e.g. "✓ Verified Parent of UC Irvine Student", or null. Distinct from
+ * isUniversityVerified/universityBadgeLabel above -- a parent's OWN email
+ * is never expected to be a university address, so this is a separate
+ * VerificationRecord type (parent_relationship) granted when a
+ * ParentStudentLink successfully OTP-confirms (see
+ * src/app/api/family/parent-link/confirm/route.ts), not when the parent's
+ * own email domain matches. A parent can hold both badges if they happen to
+ * have also verified their own .edu email, but normally only this one.
+ */
+export function parentRelationshipBadgeLabel(user: CurrentUser): string | null {
+  const record = user.verifications.find(
+    (v) => v.type === "parent_relationship" && v.status === "verified",
+  );
+  if (!record) return null;
+  const universityName = (record.metadata as { university?: string } | null)
+    ?.university;
+  return `✓ Verified Parent of ${universityName ?? "University"} Student`;
+}
+
+/**
  * True once this account has at least one non-revoked ParentStudentLink
  * (otp_verified or approved) to ANY student. This is the entry gate for a
  * parent-signup account: per product decision, a parent must have a
@@ -67,6 +94,17 @@ export function hasLinkedStudent(user: CurrentUser): boolean {
  * sufficient for this narrow, publicly-labeled capability, and what
  * mitigates the interim trust gap.
  */
+/**
+ * True once the post-signup onboarding form (student: /onboarding, parent:
+ * step 0 of /family/connect-student) has been submitted at least once. This
+ * is deliberately a soft signal, not an enforced gate like hasLinkedStudent
+ * -- src/app/layout.tsx uses it only to decide whether to show a
+ * "complete your profile" nudge, never to block navigation.
+ */
+export function hasCompletedOnboarding(user: CurrentUser): boolean {
+  return user.onboardingCompletedAt !== null;
+}
+
 export async function canActOnBehalfOf(
   parentUserId: string,
   studentRecordId: string,

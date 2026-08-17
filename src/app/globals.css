@@ -43,6 +43,18 @@ body {
   cursor: pointer;
 }
 
+.onboarding-nudge {
+  margin: 0;
+  padding: 0.5rem 1.5rem;
+  background: #fff6e0;
+  border-bottom: 1px solid #e5d9b0;
+  font-size: 0.875rem;
+}
+
+.onboarding-nudge a {
+  color: #0060df;
+}
+
 .site-main {
   padding: 1.5rem;
   padding-bottom: 5rem;

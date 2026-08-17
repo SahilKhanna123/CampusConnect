@@ -85,9 +85,29 @@ model User {
   email            String   @unique
   name             String
   photoUrl         String?
+  // Free-text, unused by the profile feature -- university affiliation is
+  // always derived from the verified StudentRecord/VerificationRecord
+  // instead, never from this field. Left in place only in case a future
+  // alumni-onboarding feature wants a self-declared (unverified) school
+  // name; do not wire it into any "university" display in the meantime.
   collegeName      String?
+  // Superseded by homeCityId below -- kept only because it's not worth a
+  // migration to drop an already-unpopulated column. Do not read or write
+  // this in new code.
   homeRegionId     String?
   homeRegion       Region?  @relation(fields: [homeRegionId], references: [id])
+  // The profile/onboarding feature's home-area field. City-level (not just
+  // Region-level) so it lines up with how Trip/Request already key
+  // origin/destination off City -- a "general home area" for display is
+  // just city.name, and it doubles as an input to future trip-matching that
+  // Region-level granularity couldn't support.
+  homeCityId       String?
+  homeCity         City?    @relation("UserHomeCity", fields: [homeCityId], references: [id])
+  // Set once the post-signup onboarding form (student: /onboarding, parent:
+  // step 0 of /family/connect-student) is submitted. An explicit timestamp
+  // rather than inferring completion from homeCityId being non-null, so the
+  // signal stays stable even if home-area later becomes editable-to-blank.
+  onboardingCompletedAt DateTime?
   // A factual record of onboarding path, NOT a permanent role -- doesn't
   // restrict what this account can do (still USER != ROLE: a parent can
   // request rides for themselves, offer package space, etc. exactly like
@@ -121,6 +141,7 @@ model User {
   blocksReceived           Block[]                   @relation("BlockBlocked")
 
   @@index([homeRegionId])
+  @@index([homeCityId])
 }
 
 // One row per independent verification fact. Deliberately not a single boolean/enum
@@ -318,6 +339,7 @@ model City {
   tripsAsDestination    Trip[]    @relation("TripDestination")
   requestsAsOrigin      Request[] @relation("RequestOrigin")
   requestsAsDestination Request[] @relation("RequestDestination")
+  usersAsHomeCity       User[]    @relation("UserHomeCity")
 
   @@unique([name, regionId])
 }
