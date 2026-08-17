@@ -13,7 +13,8 @@ import { createClient } from "@/lib/supabase/client";
 // Parents never land here directly — the only path to a parent account is
 // accepting a ParentStudentInvite (src/app/api/family/invite/accept).
 //
-// Confirmation offers BOTH a link and a 6-digit code: some university mail
+// Confirmation offers BOTH a link and a numeric code (Supabase's default is
+// 8 digits, not 6 -- don't hardcode a length in the UI): some university mail
 // gateways pre-fetch links to scan them, which silently consumes the
 // single-use link token before the real user clicks it (confirmed via a
 // real test — Supabase's own confirmed-7-seconds-after-sent timestamps
@@ -90,9 +91,9 @@ export default function SignUpPage() {
         <h1>Check your email</h1>
         <p>
           We sent a confirmation link to <strong>{email}</strong> — click it,
-          or enter the 6-digit code from the same email below (use the code
-          if the link doesn&apos;t work, which can happen with some
-          university email systems).
+          or enter the code from the same email below (use the code if the
+          link doesn&apos;t work, which can happen with some university
+          email systems).
         </p>
         <form onSubmit={handleVerifyCode}>
           <div>
@@ -102,7 +103,7 @@ export default function SignUpPage() {
               type="text"
               inputMode="numeric"
               pattern="[0-9]*"
-              maxLength={6}
+              maxLength={10}
               required
               value={code}
               onChange={(e) => setCode(e.target.value)}
