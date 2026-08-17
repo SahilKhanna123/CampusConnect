@@ -254,8 +254,11 @@ model ParentStudentInvite {
 //      OTP email) includes objectionToken below -- a one-click,
 //      no-account-required revoke, so the student doesn't have to ever sign
 //      up to shut this down.
-//   3. The parent's OWN email must already be verified before they can
-//      start this flow -- always a traceable, accountable adult identity.
+//   3. The parent must be an authenticated User to start this flow (their
+//      OWN email confirmation is deliberately NOT required, per product
+//      decision -- see src/app/api/auth/parent-signup -- so this is a
+//      weaker accountability signal than originally designed; mitigations
+//      1 and 2 above carry correspondingly more weight as a result).
 model ParentStudentLink {
   id              String                  @id @default(uuid())
   parentId        String

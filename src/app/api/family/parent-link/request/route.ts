@@ -9,28 +9,20 @@ const bodySchema = z.object({ studentEmail: z.string().email() });
 
 // POST /api/family/parent-link/request
 // Body: { studentEmail: string }
-// Caller must be authenticated with their OWN email already verified --
-// always a traceable, accountable adult identity behind every OTP sent to
-// a third party's inbox. Rejects unsupported university domains up front
-// (mirrors /api/verification/university/request) rather than creating any
-// pending state for an address we can't validate. Does NOT touch
-// StudentRecord at all yet -- that's only created at successful confirm
-// (see .../confirm/route.ts), so a typo'd email here never leaves an
-// orphan record behind.
+// Caller must be authenticated -- that's the only gate on the PARENT side.
+// A parent's own email confirmation is deliberately not required at all
+// (see src/app/api/auth/parent-signup and the comment on sign-up/page.tsx)
+// -- it's not the security-critical verification in this product, so this
+// route intentionally does not check it. Rejects unsupported university
+// domains up front (mirrors /api/verification/university/request) rather
+// than creating any pending state for an address we can't validate. Does
+// NOT touch StudentRecord at all yet -- that's only created at successful
+// confirm (see .../confirm/route.ts), so a typo'd email here never leaves
+// an orphan record behind.
 export async function POST(request: Request) {
   const user = await getCurrentUser();
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const ownEmailVerified = user.verifications.some(
-    (v) => v.type === "email" && v.status === "verified",
-  );
-  if (!ownEmailVerified) {
-    return NextResponse.json(
-      { error: "Verify your own email before connecting a student." },
-      { status: 403 },
-    );
   }
 
   const parsed = bodySchema.safeParse(await request.json());

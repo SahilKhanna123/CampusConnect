@@ -15,19 +15,24 @@ const PERSONAS: { key: Persona; label: string }[] = [
 
 // Sign up — creates the Supabase Auth account. The persona picker below is
 // NOT a stored/permanent role (USER != ROLE, per the plan doc) -- it only
-// decides where you land after confirming: Student/Alumni/Traveler go
-// straight to Home; Parent goes to /family/connect-student next, to link a
-// student by proving access to their university inbox (see that page and
-// src/app/api/family/parent-link/*). Parents fully self-signup through this
-// same form now -- there's no separate parent-only signup path or
-// invite-required gate.
+// decides where you land and how the account gets created:
 //
-// For a Student, signup email doubles as the university-verification
-// input: the onboarding bridge (src/lib/onboarding.ts) checks the confirmed
-// email's domain and auto-grants the university badge (and claims/creates
-// their StudentRecord) in the same trip if it matches a supported school --
-// no separate step. Anyone who signs up with a personal email can still add
-// a university badge later via /verify.
+// Student/Alumni/Traveler go through the normal supabase.auth.signUp() +
+// confirm (link or code) flow and land on Home. For a Student, signup email
+// doubles as the university-verification input: the onboarding bridge
+// (src/lib/onboarding.ts) checks the confirmed email's domain and
+// auto-grants the university badge (and claims/creates their StudentRecord)
+// in the same trip if it matches a supported school -- no separate step.
+//
+// Parent skips email confirmation entirely -- their own email isn't the
+// security-critical verification in this product (the student's university
+// email is, via a separate OTP in the next step). POSTs to
+// /api/auth/parent-signup, which creates a pre-confirmed Supabase user via
+// the admin API, then signs in immediately client-side and lands on
+// /family/connect-student to link a student. This is a narrow bypass
+// scoped to that one route -- it does NOT touch Supabase's project-wide
+// confirm-email setting, so the Student path above is completely unaffected
+// and stays fully rigorous.
 //
 // Confirmation offers BOTH a link and a numeric code (Supabase's default is
 // 8 digits, not 6 -- don't hardcode a length in the UI): some university mail
@@ -54,6 +59,45 @@ export default function SignUpPage() {
     e.preventDefault();
     setError(null);
     setStatus("submitting");
+
+    if (persona === "parent") {
+      const signupRes = await fetch("/api/auth/parent-signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, email, password }),
+      });
+
+      if (!signupRes.ok) {
+        const body = await signupRes.json().catch(() => ({}));
+        setError(body.error ?? "Something went wrong. Try again.");
+        setStatus("idle");
+        return;
+      }
+
+      const supabase = createClient();
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      if (signInError) {
+        setError(signInError.message);
+        setStatus("idle");
+        return;
+      }
+
+      const syncRes = await fetch("/api/auth/sync", { method: "POST" });
+      if (!syncRes.ok) {
+        setError(
+          "Account created, but couldn't finish setting up. Try refreshing.",
+        );
+        setStatus("idle");
+        return;
+      }
+
+      router.push(postConfirmPath);
+      router.refresh();
+      return;
+    }
 
     const supabase = createClient();
     const { error: signUpError } = await supabase.auth.signUp({
@@ -189,8 +233,8 @@ export default function SignUpPage() {
           )}
           {persona === "parent" && (
             <p>
-              This is your own email — you&apos;ll connect your student&apos;s
-              university email in the next step.
+              This is your own email — no confirmation needed. You&apos;ll
+              verify your student&apos;s university email in the next step.
             </p>
           )}
         </div>
