@@ -58,6 +58,18 @@ export async function POST(
       where: { userId: link.parentId, type: "parent_relationship" },
       data: { status: "revoked" },
     });
+
+    // And the self-declared, publicly-shown linkedStudentName (see
+    // prisma/schema.prisma) loses its only backing connection -- clear it
+    // rather than leave a student's name publicly displayed with nothing
+    // behind it. Only cleared when NO non-revoked link remains at all: if
+    // the parent still has another linked student, the free-text name might
+    // describe that student instead, and there's no way to tell which part
+    // of it to remove, so it's left for the parent to update themselves.
+    await prisma.user.update({
+      where: { id: link.parentId },
+      data: { linkedStudentName: null },
+    });
   }
 
   return NextResponse.json({ ok: true });

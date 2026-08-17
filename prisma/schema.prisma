@@ -125,6 +125,15 @@ model User {
   // Parent-only onboarding field. Private -- same visibility tier as email,
   // never surfaced on the public profile (see src/lib/profile.ts).
   phone             String?
+  // Parent-only, free text, self-declared by the parent (NOT derived from
+  // StudentRecord.fullName -- that stays private, shown only to the parent
+  // themselves on their own /profile). Public, so another user browsing a
+  // parent's profile can see who they're posting on behalf of. Cleared
+  // whenever the parent's last non-revoked ParentStudentLink is removed
+  // (see src/app/api/family/link-objection/[token]/reject/route.ts) --
+  // the student's own objection/revoke is the safety valve for a parent
+  // publicly naming them without consent.
+  linkedStudentName String?
   // A factual record of onboarding path, NOT a permanent role -- doesn't
   // restrict what this account can do (still USER != ROLE: a parent can
   // request rides for themselves, offer package space, etc. exactly like

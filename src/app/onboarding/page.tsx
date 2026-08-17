@@ -37,6 +37,7 @@ export default async function OnboardingPage() {
         initialTravelPreferences={user.travelPreferences}
         initialLookingFor={user.lookingFor}
         initialPhone={user.phone}
+        initialLinkedStudentName={null}
         submitLabel="Continue"
         redirectTo="/"
       />

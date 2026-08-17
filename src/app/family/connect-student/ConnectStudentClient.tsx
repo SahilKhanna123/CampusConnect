@@ -28,6 +28,7 @@ export function ConnectStudentClient({
   initialPhotoUrl,
   initialHomeCityId,
   initialPhone,
+  initialLinkedStudentName,
   citiesByRegion,
   skipProfileStep,
 }: {
@@ -35,6 +36,7 @@ export function ConnectStudentClient({
   initialPhotoUrl: string | null;
   initialHomeCityId: string | null;
   initialPhone: string | null;
+  initialLinkedStudentName: string | null;
   citiesByRegion: CityGroup[];
   skipProfileStep: boolean;
 }) {
@@ -109,6 +111,7 @@ export function ConnectStudentClient({
           initialTravelPreferences={null}
           initialLookingFor={[]}
           initialPhone={initialPhone}
+          initialLinkedStudentName={initialLinkedStudentName}
           submitLabel="Continue"
           onSaved={() => setStep("email")}
         />

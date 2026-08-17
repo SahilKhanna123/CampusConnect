@@ -39,6 +39,9 @@ export default async function PublicProfilePage({
         </p>
       )}
       {profile.homeArea && <p>{profile.homeArea}</p>}
+      {profile.linkedStudentName && (
+        <p>Connected to {profile.linkedStudentName}</p>
+      )}
       {profile.travelPreferences && <p>{profile.travelPreferences}</p>}
       {profile.lookingFor.length > 0 && (
         <p>

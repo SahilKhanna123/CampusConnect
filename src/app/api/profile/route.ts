@@ -16,6 +16,7 @@ const fieldsSchema = z.object({
   year: z.string().trim().max(50).optional(),
   travelPreferences: z.string().trim().max(500).optional(),
   phone: z.string().trim().max(30).optional(),
+  linkedStudentName: z.string().trim().max(100).optional(),
 });
 
 // PATCH /api/profile
@@ -48,6 +49,7 @@ export async function PATCH(request: Request) {
     year: formData.get("year") || undefined,
     travelPreferences: formData.get("travelPreferences") || undefined,
     phone: formData.get("phone") || undefined,
+    linkedStudentName: formData.get("linkedStudentName") || undefined,
   });
   if (!parsed.success) {
     return NextResponse.json(
@@ -55,8 +57,15 @@ export async function PATCH(request: Request) {
       { status: 400 },
     );
   }
-  const { name, homeCityId, major, year, travelPreferences, phone } =
-    parsed.data;
+  const {
+    name,
+    homeCityId,
+    major,
+    year,
+    travelPreferences,
+    phone,
+    linkedStudentName,
+  } = parsed.data;
 
   const lookingFor = formData.getAll("lookingFor").filter(
     (v): v is string => typeof v === "string" && isLookingForValue(v),
@@ -113,6 +122,7 @@ export async function PATCH(request: Request) {
       year: year ?? null,
       travelPreferences: travelPreferences ?? null,
       phone: phone ?? null,
+      linkedStudentName: linkedStudentName ?? null,
       lookingFor,
       ...(photoUrl ? { photoUrl } : {}),
       ...(user.onboardingCompletedAt

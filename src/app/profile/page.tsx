@@ -63,6 +63,7 @@ export default async function ProfilePage() {
         initialTravelPreferences={user.travelPreferences}
         initialLookingFor={user.lookingFor}
         initialPhone={user.phone}
+        initialLinkedStudentName={user.linkedStudentName}
         submitLabel="Save changes"
       />
 

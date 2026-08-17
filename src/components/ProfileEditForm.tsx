@@ -24,6 +24,7 @@ export function ProfileEditForm({
   initialTravelPreferences,
   initialLookingFor,
   initialPhone,
+  initialLinkedStudentName,
   submitLabel,
   redirectTo,
   onSaved,
@@ -38,6 +39,7 @@ export function ProfileEditForm({
   initialTravelPreferences: string | null;
   initialLookingFor: string[];
   initialPhone: string | null;
+  initialLinkedStudentName: string | null;
   submitLabel: string;
   redirectTo?: string;
   onSaved?: () => void;
@@ -56,6 +58,9 @@ export function ProfileEditForm({
   );
   const [lookingFor, setLookingFor] = useState<string[]>(initialLookingFor);
   const [phone, setPhone] = useState(initialPhone ?? "");
+  const [linkedStudentName, setLinkedStudentName] = useState(
+    initialLinkedStudentName ?? "",
+  );
   const [status, setStatus] = useState<"idle" | "submitting">("idle");
   const [error, setError] = useState<string | null>(null);
 
@@ -84,6 +89,7 @@ export function ProfileEditForm({
     if (photoFile) formData.set("photo", photoFile);
     if (isParent) {
       formData.set("phone", phone);
+      formData.set("linkedStudentName", linkedStudentName);
     } else {
       formData.set("major", major);
       formData.set("year", year);
@@ -161,16 +167,34 @@ export function ProfileEditForm({
       </div>
 
       {isParent ? (
-        <div>
-          <label htmlFor="phone">Phone number (optional)</label>
-          <input
-            id="phone"
-            type="tel"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-          />
-          <p>Private -- never shown on your public profile.</p>
-        </div>
+        <>
+          <div>
+            <label htmlFor="linkedStudentName">
+              Student&apos;s name (optional)
+            </label>
+            <input
+              id="linkedStudentName"
+              type="text"
+              placeholder="Who are you connected to on CampusConnect?"
+              value={linkedStudentName}
+              onChange={(e) => setLinkedStudentName(e.target.value)}
+            />
+            <p>
+              Shown on your public profile so others know who you&apos;re
+              posting on behalf of.
+            </p>
+          </div>
+          <div>
+            <label htmlFor="phone">Phone number (optional)</label>
+            <input
+              id="phone"
+              type="tel"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+            />
+            <p>Private -- never shown on your public profile.</p>
+          </div>
+        </>
       ) : (
         <>
           <div>
