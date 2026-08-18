@@ -25,12 +25,14 @@ export default async function TripDetailPage({
   if (!trip) notFound();
 
   const isOwner = trip.travelerId === user.id;
+  const destinationLabel = trip.destinationCity?.name ?? trip.destinationText;
 
   return (
     <div>
-      <h1>
-        {trip.originCity.name} → {trip.destinationCity.name}
-      </h1>
+      <h1>{trip.title || "Untitled trip"}</h1>
+      <p>
+        {trip.originCity.name} → {destinationLabel}
+      </p>
       <p>Status: {tripDisplayStatus(trip)}</p>
       <p>
         {trip.departureDate.toLocaleDateString()}

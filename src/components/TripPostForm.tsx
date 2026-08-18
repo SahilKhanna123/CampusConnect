@@ -6,8 +6,10 @@ import { useRouter } from "next/navigation";
 type CityGroup = { regionName: string; cities: { id: string; name: string }[] };
 
 export type TripFormValues = {
+  title: string;
   originCityId: string;
   destinationCityId: string;
+  destinationText: string;
   departureDate: string; // yyyy-mm-dd
   departureTime: string;
   flexibleTime: boolean;
@@ -16,6 +18,11 @@ export type TripFormValues = {
   packageCapacityNote: string;
   tripNotes: string;
 };
+
+// Sentinel <option> value that switches the "To" field from a City picker
+// to a free-text input -- lets a poster name a destination that isn't in
+// the seeded list (e.g. an airport) instead of only choosing from it.
+const WRITE_IN_DESTINATION = "__write_in__";
 
 // Create or edit a Trip ("offer"). Edit mode is triggered by passing
 // tripId -- same form, PATCH instead of POST, same convention as
@@ -31,11 +38,15 @@ export function TripPostForm({
   initialValues?: Partial<TripFormValues>;
 }) {
   const router = useRouter();
+  const [title, setTitle] = useState(initialValues?.title ?? "");
   const [originCityId, setOriginCityId] = useState(
     initialValues?.originCityId ?? "",
   );
   const [destinationCityId, setDestinationCityId] = useState(
-    initialValues?.destinationCityId ?? "",
+    initialValues?.destinationText ? WRITE_IN_DESTINATION : initialValues?.destinationCityId ?? "",
+  );
+  const [destinationText, setDestinationText] = useState(
+    initialValues?.destinationText ?? "",
   );
   const [departureDate, setDepartureDate] = useState(
     initialValues?.departureDate ?? "",
@@ -68,8 +79,12 @@ export function TripPostForm({
       method: tripId ? "PATCH" : "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        title,
         originCityId,
-        destinationCityId,
+        destinationCityId:
+          destinationCityId === WRITE_IN_DESTINATION ? undefined : destinationCityId,
+        destinationText:
+          destinationCityId === WRITE_IN_DESTINATION ? destinationText : undefined,
         departureDate,
         departureTime: departureTime || undefined,
         flexibleTime,
@@ -98,6 +113,18 @@ export function TripPostForm({
 
   return (
     <form onSubmit={handleSubmit}>
+      <div>
+        <label htmlFor="title">Subject</label>
+        <input
+          id="title"
+          type="text"
+          required
+          maxLength={100}
+          placeholder="e.g. Weekend trip home, 2 seats free"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+        />
+      </div>
       <div>
         <label htmlFor="originCityId">From</label>
         <select
@@ -140,7 +167,19 @@ export function TripPostForm({
               ))}
             </optgroup>
           ))}
+          <option value={WRITE_IN_DESTINATION}>Other (type it in)</option>
         </select>
+        {destinationCityId === WRITE_IN_DESTINATION && (
+          <input
+            id="destinationText"
+            type="text"
+            required
+            maxLength={100}
+            placeholder="e.g. LAX Airport"
+            value={destinationText}
+            onChange={(e) => setDestinationText(e.target.value)}
+          />
+        )}
       </div>
       <div>
         <label htmlFor="departureDate">Departure date</label>

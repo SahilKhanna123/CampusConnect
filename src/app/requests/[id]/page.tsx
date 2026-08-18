@@ -25,12 +25,14 @@ export default async function RequestDetailPage({
   if (!found) notFound();
 
   const isOwner = found.postedById === user.id;
+  const destinationLabel =
+    found.destinationCity?.name ?? found.destinationText ?? "?";
 
   return (
     <div>
       <h1>
         {found.type === "ride" ? "Ride needed: " : "Delivery needed: "}
-        {found.originCity?.name ?? "?"} → {found.destinationCity?.name ?? "?"}
+        {found.originCity?.name ?? "?"} → {destinationLabel}
       </h1>
       <p>Status: {requestDisplayStatus(found)}</p>
       {found.neededDate && (

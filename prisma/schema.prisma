@@ -388,10 +388,21 @@ model Trip {
   id                    String     @id @default(uuid())
   travelerId            String
   traveler              User       @relation("TripTraveler", fields: [travelerId], references: [id])
+  // Subject line stating the purpose of the post at a glance (e.g. "Weekend
+  // trip home, 2 seats free"). Nullable in the DB only because it postdates
+  // this model's earliest rows -- tripFieldsSchema requires it non-empty on
+  // every create/edit going forward.
+  title                 String?
   originCityId          String
   originCity            City       @relation("TripOrigin", fields: [originCityId], references: [id])
-  destinationCityId     String
-  destinationCity       City       @relation("TripDestination", fields: [destinationCityId], references: [id])
+  // Nullable + destinationText below: a poster can pick a listed City OR
+  // type a destination that isn't in the seeded list (e.g. an airport, or a
+  // town outside the launch regions). Exactly one of the two is required --
+  // enforced by tripFieldsSchema's refine, not a DB constraint, consistent
+  // with how validation works everywhere else in this project.
+  destinationCityId     String?
+  destinationCity       City?      @relation("TripDestination", fields: [destinationCityId], references: [id])
+  destinationText       String?
   departureDate         DateTime
   departureTime         String?
   // Poster is open to some slack around departureDate/departureTime rather
@@ -427,8 +438,13 @@ model Request {
   // Only used when tripId is null (standalone request).
   originCityId      String?
   originCity        City?     @relation("RequestOrigin", fields: [originCityId], references: [id])
+  // Mirrors Trip.destinationText -- a poster can pick a listed City OR type
+  // a destination that isn't in the seeded list. Exactly one of
+  // destinationCityId/destinationText is required for a standalone request,
+  // enforced by requestFieldsSchema's refine.
   destinationCityId String?
   destinationCity   City?     @relation("RequestDestination", fields: [destinationCityId], references: [id])
+  destinationText   String?
   neededDate        DateTime?
   neededTime        String?
   // Mirrors Trip.flexibleTime -- purely descriptive, no matching/search

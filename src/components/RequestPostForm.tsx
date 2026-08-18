@@ -9,6 +9,7 @@ export type RequestFormValues = {
   type: "ride" | "package";
   originCityId: string;
   destinationCityId: string;
+  destinationText: string;
   neededDate: string; // yyyy-mm-dd
   neededTime: string;
   flexibleTime: boolean;
@@ -17,6 +18,11 @@ export type RequestFormValues = {
   packageSize: string;
   notes: string;
 };
+
+// Sentinel <option> value that switches the "To" field from a City picker
+// to a free-text input -- lets a poster name a destination that isn't in
+// the seeded list (e.g. an airport) instead of only choosing from it.
+const WRITE_IN_DESTINATION = "__write_in__";
 
 // Create or edit a standalone Request ("need"). Edit mode is triggered by
 // passing requestId -- same form, PATCH instead of POST. tripId is always
@@ -39,7 +45,10 @@ export function RequestPostForm({
     initialValues?.originCityId ?? "",
   );
   const [destinationCityId, setDestinationCityId] = useState(
-    initialValues?.destinationCityId ?? "",
+    initialValues?.destinationText ? WRITE_IN_DESTINATION : initialValues?.destinationCityId ?? "",
+  );
+  const [destinationText, setDestinationText] = useState(
+    initialValues?.destinationText ?? "",
   );
   const [neededDate, setNeededDate] = useState(
     initialValues?.neededDate ?? "",
@@ -76,7 +85,10 @@ export function RequestPostForm({
         body: JSON.stringify({
           type,
           originCityId,
-          destinationCityId,
+          destinationCityId:
+            destinationCityId === WRITE_IN_DESTINATION ? undefined : destinationCityId,
+          destinationText:
+            destinationCityId === WRITE_IN_DESTINATION ? destinationText : undefined,
           neededDate: neededDate || undefined,
           neededTime: neededTime || undefined,
           flexibleTime,
@@ -172,7 +184,19 @@ export function RequestPostForm({
               ))}
             </optgroup>
           ))}
+          <option value={WRITE_IN_DESTINATION}>Other (type it in)</option>
         </select>
+        {destinationCityId === WRITE_IN_DESTINATION && (
+          <input
+            id="destinationText"
+            type="text"
+            required
+            maxLength={100}
+            placeholder="e.g. LAX Airport"
+            value={destinationText}
+            onChange={(e) => setDestinationText(e.target.value)}
+          />
+        )}
       </div>
       <div>
         <label htmlFor="neededDate">Date needed (optional)</label>

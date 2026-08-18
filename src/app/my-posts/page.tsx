@@ -91,7 +91,9 @@ export default async function MyPostsPage({
           {shownTrips.map((trip) => (
             <li key={trip.id}>
               <Link href={`/trips/${trip.id}`}>
-                {trip.originCity.name} → {trip.destinationCity.name} —{" "}
+                {trip.title || "Untitled trip"}:{" "}
+                {trip.originCity.name} →{" "}
+                {trip.destinationCity?.name ?? trip.destinationText} —{" "}
                 {trip.departureDate.toLocaleDateString()}
               </Link>
               {" "}({tripDisplayStatus(trip)})
@@ -113,7 +115,8 @@ export default async function MyPostsPage({
             <li key={r.id}>
               <Link href={`/requests/${r.id}`}>
                 {r.type === "ride" ? "Ride" : "Delivery"}:{" "}
-                {r.originCity?.name ?? "?"} → {r.destinationCity?.name ?? "?"}
+                {r.originCity?.name ?? "?"} →{" "}
+                {r.destinationCity?.name ?? r.destinationText ?? "?"}
                 {r.neededDate && ` — ${r.neededDate.toLocaleDateString()}`}
               </Link>
               {" "}({requestDisplayStatus(r)})

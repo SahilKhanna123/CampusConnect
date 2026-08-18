@@ -65,9 +65,11 @@ export async function POST(request: Request) {
 
   const [originCity, destinationCity] = await Promise.all([
     prisma.city.findUnique({ where: { id: data.originCityId } }),
-    prisma.city.findUnique({ where: { id: data.destinationCityId } }),
+    data.destinationCityId
+      ? prisma.city.findUnique({ where: { id: data.destinationCityId } })
+      : null,
   ]);
-  if (!originCity || !destinationCity) {
+  if (!originCity || (data.destinationCityId && !destinationCity)) {
     return NextResponse.json(
       { error: "Invalid origin or destination city." },
       { status: 400 },
@@ -78,7 +80,8 @@ export async function POST(request: Request) {
     data: {
       type: data.type,
       originCityId: data.originCityId,
-      destinationCityId: data.destinationCityId,
+      destinationCityId: data.destinationCityId ?? null,
+      destinationText: data.destinationText ?? null,
       neededDate: data.neededDate ? new Date(data.neededDate) : null,
       neededTime: data.neededTime || null,
       flexibleTime: data.flexibleTime ?? false,

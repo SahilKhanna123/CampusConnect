@@ -29,8 +29,10 @@ export default async function EditTripPage({
         citiesByRegion={citiesByRegion}
         tripId={trip.id}
         initialValues={{
+          title: trip.title ?? "",
           originCityId: trip.originCityId,
-          destinationCityId: trip.destinationCityId,
+          destinationCityId: trip.destinationCityId ?? "",
+          destinationText: trip.destinationText ?? "",
           departureDate: trip.departureDate.toISOString().slice(0, 10),
           departureTime: trip.departureTime ?? "",
           flexibleTime: trip.flexibleTime,

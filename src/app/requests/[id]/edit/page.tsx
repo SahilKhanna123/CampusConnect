@@ -31,6 +31,7 @@ export default async function EditRequestPage({
           type: found.type,
           originCityId: found.originCityId ?? "",
           destinationCityId: found.destinationCityId ?? "",
+          destinationText: found.destinationText ?? "",
           neededDate: found.neededDate
             ? found.neededDate.toISOString().slice(0, 10)
             : "",

@@ -56,9 +56,11 @@ export async function PATCH(
 
   const [originCity, destinationCity] = await Promise.all([
     prisma.city.findUnique({ where: { id: data.originCityId } }),
-    prisma.city.findUnique({ where: { id: data.destinationCityId } }),
+    data.destinationCityId
+      ? prisma.city.findUnique({ where: { id: data.destinationCityId } })
+      : null,
   ]);
-  if (!originCity || !destinationCity) {
+  if (!originCity || (data.destinationCityId && !destinationCity)) {
     return NextResponse.json(
       { error: "Invalid origin or destination city." },
       { status: 400 },
@@ -68,8 +70,10 @@ export async function PATCH(
   await prisma.trip.update({
     where: { id },
     data: {
+      title: data.title,
       originCityId: data.originCityId,
-      destinationCityId: data.destinationCityId,
+      destinationCityId: data.destinationCityId ?? null,
+      destinationText: data.destinationText ?? null,
       departureDate: new Date(data.departureDate),
       departureTime: data.departureTime || null,
       flexibleTime: data.flexibleTime ?? false,
