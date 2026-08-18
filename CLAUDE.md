@@ -85,6 +85,17 @@ Built on the **existing** `Trip` (offers) and `Request` (rides or package needs,
 - **`Trip.title`**: a required (at the Zod layer; nullable in the DB since it postdates this model's earliest rows) short subject line stating the purpose of the post, shown as the page heading on `/trips/[id]` and in the `/my-posts` list. `Request` has no equivalent field.
 - **Write-in destination**: `Trip.destinationCityId`/`Request.destinationCityId` are both nullable, paired with a new `destinationText String?` on each model — a poster can pick a listed `City` or type a destination that isn't seeded (e.g. an airport), never both. `tripFieldsSchema`/`requestFieldsSchema` (`src/lib/postSchemas.ts`) enforce "exactly one of the two" via `.refine()`, not a DB constraint. `TripPostForm`/`RequestPostForm` implement this as a `<select>` with a sentinel `"Other (type it in)"` option that reveals a free-text input. Origin stays City-only on both models — this only applies to the destination side.
 
+## Explore Page
+
+`/explore` (`src/app/explore/page.tsx`) browses active Trip (offer) and standalone ride Request (need) posts from **other** users, merged into one feed — a server component querying Prisma directly, same convention as `/my-posts` and the Trip/Request detail pages, not a client-side fetch against `/api/trips`/`/api/requests`.
+
+- **Scope: rides only.** Every card field the requirements call for (origin/destination/date/time/seats/offer-vs-request) is ride-shaped, so this merges `Trip` (all of them are ride offers) with standalone (`tripId = null`) `Request` rows where `type = "ride"` only — package requests aren't browsable here. This is a deliberate scope decision, not an oversight; package browsing would need its own card shape.
+- **Excludes the caller's own posts**: `travelerId: { not: user.id }` / `postedById: { not: user.id }`, mirroring the ownership pattern `/my-posts` and the detail pages already use for edit/cancel permission checks.
+- **Excludes anything not currently actionable**: DB-level `status: "active"` (Trip) / `status: "pending"` (Request), further filtered in application code through `tripDisplayStatus`/`requestDisplayStatus` (`src/lib/postStatus.ts`) so a past-due post that never got cancelled doesn't show as if it were still open — same derived-at-read-time helpers `/my-posts` uses, nothing new persisted.
+- **Filters** (`originCityId`, `destinationCityId`, `date`, `kind`) are plain `<form method="get">` query params, not client state — submitting does a normal navigation to `/explore?...`, re-running the server component, the same zero-JS pattern as the Upcoming/History tabs on `/my-posts`. `getCitiesByRegion()` (`src/lib/geo.ts`) populates the origin/destination pickers.
+- **Loading/error states use Next.js App Router file conventions** (`src/app/explore/loading.tsx`, `src/app/explore/error.tsx`) rather than component-level state — the first file convention of this kind in the project; reach for the same pattern before inventing a bespoke spinner/error boundary elsewhere.
+- **`src/components/ExploreCard.tsx`** renders one card from a normalized `TripCardPost | RequestCardPost` union built in the page. The poster's Student/Parent status label is computed locally in that file from a minimal `{ signedUpAsParent, verifications }` shape selected directly on the query — **not** `universityBadgeLabel`/`parentRelationshipBadgeLabel` from `src/lib/auth.ts`, which require the full `CurrentUser` include shape (`parentLinksAsParent`, `homeCity`, `studentRecord`, …) that browsing another user's post has no reason to fetch.
+
 ## Architecture Summary
 
 **Core entities** (`prisma/schema.prisma`): `User`, `VerificationRecord`, `SupportedUniversityDomain`, `StudentRecord`, `ParentStudentOtpRequest`, `ParentStudentInvite`, `ParentStudentLink`, `Region`, `City`, `RouteCommunity`, `Trip`, `Request`, `Conversation`/`ConversationParticipant`/`Message`, `Review`, `Report`, `Block`.
@@ -108,7 +119,9 @@ scripts/setup-storage.ts      One-time (idempotent): creates the "avatars" Supab
 src/app/                      Next.js App Router
   layout.tsx                  Root layout + primary nav + avatar + auth status; enforces the parent-must-link-a-student gate on the FIRST load only (see src/lib/supabase/middleware.ts for the navigation-wide enforcement) + shows the non-blocking onboarding nudge banner
   page.tsx                    Home — personalized around the user's featured route
-  explore/page.tsx            Explore — browse route communities and trips
+  explore/page.tsx            Explore — browse other users' active Trips/ride-Requests, with origin/destination/date/offer-vs-request filters (see Explore Page section)
+  explore/loading.tsx          App Router loading state for Explore
+  explore/error.tsx            App Router error boundary for Explore
   post/page.tsx                Post — links into /post/trip or /post/request (see Trip Posting System)
   post/trip/page.tsx           Create-Trip form (TripPostForm)
   post/request/page.tsx        Create-Request form (RequestPostForm)
@@ -156,6 +169,7 @@ src/components/
   ProfileEditForm.tsx            Shared name/photo/home-area(+persona-specific fields) form, used by onboarding, connect-student step 0, and self-profile edit
   TripPostForm.tsx / RequestPostForm.tsx   Create+edit forms for Trip/Request
   DeletePostButton.tsx           Shared cancel-post button (Trip/Request detail pages)
+  ExploreCard.tsx                 Trip/Request card for /explore -- normalized TripCardPost|RequestCardPost union
 ```
 
 **API modules** (`src/app/api/**`), one per backend concern per the modular-monolith design:

@@ -79,3 +79,115 @@ body {
   text-decoration: none;
   font-size: 0.875rem;
 }
+
+.explore-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: flex-end;
+  margin: 1rem 0 1.5rem;
+  padding: 1rem;
+  border: 1px solid #e5e5e5;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.explore-filters > div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.875rem;
+}
+
+.explore-filters label {
+  font-weight: 600;
+}
+
+.explore-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 1rem;
+}
+
+.explore-card {
+  display: block;
+  padding: 1rem;
+  border: 1px solid #e5e5e5;
+  border-radius: 8px;
+  background: #fff;
+  color: inherit;
+  text-decoration: none;
+}
+
+.explore-card:hover {
+  border-color: #0060df;
+}
+
+.explore-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.explore-card-poster {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.explore-card-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.explore-card-avatar-placeholder {
+  background: #e5e5e5;
+}
+
+.explore-card-poster-name {
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.explore-card-poster-role {
+  font-size: 0.75rem;
+  color: #666;
+}
+
+.explore-card-kind {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.125rem 0.5rem;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.explore-card-kind-offer {
+  background: #e6f4ea;
+  color: #1a7a3a;
+}
+
+.explore-card-kind-request {
+  background: #e8f0fe;
+  color: #0b57d0;
+}
+
+.explore-card-title {
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+.explore-card-route {
+  font-size: 0.9375rem;
+  margin-bottom: 0.25rem;
+}
+
+.explore-card-meta,
+.explore-card-seats {
+  font-size: 0.8125rem;
+  color: #444;
+}
