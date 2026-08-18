@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { requestDisplayStatus, tripDisplayStatus } from "@/lib/postStatus";
 
 // Lists the current user's own Trip (offer) and Request (need) posts --
 // travelerId / postedById are the ownership fields the API routes enforce
@@ -93,7 +94,7 @@ export default async function MyPostsPage({
                 {trip.originCity.name} → {trip.destinationCity.name} —{" "}
                 {trip.departureDate.toLocaleDateString()}
               </Link>
-              {" "}({trip.status})
+              {" "}({tripDisplayStatus(trip)})
             </li>
           ))}
         </ul>
@@ -115,7 +116,7 @@ export default async function MyPostsPage({
                 {r.originCity?.name ?? "?"} → {r.destinationCity?.name ?? "?"}
                 {r.neededDate && ` — ${r.neededDate.toLocaleDateString()}`}
               </Link>
-              {" "}({r.status})
+              {" "}({requestDisplayStatus(r)})
             </li>
           ))}
         </ul>

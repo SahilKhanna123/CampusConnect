@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { requestDisplayStatus } from "@/lib/postStatus";
 import { DeletePostButton } from "@/components/DeletePostButton";
 
 export default async function RequestDetailPage({
@@ -31,7 +32,7 @@ export default async function RequestDetailPage({
         {found.type === "ride" ? "Ride needed: " : "Delivery needed: "}
         {found.originCity?.name ?? "?"} → {found.destinationCity?.name ?? "?"}
       </h1>
-      <p>Status: {found.status}</p>
+      <p>Status: {requestDisplayStatus(found)}</p>
       {found.neededDate && (
         <p>
           {found.neededDate.toLocaleDateString()}

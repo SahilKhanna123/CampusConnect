@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { tripDisplayStatus } from "@/lib/postStatus";
 import { DeletePostButton } from "@/components/DeletePostButton";
 
 export default async function TripDetailPage({
@@ -30,7 +31,7 @@ export default async function TripDetailPage({
       <h1>
         {trip.originCity.name} → {trip.destinationCity.name}
       </h1>
-      <p>Status: {trip.status}</p>
+      <p>Status: {tripDisplayStatus(trip)}</p>
       <p>
         {trip.departureDate.toLocaleDateString()}
         {trip.departureTime && ` at ${trip.departureTime}`}
