@@ -29,23 +29,33 @@ export default async function MessagesPage() {
       {conversations.length === 0 ? (
         <p>Your conversations will appear here.</p>
       ) : (
-        <ul>
+        <div className="conversation-list">
           {conversations.map((c) => {
             const counterpart = c.participants[0]?.user;
             const lastMessage = c.messages[0];
             const destinationLabel =
               c.trip.destinationCity?.name ?? c.trip.destinationText ?? "?";
             return (
-              <li key={c.id}>
-                <Link href={`/messages/${c.id}`}>
-                  {counterpart?.name ?? "Unknown"} — {c.trip.originCity.name} →{" "}
-                  {destinationLabel}
-                  {lastMessage && <>: {lastMessage.body}</>}
-                </Link>
-              </li>
+              <Link
+                key={c.id}
+                href={`/messages/${c.id}`}
+                className="conversation-item"
+              >
+                <div className="conversation-item-title">
+                  {counterpart?.name ?? "Unknown"}
+                </div>
+                <div className="conversation-item-route">
+                  {c.trip.originCity.name} → {destinationLabel}
+                </div>
+                {lastMessage && (
+                  <div className="conversation-item-preview">
+                    {lastMessage.body}
+                  </div>
+                )}
+              </Link>
             );
           })}
-        </ul>
+        </div>
       )}
     </div>
   );
