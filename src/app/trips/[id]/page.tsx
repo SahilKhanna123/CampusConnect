@@ -4,6 +4,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { tripDisplayStatus } from "@/lib/postStatus";
 import { DeletePostButton } from "@/components/DeletePostButton";
+import { RegisterInterestForm } from "@/components/RegisterInterestForm";
 
 export default async function TripDetailPage({
   params,
@@ -62,6 +63,16 @@ export default async function TripDetailPage({
             deleteUrl={`/api/trips/${trip.id}`}
             redirectTo="/my-posts"
           />
+        </div>
+      )}
+
+      {!isOwner && tripDisplayStatus(trip) === "active" && (
+        <div>
+          {trip.seatsRemaining > 0 ? (
+            <RegisterInterestForm tripId={trip.id} />
+          ) : (
+            <p>No seats available right now.</p>
+          )}
         </div>
       )}
     </div>
