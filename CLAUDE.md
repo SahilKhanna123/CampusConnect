@@ -105,6 +105,7 @@ Implements the `Conversation`/`Message` module the plan doc (§11) describes: "a
 - **`GET /api/conversations`** lists the caller's threads (most recent first) for `/messages`; **`GET /api/conversations/[id]`** and **`GET`/`POST /api/conversations/[id]/messages`** (the latter two previously `501` stubs, now implemented) all 404 — not 403 — when the caller isn't a `ConversationParticipant`, so a thread's existence isn't leaked to someone outside it. The participant check is a small local (non-exported) helper duplicated across these files rather than pulled into a shared lib module — each file's route export validation only allows HTTP-method exports, and the check is a few lines, not worth a new module for.
 - **Polling, not websockets/realtime** (plan doc §14): `MessageThread` (`src/components/MessageThread.tsx`), the client component behind `/messages/[id]`, re-fetches `GET .../messages?since=<lastMessageTimestamp>` every 4s while the thread is mounted. `since` is always a pre-serialized ISO string on both the initial server-rendered messages and every polled batch, so the component's `Message` type never has to reconcile a `Date` object from one path against a JSON string from the other.
 - **No rate limiting or spam controls on messages** — the existing `canCreatePost` limiter (`src/lib/rate-limit.ts`) only applies to Trip/Request creation. Out of scope for this pass; revisit if messaging abuse becomes a real problem.
+- **Unread indicators**: `ConversationParticipant.lastReadAt` (nullable `DateTime`, migration `20260819021514_add_conversation_participant_last_read_at`) records when each participant last opened a thread. `src/lib/messaging.ts`'s `isConversationUnread` is the single unread rule (latest message from the other party, and either never-opened or that message postdates `lastReadAt`) — shared by `/messages` (bold title + "New" badge per row) and the nav's "Messages" item (`src/app/layout.tsx`, red count badge via `getUnreadConversationCount`, also in `src/lib/messaging.ts`). `MessageThread` calls **`POST /api/conversations/[id]/read`** on mount and after every poll that brings in new messages, so opening a thread — or leaving it open while a reply arrives — keeps it marked read. That route's `updateMany` on `(conversationId, userId)` doubles as its own authorization check (0 rows updated → 404), the same "don't leak conversation existence" pattern as the other `/api/conversations/[id]*` routes.
 
 ## Architecture Summary
 
@@ -161,6 +162,7 @@ src/app/                      Next.js App Router
   api/conversations/route.ts                      GET list caller's Conversations; POST find-or-create one for a Trip + first Message
   api/conversations/[id]/route.ts                  GET one Conversation (trip + participants), 404s if caller isn't a participant
   api/conversations/[id]/messages/route.ts          GET (polled, ?since=) and POST a Message in a Conversation
+  api/conversations/[id]/read/route.ts               POST marks the caller's ConversationParticipant.lastReadAt = now()
   api/family/parent-link/request/route.ts   Parent submits student email -> OTP sent to student
   api/family/parent-link/confirm/route.ts   Parent submits code -> StudentRecord + ParentStudentLink created + parent_relationship badge granted + app_metadata gate flag set
   api/family/link-objection/[token]/reject/route.ts   Public: revoke via the student notice email's link -- also clears the app_metadata gate flag, the parent_relationship badge, and linkedStudentName if that was the parent's last link
@@ -179,6 +181,7 @@ src/lib/
   supabase/middleware.ts         Session-refresh helper used by src/middleware.ts -- ALSO enforces the parent-link gate on every navigation via an app_metadata flag (see Auth Architecture)
   supabase/storage.ts            Avatar upload helper (Supabase Storage, "avatars" bucket)
   rate-limit.ts                 Posting rate-limit helper (10 / 12h)
+  messaging.ts                   isConversationUnread() (shared unread rule) + getUnreadConversationCount() (nav badge)
 src/components/
   ProfileEditForm.tsx            Shared name/photo/home-area(+persona-specific fields) form, used by onboarding, connect-student step 0, and self-profile edit
   TripPostForm.tsx / RequestPostForm.tsx   Create+edit forms for Trip/Request
@@ -207,6 +210,8 @@ npm run prisma:seed           # seed launch data: Bay Area / UCI regions, cities
                                #   featured RouteCommunity, and the uci.edu domain
 npm run supabase:setup-storage  # one-time (idempotent): creates the "avatars" Storage bucket
 ```
+
+**Windows dev-server gotcha, confirmed this session:** if `npm run dev` is ever force-killed (`Stop-Process -Force`, Task Manager, a crashed terminal) rather than allowed to exit normally, the webpack persistent cache under `.next/cache` can end up torn. The symptom is oddly specific and easy to misread as an application bug: one particular route consistently 500s with `Jest worker encountered N child process exceptions, exceeding retry limit` in the server log, while the exact same Prisma query run standalone (outside Next.js) succeeds instantly — i.e. the data layer is provably fine and it's still failing. Fix: stop the dev server and `rm -rf .next` before restarting. Avoid force-killing `next dev` when there's a graceful alternative (closing the terminal / normal Ctrl-C) to reduce how often this recurs.
 
 ## Environment Variables
 
