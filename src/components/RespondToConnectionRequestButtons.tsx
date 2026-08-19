@@ -4,7 +4,11 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 // Accept/Decline for a single pending row on /connections (Received tab).
-// Only rendered by the caller when status === "pending".
+// Only rendered by the caller when status === "pending". Accepting
+// redirects straight to the resulting thread (POST .../accept already
+// returns conversationId -- see src/app/api/connection-requests/[id]/accept/route.ts)
+// rather than staying on this page; declining stays put with an inline
+// confirmation, since there's no thread to jump to.
 export function RespondToConnectionRequestButtons({
   connectionRequestId,
 }: {
@@ -13,7 +17,7 @@ export function RespondToConnectionRequestButtons({
   const router = useRouter();
   const [status, setStatus] = useState<"idle" | "accepting" | "declining">("idle");
   const [error, setError] = useState<string | null>(null);
-  const [resolved, setResolved] = useState<"accepted" | "declined" | null>(null);
+  const [declined, setDeclined] = useState(false);
 
   async function respond(action: "accept" | "decline") {
     setError(null);
@@ -30,19 +34,19 @@ export function RespondToConnectionRequestButtons({
       return;
     }
 
-    setResolved(action === "accept" ? "accepted" : "declined");
+    if (action === "accept") {
+      const body = await res.json();
+      router.push(`/messages/${body.conversationId}`);
+      return;
+    }
+
+    setDeclined(true);
     setStatus("idle");
     router.refresh();
   }
 
-  if (resolved) {
-    return (
-      <p>
-        {resolved === "accepted"
-          ? "Accepted — you can now message each other."
-          : "Declined."}
-      </p>
-    );
+  if (declined) {
+    return <p>Declined.</p>;
   }
 
   return (
