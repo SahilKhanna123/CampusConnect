@@ -503,6 +503,12 @@ model ConversationParticipant {
   conversation   Conversation @relation(fields: [conversationId], references: [id])
   userId         String
   user           User         @relation(fields: [userId], references: [id])
+  // Set to now() every time this participant opens /messages/[id] for this
+  // conversation (POST /api/conversations/[id]/read). Null means "never
+  // opened" -- any message at all counts as unread in that case. Drives the
+  // unread bold/badge treatment on /messages and the unread-conversation
+  // count badge next to "Messages" in the nav (src/lib/messaging.ts).
+  lastReadAt     DateTime?
 
   @@unique([conversationId, userId])
 }

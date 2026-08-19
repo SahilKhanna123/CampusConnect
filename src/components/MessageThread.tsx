@@ -38,6 +38,13 @@ export function MessageThread({
       : null,
   );
 
+  // Marks the thread read the moment it's opened, so the unread bold/badge
+  // treatment on /messages and the nav "Messages" item clears -- fire and
+  // forget, nothing in the UI depends on this succeeding immediately.
+  useEffect(() => {
+    fetch(`/api/conversations/${conversationId}/read`, { method: "POST" });
+  }, [conversationId]);
+
   useEffect(() => {
     const interval = setInterval(async () => {
       const url = new URL(
@@ -53,6 +60,10 @@ export function MessageThread({
       if (body.messages?.length > 0) {
         setMessages((prev) => [...prev, ...body.messages]);
         latestSentAtRef.current = body.messages[body.messages.length - 1].sentAt;
+        // New messages arrived while the thread was already open -- keep
+        // lastReadAt current so they don't show as unread the moment the
+        // user navigates away.
+        fetch(`/api/conversations/${conversationId}/read`, { method: "POST" });
       }
     }, POLL_INTERVAL_MS);
     return () => clearInterval(interval);

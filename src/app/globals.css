@@ -299,3 +299,41 @@ body {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+.conversation-item-unread {
+  border-color: #0060df;
+  background: #f4f8ff;
+}
+
+.conversation-item-title-unread {
+  font-weight: 700;
+}
+
+.unread-badge {
+  display: inline-block;
+  margin-left: 0.5rem;
+  padding: 0.0625rem 0.375rem;
+  border-radius: 3px;
+  background: #0060df;
+  color: #fff;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  vertical-align: middle;
+}
+
+.nav-badge {
+  display: inline-block;
+  min-width: 1.125rem;
+  margin-left: 0.25rem;
+  padding: 0 0.3125rem;
+  border-radius: 999px;
+  background: #d93025;
+  color: #fff;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  line-height: 1.125rem;
+  text-align: center;
+  vertical-align: text-top;
+}

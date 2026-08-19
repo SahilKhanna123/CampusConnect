@@ -10,6 +10,7 @@ import {
   hasLinkedStudent,
   hasCompletedOnboarding,
 } from "@/lib/auth";
+import { getUnreadConversationCount } from "@/lib/messaging";
 
 export const metadata: Metadata = {
   title: "CampusConnect",
@@ -53,6 +54,11 @@ export default async function RootLayout({
     !hasCompletedOnboarding(user) &&
     pathname !== "/onboarding" &&
     pathname !== PARENT_LINK_GATE_EXEMPT_PATH;
+
+  // Powers the badge next to "Messages" below -- see src/lib/messaging.ts.
+  const unreadConversationCount = user
+    ? await getUnreadConversationCount(user.id)
+    : 0;
 
   return (
     <html lang="en">
@@ -114,6 +120,9 @@ export default async function RootLayout({
           {NAV_ITEMS.map((item) => (
             <Link key={item.href} href={item.href} className="site-nav-item">
               {item.label}
+              {item.href === "/messages" && unreadConversationCount > 0 && (
+                <span className="nav-badge">{unreadConversationCount}</span>
+              )}
             </Link>
           ))}
         </nav>
