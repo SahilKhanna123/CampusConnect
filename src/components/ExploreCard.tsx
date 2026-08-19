@@ -1,6 +1,7 @@
 import Link from "next/link";
+import { ConnectionRequestButton, type ConnectionStatus } from "@/components/ConnectionRequestButton";
 
-type Poster = {
+export type Poster = {
   id: string;
   name: string;
   photoUrl: string | null;
@@ -26,7 +27,10 @@ function posterIsVerified(poster: Poster): boolean {
   );
 }
 
-function PosterBadge({ poster }: { poster: Poster }) {
+// Exported -- also used by /connections to show "Requester's name, Profile
+// picture, Student/parent status" with the exact same visual treatment as
+// Explore cards, rather than re-implementing that block a third time.
+export function PosterBadge({ poster }: { poster: Poster }) {
   return (
     <div className="explore-card-poster">
       {poster.photoUrl ? (
@@ -67,6 +71,12 @@ export type TripCardPost = {
   seatsTotal: number;
   seatsRemaining: number;
   poster: Poster;
+  // The viewer's own latest ConnectionRequest status for this Trip ("none"
+  // if they've never requested, or a fresh request is allowed again after
+  // a decline/cancel -- see the ConnectionRequest schema comment). Only
+  // ever set for offer posts -- a Request has no "trip owner" to connect
+  // with in this feature's scope.
+  connectionRequestStatus: ConnectionStatus;
 };
 
 export type RequestCardPost = {
@@ -84,46 +94,60 @@ export type RequestCardPost = {
 export type ExploreCardPost = TripCardPost | RequestCardPost;
 
 // One card renders either a Trip (offer) or a standalone Request (need) --
-// used by the Explore page's grid. Clicking anywhere on the card opens the
-// same detail page as My Posts already links to (/trips/[id],
-// /requests/[id]).
+// used by the Explore page's grid. Clicking the card body opens the same
+// detail page My Posts already links to (/trips/[id], /requests/[id]). The
+// card is a <div> wrapping an inner <Link> (not a <Link> itself) so an
+// offer card's ConnectionRequestButton can sit as a sibling, not nested
+// inside the anchor -- HTML disallows interactive content (a <button>)
+// inside an <a>, and nesting them would also make clicks ambiguous.
 export function ExploreCard({ post }: { post: ExploreCardPost }) {
   const href = post.kind === "offer" ? `/trips/${post.id}` : `/requests/${post.id}`;
 
   return (
-    <Link href={href} className="explore-card">
-      <div className="explore-card-top">
-        <PosterBadge poster={post.poster} />
-        <span
-          className={
-            post.kind === "offer"
-              ? "explore-card-kind explore-card-kind-offer"
-              : "explore-card-kind explore-card-kind-request"
-          }
-        >
-          {post.kind === "offer" ? "Offering a ride" : "Needs a ride"}
-        </span>
-      </div>
+    <div className="explore-card">
+      <Link href={href} className="explore-card-link">
+        <div className="explore-card-top">
+          <PosterBadge poster={post.poster} />
+          <span
+            className={
+              post.kind === "offer"
+                ? "explore-card-kind explore-card-kind-offer"
+                : "explore-card-kind explore-card-kind-request"
+            }
+          >
+            {post.kind === "offer" ? "Offering a ride" : "Needs a ride"}
+          </span>
+        </div>
+
+        {post.kind === "offer" && (
+          <div className="explore-card-title">{post.title || "Untitled trip"}</div>
+        )}
+
+        <div className="explore-card-route">
+          {post.originName} → {post.destinationName}
+        </div>
+
+        <div className="explore-card-meta">
+          {post.date ? post.date.toLocaleDateString() : "Date flexible"}
+          {post.time && ` at ${post.time}`}
+          {post.flexibleTime && " (flexible)"}
+        </div>
+
+        <div className="explore-card-seats">
+          {post.kind === "offer"
+            ? `Seats available: ${post.seatsRemaining} / ${post.seatsTotal}`
+            : `Seats needed: ${post.seatsRequested}`}
+        </div>
+      </Link>
 
       {post.kind === "offer" && (
-        <div className="explore-card-title">{post.title || "Untitled trip"}</div>
+        <div className="explore-card-actions">
+          <ConnectionRequestButton
+            tripId={post.id}
+            initialStatus={post.connectionRequestStatus}
+          />
+        </div>
       )}
-
-      <div className="explore-card-route">
-        {post.originName} → {post.destinationName}
-      </div>
-
-      <div className="explore-card-meta">
-        {post.date ? post.date.toLocaleDateString() : "Date flexible"}
-        {post.time && ` at ${post.time}`}
-        {post.flexibleTime && " (flexible)"}
-      </div>
-
-      <div className="explore-card-seats">
-        {post.kind === "offer"
-          ? `Seats available: ${post.seatsRemaining} / ${post.seatsTotal}`
-          : `Seats needed: ${post.seatsRequested}`}
-      </div>
-    </Link>
+    </div>
   );
 }

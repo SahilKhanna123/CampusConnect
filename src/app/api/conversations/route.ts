@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { tripDisplayStatus } from "@/lib/postStatus";
+import { findOrCreateConversationForTrip } from "@/lib/messaging";
 
 // GET /api/conversations
 // Lists the caller's conversations, most recently created first, each with
@@ -46,11 +47,10 @@ const startConversationSchema = z.object({
 // unbuilt matching lifecycle (requests/[id]/accept, see CLAUDE.md), which
 // needs a DB-transaction capacity check this endpoint has no business doing.
 //
-// Conversation reuse below is a plain find-then-create, not the
-// race-hardened pattern claimOrCreateStudentRecord uses for StudentRecord --
-// a duplicate thread here is a minor UX nuisance (two tabs for the same
-// trip), not a security or data-integrity issue, so that extra rigor isn't
-// worth it here.
+// Conversation find-or-create is shared with POST
+// /api/connection-requests/[id]/accept via findOrCreateConversationForTrip
+// (src/lib/messaging.ts) -- see that function's comment for why it's a
+// plain find-then-create rather than a race-hardened pattern.
 export async function POST(request: Request) {
   const user = await getCurrentUser();
   if (!user) {
@@ -80,26 +80,11 @@ export async function POST(request: Request) {
     );
   }
 
-  let conversation = await prisma.conversation.findFirst({
-    where: {
-      tripId,
-      AND: [
-        { participants: { some: { userId: user.id } } },
-        { participants: { some: { userId: trip.travelerId } } },
-      ],
-    },
-  });
-
-  if (!conversation) {
-    conversation = await prisma.conversation.create({
-      data: {
-        tripId,
-        participants: {
-          create: [{ userId: user.id }, { userId: trip.travelerId }],
-        },
-      },
-    });
-  }
+  const conversation = await findOrCreateConversationForTrip(
+    tripId,
+    user.id,
+    trip.travelerId,
+  );
 
   await prisma.message.create({
     data: { conversationId: conversation.id, senderId: user.id, body },

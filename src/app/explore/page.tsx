@@ -5,6 +5,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { getCitiesByRegion } from "@/lib/geo";
 import { tripDisplayStatus, requestDisplayStatus } from "@/lib/postStatus";
 import { ExploreCard, type ExploreCardPost } from "@/components/ExploreCard";
+import type { ConnectionStatus } from "@/components/ConnectionRequestButton";
 
 function parseDateFilter(date?: string) {
   if (!date) return null;
@@ -100,6 +101,26 @@ export default async function ExplorePage({
     }),
   ]);
 
+  // One batch query for the viewer's own ConnectionRequests against every
+  // Trip on this page, rather than a per-card fetch (would be N+1). A trip
+  // can have more than one row over time (a fresh request is allowed again
+  // after a decline/cancel, see the ConnectionRequest schema comment) --
+  // ordering desc and only keeping the first-seen row per tripId picks the
+  // most recent one.
+  const myConnectionRequests = showOffers
+    ? await prisma.connectionRequest.findMany({
+        where: { requesterId: user.id, tripId: { in: trips.map((t) => t.id) } },
+        orderBy: { createdAt: "desc" },
+        select: { tripId: true, status: true },
+      })
+    : [];
+  const connectionStatusByTripId = new Map<string, ConnectionStatus>();
+  for (const r of myConnectionRequests) {
+    if (!connectionStatusByTripId.has(r.tripId)) {
+      connectionStatusByTripId.set(r.tripId, r.status);
+    }
+  }
+
   const offerPosts: { sortDate: Date | null; post: ExploreCardPost }[] = showOffers
     ? trips
         .filter((trip) => tripDisplayStatus(trip) === "active")
@@ -118,6 +139,7 @@ export default async function ExplorePage({
             seatsTotal: trip.seatsTotal,
             seatsRemaining: trip.seatsRemaining,
             poster: trip.traveler,
+            connectionRequestStatus: connectionStatusByTripId.get(trip.id) ?? "none",
           },
         }))
     : [];

@@ -1,6 +1,41 @@
 import { prisma } from "@/lib/prisma";
 
 /**
+ * Finds (or creates) the Conversation scoped to (tripId, userIdA, userIdB) --
+ * the single conversation-creation code path in the app. Originally inline
+ * in POST /api/conversations (RegisterInterestForm's endpoint); extracted
+ * here so POST /api/connection-requests/[id]/accept can reuse the exact
+ * same logic when a ConnectionRequest is accepted, instead of standing up a
+ * second messaging mechanism. Deliberately a plain find-then-create, not
+ * the race-hardened pattern claimOrCreateStudentRecord uses for
+ * StudentRecord -- a duplicate thread here is a minor UX nuisance, not a
+ * security or data-integrity issue.
+ */
+export async function findOrCreateConversationForTrip(
+  tripId: string,
+  userIdA: string,
+  userIdB: string,
+) {
+  const existing = await prisma.conversation.findFirst({
+    where: {
+      tripId,
+      AND: [
+        { participants: { some: { userId: userIdA } } },
+        { participants: { some: { userId: userIdB } } },
+      ],
+    },
+  });
+  if (existing) return existing;
+
+  return prisma.conversation.create({
+    data: {
+      tripId,
+      participants: { create: [{ userId: userIdA }, { userId: userIdB }] },
+    },
+  });
+}
+
+/**
  * Shared "is this conversation unread for this user" rule: the most recent
  * Message was sent by someone else, and either the user has never opened
  * this conversation (lastReadAt null) or that message arrived after they

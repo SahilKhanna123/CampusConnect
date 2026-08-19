@@ -159,6 +159,8 @@ model User {
   invitesSent              ParentStudentInvite[]     @relation("InviteStudent")
   conversationsIn          ConversationParticipant[]
   messagesSent             Message[]                 @relation("MessageSender")
+  connectionRequestsSent     ConnectionRequest[]     @relation("ConnectionRequestRequester")
+  connectionRequestsReceived ConnectionRequest[]     @relation("ConnectionRequestRecipient")
   reviewsGiven             Review[]                  @relation("ReviewReviewer")
   reviewsReceived          Review[]                  @relation("ReviewReviewee")
   reportsFiled             Report[]                  @relation("ReportReporter")
@@ -419,11 +421,54 @@ model Trip {
   status                TripStatus @default(active)
   createdAt             DateTime   @default(now())
 
-  requests      Request[]
-  conversations Conversation[]
+  requests            Request[]
+  conversations       Conversation[]
+  connectionRequests  ConnectionRequest[]
 
   @@index([originCityId, destinationCityId, departureDate])
   @@index([travelerId])
+}
+
+enum ConnectionRequestStatus {
+  pending
+  accepted
+  declined
+  cancelled
+}
+
+// A formal, gated request to connect over a specific Trip -- distinct from
+// the ungated "message the traveler" flow (Conversation, see below):
+// RegisterInterestForm lets ANY viewer message the traveler immediately
+// (the plan doc's "ask before committing to a formal request" design,
+// deliberately left alone), while ConnectionRequest adds an explicit
+// pending -> accepted/declined/cancelled lifecycle the trip owner controls.
+// Accepting one calls the same findOrCreateConversationForTrip
+// (src/lib/messaging.ts) that RegisterInterestForm's endpoint uses --
+// there is exactly one messaging system, not two; ConnectionRequest only
+// gates *when* it unlocks for this flow, it doesn't reimplement it.
+model ConnectionRequest {
+  id          String                  @id @default(uuid())
+  tripId      String
+  trip        Trip                    @relation(fields: [tripId], references: [id])
+  requesterId String
+  requester   User                    @relation("ConnectionRequestRequester", fields: [requesterId], references: [id])
+  recipientId String
+  recipient   User                    @relation("ConnectionRequestRecipient", fields: [recipientId], references: [id])
+  status      ConnectionRequestStatus @default(pending)
+  createdAt   DateTime                @default(now())
+  updatedAt   DateTime                @updatedAt
+
+  // No DB-level uniqueness on (tripId, requesterId): only a PENDING
+  // duplicate is disallowed (enforced in application code, POST
+  // /api/connection-requests), and a requester must be able to try again
+  // after a decline or their own cancellation -- a blanket unique
+  // constraint would block that. A duplicate pending row slipping through
+  // a race is the same low-stakes "minor UX nuisance, not a security or
+  // data-integrity issue" tradeoff already made for Conversation reuse
+  // (see src/lib/messaging.ts) -- not worth a partial unique index for.
+  @@index([tripId])
+  @@index([requesterId])
+  @@index([recipientId])
 }
 
 // Unified ride + package request. type discriminates the two; tripId is
