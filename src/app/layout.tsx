@@ -26,7 +26,6 @@ const NAV_ITEMS = [
   { href: "/my-posts", label: "My Posts" },
   { href: "/connections", label: "Connections" },
   { href: "/messages", label: "Messages" },
-  { href: "/notifications", label: "🔔 Alerts" },
   { href: "/profile", label: "Profile" },
 ];
 
@@ -62,7 +61,7 @@ export default async function RootLayout({
   const unreadConversationCount = user
     ? await getUnreadConversationCount(user.id)
     : 0;
-  // Powers the badge next to "🔔 Alerts" below -- see src/lib/notifications.ts.
+  // Powers the badge on the bell icon in the header below -- see src/lib/notifications.ts.
   // Deliberately a separate count from unreadConversationCount above, not a
   // merged total: an accepted/declined connection request has no
   // corresponding "unread conversation" state at all, so folding the two
@@ -77,49 +76,69 @@ export default async function RootLayout({
       <body>
         <header className="site-header">
           <span className="site-title">CampusConnect</span>
-          <span className="site-auth-status">
-            {user ? (
-              <>
-                {user.photoUrl && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={user.photoUrl}
-                    alt=""
-                    width={24}
-                    height={24}
-                    style={{
-                      borderRadius: "50%",
-                      verticalAlign: "middle",
-                      marginRight: "0.375rem",
-                      objectFit: "cover",
-                    }}
-                  />
+          <span className="site-header-right">
+            {user && (
+              <Link
+                href="/notifications"
+                className="notification-bell"
+                aria-label={
+                  unreadNotificationCount > 0
+                    ? `Notifications (${unreadNotificationCount} unread)`
+                    : "Notifications"
+                }
+              >
+                🔔
+                {unreadNotificationCount > 0 && (
+                  <span className="notification-bell-badge">
+                    {unreadNotificationCount}
+                  </span>
                 )}
-                {user.name}
-                {" · "}
-                {universityBadgeLabel(user) ??
-                  parentRelationshipBadgeLabel(user) ??
-                  // A parent account never has its own university email to
-                  // verify (see parentRelationshipBadgeLabel above) -- the
-                  // self-serve /verify flow is for students/alumni/travelers
-                  // only, so don't nudge a parent toward it.
-                  (!user.signedUpAsParent && (
-                    <Link href="/verify">Verify your university email</Link>
-                  ))}
-                {" · "}
-                <form action="/api/auth/signout" method="post" style={{ display: "inline" }}>
-                  <button type="submit" className="site-auth-link">
-                    Sign out
-                  </button>
-                </form>
-              </>
-            ) : (
-              <>
-                <Link href="/login">Log in</Link>
-                {" · "}
-                <Link href="/sign-up">Sign up</Link>
-              </>
+              </Link>
             )}
+            <span className="site-auth-status">
+              {user ? (
+                <>
+                  {user.photoUrl && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={user.photoUrl}
+                      alt=""
+                      width={24}
+                      height={24}
+                      style={{
+                        borderRadius: "50%",
+                        verticalAlign: "middle",
+                        marginRight: "0.375rem",
+                        objectFit: "cover",
+                      }}
+                    />
+                  )}
+                  {user.name}
+                  {" · "}
+                  {universityBadgeLabel(user) ??
+                    parentRelationshipBadgeLabel(user) ??
+                    // A parent account never has its own university email to
+                    // verify (see parentRelationshipBadgeLabel above) -- the
+                    // self-serve /verify flow is for students/alumni/travelers
+                    // only, so don't nudge a parent toward it.
+                    (!user.signedUpAsParent && (
+                      <Link href="/verify">Verify your university email</Link>
+                    ))}
+                  {" · "}
+                  <form action="/api/auth/signout" method="post" style={{ display: "inline" }}>
+                    <button type="submit" className="site-auth-link">
+                      Sign out
+                    </button>
+                  </form>
+                </>
+              ) : (
+                <>
+                  <Link href="/login">Log in</Link>
+                  {" · "}
+                  <Link href="/sign-up">Sign up</Link>
+                </>
+              )}
+            </span>
           </span>
         </header>
         {showOnboardingNudge && (
@@ -134,9 +153,6 @@ export default async function RootLayout({
               {item.label}
               {item.href === "/messages" && unreadConversationCount > 0 && (
                 <span className="nav-badge">{unreadConversationCount}</span>
-              )}
-              {item.href === "/notifications" && unreadNotificationCount > 0 && (
-                <span className="nav-badge">{unreadNotificationCount}</span>
               )}
             </Link>
           ))}
