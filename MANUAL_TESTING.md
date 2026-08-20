@@ -8,6 +8,26 @@ items off as you verify them; leave unchecked ones for the next pass.
 No automated test suite exists in this project (see CLAUDE.md) — this file
 is the actual test coverage.
 
+## Fix: duplicate messages in a thread (2026-08-20)
+
+- [ ] Open a Conversation thread (`/messages/[id]`) and leave it open for
+      several poll cycles (each poll is every 4s) with no new activity —
+      no message should ever appear more than once
+- [ ] Send several messages back-to-back quickly (before the next 4s poll
+      tick) — each appears exactly once, not duplicated when the next poll
+      comes back and also sees them via `?since=`
+- [ ] With the thread open, have the other participant send a message —
+      it appears exactly once on the next poll, not 2-3x (this was the
+      original bug: an in-flight poll request that took longer than 4s let
+      a second poll tick fire before `since` advanced, so both requests
+      fetched and appended the same not-yet-seen message)
+- [ ] Throttle the network (DevTools → Network → Slow 3G) on one thread
+      tab to widen the race window, then send a message from the other
+      participant — still appears exactly once
+- [ ] Confirm unread-read behavior is unaffected: opening a thread and
+      receiving a new message while it's open still clears the unread
+      badge on `/messages` and the nav "Messages" item
+
 ## Trip Management / Trip Lifecycle (2026-08-20)
 
 - [ ] Creating a Trip lands it in status "upcoming" — shows in `/my-posts`
