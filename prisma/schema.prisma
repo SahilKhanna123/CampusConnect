@@ -93,6 +93,13 @@ enum NotificationType {
   // the trip owner cancels the trip out from under it -- see the Trip
   // Management section of CLAUDE.md and DELETE /api/trips/[id].
   trip_cancelled
+  // Sent to the requester when the trip owner confirms their accepted
+  // ConnectionRequest as an actual seat on the trip -- see the Trip
+  // Participants section of CLAUDE.md and POST
+  // /api/connection-requests/[id]/confirm-seat. Deliberately not sent again
+  // on release-seat (an owner-side correction of their own mistake, not an
+  // event worth notifying the rider about).
+  trip_seat_confirmed
 }
 
 model User {
@@ -476,6 +483,19 @@ model ConnectionRequest {
   status      ConnectionRequestStatus @default(pending)
   createdAt   DateTime                @default(now())
   updatedAt   DateTime                @updatedAt
+  // Set by the trip owner via POST .../confirm-seat once an accepted
+  // connection actually takes a seat on the trip -- distinct from `status`
+  // itself because not every accepted connection necessarily becomes a
+  // rider (e.g. a chat that fell through, or a package-only connection).
+  // Only ever meaningful when status = accepted. Setting/clearing this is
+  // always paired, in the same DB transaction, with an opposite
+  // decrement/increment of Trip.seatsRemaining (see confirm-seat/
+  // release-seat routes) -- the two must never drift apart, since
+  // seatsRemaining has no other way to derive who's actually holding one of
+  // its seats. This is the first real write path for Trip.seatsRemaining
+  // other than the create/edit "reset to seatsTotal" paths -- see the Trip
+  // Participants section of CLAUDE.md.
+  seatConfirmedAt DateTime?
 
   // No DB-level uniqueness on (tripId, requesterId): only a PENDING
   // duplicate is disallowed (enforced in application code, POST

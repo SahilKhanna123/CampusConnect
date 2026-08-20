@@ -28,10 +28,15 @@ export async function GET(
 // Body: tripFieldsSchema (same shape as create -- the edit form always
 // submits the full set, mirroring PATCH /api/profile's convention). Caller
 // must be the Trip's own traveler; there is no separate "manager" role.
-// Changing seatsTotal resets seatsRemaining to match it -- safe because
-// nothing can have booked a seat yet (accept/decline is still a stub, i.e.
-// matching is deliberately not built). Only reachable while the trip is
-// still "upcoming" -- editing a completed or cancelled trip's details
+// Changing seatsTotal resets seatsRemaining to (new seatsTotal - confirmed
+// participant count), not blindly to seatsTotal -- once Trip Participants
+// (see CLAUDE.md) can hold a confirmed seat via
+// ConnectionRequest.seatConfirmedAt, silently overwriting seatsRemaining
+// would desync it from who's actually confirmed to ride. Reducing seatsTotal
+// below the number of already-confirmed riders is rejected outright (400)
+// rather than silently clamped, since there's no correct number to fall
+// back to -- the owner has to release a seat first. Only reachable while
+// the trip is still "upcoming" -- editing a completed or cancelled trip's details
 // after the fact has no clear product reason (nothing reads those fields
 // differently once terminal) and would risk silently rewriting history
 // underneath any connections/history tied to it, so it's blocked
@@ -80,6 +85,18 @@ export async function PATCH(
     );
   }
 
+  const confirmedParticipantCount = await prisma.connectionRequest.count({
+    where: { tripId: id, seatConfirmedAt: { not: null } },
+  });
+  if (data.seatsTotal < confirmedParticipantCount) {
+    return NextResponse.json(
+      {
+        error: `Can't reduce seats below the ${confirmedParticipantCount} rider${confirmedParticipantCount === 1 ? "" : "s"} already confirmed. Release a seat first.`,
+      },
+      { status: 400 },
+    );
+  }
+
   await prisma.trip.update({
     where: { id },
     data: {
@@ -91,7 +108,7 @@ export async function PATCH(
       departureTime: data.departureTime || null,
       flexibleTime: data.flexibleTime ?? false,
       seatsTotal: data.seatsTotal,
-      seatsRemaining: data.seatsTotal,
+      seatsRemaining: data.seatsTotal - confirmedParticipantCount,
       packageSpaceAvailable: data.packageSpaceAvailable ?? false,
       packageCapacityNote: data.packageCapacityNote || null,
       tripNotes: data.tripNotes || null,
