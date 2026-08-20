@@ -3,12 +3,19 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { tripDisplayStatus } from "@/lib/postStatus";
-import { createNotification } from "@/lib/notifications";
+import { createNotification, truncateForNotification } from "@/lib/notifications";
 
-const createSchema = z.object({ tripId: z.string().min(1) });
+const createSchema = z.object({
+  tripId: z.string().min(1),
+  // Optional context the requester can attach for the trip owner -- see
+  // the schema comment on ConnectionRequest.message. Never required: the
+  // plain one-click "Request to Connect" flow (message omitted) must keep
+  // working exactly as it did before this field existed.
+  message: z.string().trim().max(500).optional(),
+});
 
 // POST /api/connection-requests
-// Body: { tripId }
+// Body: { tripId, message? }
 // Creates a pending ConnectionRequest from the caller to the Trip's
 // traveler -- requesterId/recipientId are always derived server-side
 // (requesterId = the authenticated caller, recipientId = trip.travelerId),
@@ -29,7 +36,7 @@ export async function POST(request: Request) {
   if (!parsed.success) {
     return NextResponse.json({ error: "A trip is required." }, { status: 400 });
   }
-  const { tripId } = parsed.data;
+  const { tripId, message } = parsed.data;
 
   const trip = await prisma.trip.findUnique({ where: { id: tripId } });
   if (!trip) {
@@ -64,6 +71,7 @@ export async function POST(request: Request) {
       requesterId: user.id,
       recipientId: trip.travelerId,
       status: "pending",
+      message: message || null,
     },
   });
 
@@ -71,7 +79,7 @@ export async function POST(request: Request) {
     userId: trip.travelerId,
     type: "connection_request",
     title: "New connection request",
-    message: `${user.name} wants to connect about your trip${trip.title ? ` "${trip.title}"` : ""}.`,
+    message: `${user.name} wants to connect about your trip${trip.title ? ` "${trip.title}"` : ""}.${message ? ` "${truncateForNotification(message)}"` : ""}`,
     relatedId: created.id,
   });
 

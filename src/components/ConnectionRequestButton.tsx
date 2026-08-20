@@ -11,6 +11,15 @@ export type ConnectionStatus = "none" | "pending" | "accepted" | "declined" | "c
 // possible (the historical declined/cancelled status is what /connections's
 // Sent tab is for, not this button). See POST /api/connection-requests for
 // the server-side duplicate-pending check this mirrors.
+//
+// Clicking "Request to Connect" reveals an optional note composer (same
+// reveal-a-form-on-click shape as RegisterInterestForm) rather than firing
+// immediately -- the note is never required, so a plain one-click request
+// is still possible by submitting with it empty, but it gives the
+// requester a place to add context the trip owner sees before deciding
+// (on /connections and in the connection_request notification), and which
+// carries into the chat as the first Message if the request is accepted
+// (see POST /api/connection-requests/[id]/accept).
 export function ConnectionRequestButton({
   tripId,
   initialStatus,
@@ -25,17 +34,20 @@ export function ConnectionRequestButton({
   conversationId?: string | null;
 }) {
   const [status, setStatus] = useState<ConnectionStatus>(initialStatus);
+  const [composing, setComposing] = useState(false);
+  const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function handleRequest() {
+  async function handleRequest(e: React.FormEvent) {
+    e.preventDefault();
     setError(null);
     setLoading(true);
 
     const res = await fetch("/api/connection-requests", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ tripId }),
+      body: JSON.stringify({ tripId, message: message.trim() || undefined }),
     });
 
     if (!res.ok) {
@@ -46,6 +58,7 @@ export function ConnectionRequestButton({
     }
 
     setStatus("pending");
+    setComposing(false);
     setLoading(false);
   }
 
@@ -63,17 +76,45 @@ export function ConnectionRequestButton({
     return <span className="connection-status connection-status-pending">Request Sent</span>;
   }
 
+  if (composing) {
+    return (
+      <form onSubmit={handleRequest} className="connection-request-compose">
+        <label htmlFor={`connection-note-${tripId}`}>
+          Add a note for the trip owner (optional)
+        </label>
+        <textarea
+          id={`connection-note-${tripId}`}
+          maxLength={500}
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          placeholder="e.g. I'd need a seat for the return trip too"
+        />
+        {error && <p role="alert">{error}</p>}
+        <div>
+          <button type="submit" disabled={loading}>
+            {loading ? "Sending…" : "Send Request"}
+          </button>{" "}
+          <button
+            type="button"
+            onClick={() => setComposing(false)}
+            disabled={loading}
+          >
+            Cancel
+          </button>
+        </div>
+      </form>
+    );
+  }
+
   return (
     <div>
       <button
         type="button"
-        onClick={handleRequest}
-        disabled={loading}
+        onClick={() => setComposing(true)}
         className="connection-request-button"
       >
-        {loading ? "Sending…" : "Request to Connect"}
+        Request to Connect
       </button>
-      {error && <p role="alert">{error}</p>}
     </div>
   );
 }

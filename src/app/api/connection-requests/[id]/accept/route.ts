@@ -60,6 +60,20 @@ export async function POST(
     connectionRequest.recipientId,
   );
 
+  // Carries the requester's original note (if any) into the chat as its
+  // first Message, so the context that helped the owner decide to accept
+  // doesn't get stranded on a ConnectionRequest row the requester can no
+  // longer act on -- see the schema comment on ConnectionRequest.message.
+  if (connectionRequest.message) {
+    await prisma.message.create({
+      data: {
+        conversationId: conversation.id,
+        senderId: connectionRequest.requesterId,
+        body: connectionRequest.message,
+      },
+    });
+  }
+
   await prisma.connectionRequest.update({
     where: { id },
     data: { status: "accepted" },
