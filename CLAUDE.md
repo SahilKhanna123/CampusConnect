@@ -119,9 +119,19 @@ A formal, gated request-to-connect lifecycle (`ConnectionRequest` model: `pendin
 - **`/connections`** (Received default, `?tab=sent`) follows the exact `/my-posts` Upcoming/History convention — plain query param, server-rendered, no client JS for the tab switch. Pending rows get `RespondToConnectionRequestButtons` (Accept/Decline, Received tab only) or `CancelConnectionRequestButton` (Sent tab only). Decline and Cancel follow `DeletePostButton`'s confirm-then-fetch-then-`router.refresh()` shape; **Accept does not** — it `router.push()`es straight to `/messages/[conversationId]` (the id `POST .../accept` already returns) instead of staying on `/connections`, since the whole point of accepting is to land in the resulting chat.
 - **No DB-level uniqueness on `(tripId, requesterId)`** — see the long comment on the `ConnectionRequest` model in `prisma/schema.prisma` before adding one; a blanket unique constraint would block the intentional "try again after a decline" flow.
 
+## Notifications
+
+An in-app `Notification` model (`prisma/schema.prisma`), one row per event, read by the caller only — no push/email/SMS delivery. `src/lib/notifications.ts`'s `createNotification()` is the single creation path (same "one function, every trigger site calls it" convention as `findOrCreateConversationForTrip`), called from exactly four places today: `POST /api/connection-requests` (notifies the trip owner), `POST /api/connection-requests/[id]/accept` and `.../decline` (both notify the original requester), and the two message-creation routes (`POST /api/conversations` and `POST /api/conversations/[id]/messages`, both notify the other conversation participant(s), never the sender). Each of those events is naturally non-duplicating: connection-request creation is already blocked from duplicating by the existing pending-request check, accept/decline can each only fire once per request (`status !== "pending"` guard), and a message notification corresponds 1:1 with an actual new `Message` row.
+
+- **Fields**: `type` (`connection_request` | `connection_accepted` | `connection_declined` | `new_message`), `title`, `message` (both plain strings written at creation time, not re-derived at read time — a notification still reads correctly even after the thing it points at changes state further), `relatedId` (untyped, points at whichever entity `type` implies — a `ConnectionRequest` or a `Conversation`, never a second FK per possible target), `isRead`, `createdAt`.
+- **Where a click goes**: `notificationLink()` (`src/lib/notifications.ts`) is the one type→URL mapping. `connection_request` → `/connections` (Received tab, the default); `connection_declined` → `/connections?tab=sent`; `connection_accepted`/`new_message` → `/messages/[relatedId]` (the conversation thread). The first two don't deep-link to a single row because a connection request can be re-sent after a decline, so there's no permanently stable target to point at.
+- **`/notifications`**: a server component querying Prisma directly (same convention as `/messages`/`/connections`, not a client fetch against a GET listing route — there is no `GET /api/notifications`), most recent first, capped at 100 rows (a simple cap, not real pagination, consistent with the rest of the app). Has `loading.tsx`/`error.tsx` following the Explore page's App Router file-convention pattern. Each row is `NotificationItem` (`src/components/NotificationItem.tsx`, client component): the whole row is a `Link` to `notificationLink()`'s target, and clicking it fires a fire-and-forget `POST /api/notifications/[id]/read` (same pattern `MessageThread` uses for its own read receipts) before letting navigation proceed — no `preventDefault`, so Next's `Link` still navigates normally. A separate small "Mark as read" button covers marking a notification read without leaving the page. `MarkAllNotificationsReadButton` posts to `POST /api/notifications/read-all`.
+- **Security**: `POST /api/notifications/[id]/read` uses the same `updateMany(WHERE id, userId)`-doubles-as-authorization pattern as `POST /api/conversations/[id]/read` — 0 rows affected (wrong owner or nonexistent id) returns a 404, no distinction leaked. `POST /api/notifications/read-all` scopes its `updateMany` to `WHERE userId = caller`, so it can only ever touch the caller's own rows — there's no id parameter for another user's id to leak into.
+- **Nav bell**: `layout.tsx` adds a "🔔 Alerts" item to `NAV_ITEMS`, badge-count computed via `getUnreadNotificationCount()` (`src/lib/notifications.ts`) the same way the existing "Messages" badge already works — computed fresh on every full server render, not client-polled. Deliberately a separate count from the Messages unread-conversation count, not merged into one total: an accepted/declined connection request has no corresponding "unread conversation" at all, so folding them together would either double-count message notifications or silently drop connection-request ones from the badge. Like the Messages badge, this only recomputes on a full page load/server render — a client-side `<Link>` navigation that stays under the same root layout won't refresh it immediately, the same already-documented Next.js App Router caveat noted under Auth Architecture for the parent-link gate.
+
 ## Architecture Summary
 
-**Core entities** (`prisma/schema.prisma`): `User`, `VerificationRecord`, `SupportedUniversityDomain`, `StudentRecord`, `ParentStudentOtpRequest`, `ParentStudentInvite`, `ParentStudentLink`, `Region`, `City`, `RouteCommunity`, `Trip`, `Request`, `Conversation`/`ConversationParticipant`/`Message`, `ConnectionRequest`, `Review`, `Report`, `Block`.
+**Core entities** (`prisma/schema.prisma`): `User`, `VerificationRecord`, `SupportedUniversityDomain`, `StudentRecord`, `ParentStudentOtpRequest`, `ParentStudentInvite`, `ParentStudentLink`, `Region`, `City`, `RouteCommunity`, `Trip`, `Request`, `Conversation`/`ConversationParticipant`/`Message`, `ConnectionRequest`, `Notification`, `Review`, `Report`, `Block`.
 
 **Design principles baked into the schema — do not casually "simplify" these away:**
 - **Verification is composable, not singular.** `VerificationRecord.type` (`email` | `university` | `parent_relationship` | `identity`) lets badges exist independently. University verification is a hard product-level gate on student accounts, enforced in application logic — not a schema constraint — so a future `identity` (government ID) verification type slots in without migration.
@@ -156,6 +166,9 @@ src/app/                      Next.js App Router
   requests/[id]/edit/page.tsx   Edit a Request (RequestPostForm in edit mode)
   messages/page.tsx           Messages — the caller's Conversations, most recent first
   messages/[id]/page.tsx        One Conversation thread (MessageThread client component polls for new messages)
+  notifications/page.tsx        Notifications — the caller's own rows, most recent first, "Mark all as read"
+  notifications/loading.tsx      App Router loading state for Notifications
+  notifications/error.tsx        App Router error boundary for Notifications
   onboarding/page.tsx          Student (+ alumni/traveler) onboarding: name/photo/home-area + enrichment fields
   profile/page.tsx            Self profile — badges, editable ProfileEditForm, parent's private Linked Students section
   profile/[userId]/page.tsx    Public profile view of another user (getPublicProfile allowlist only)
@@ -180,6 +193,8 @@ src/app/                      Next.js App Router
   api/connection-requests/[id]/accept/route.ts         POST (recipient only) -> accepted, creates/reuses the Conversation
   api/connection-requests/[id]/decline/route.ts        POST (recipient only) -> declined, no Conversation created
   api/connection-requests/[id]/cancel/route.ts         POST (requester only) -> cancelled
+  api/notifications/[id]/read/route.ts                  POST marks one of the caller's own notifications read (updateMany-as-authz)
+  api/notifications/read-all/route.ts                    POST marks all of the caller's unread notifications read
   api/family/parent-link/request/route.ts   Parent submits student email -> OTP sent to student
   api/family/parent-link/confirm/route.ts   Parent submits code -> StudentRecord + ParentStudentLink created + parent_relationship badge granted + app_metadata gate flag set
   api/family/link-objection/[token]/reject/route.ts   Public: revoke via the student notice email's link -- also clears the app_metadata gate flag, the parent_relationship badge, and linkedStudentName if that was the parent's last link
@@ -199,6 +214,7 @@ src/lib/
   supabase/storage.ts            Avatar upload helper (Supabase Storage, "avatars" bucket)
   rate-limit.ts                 Posting rate-limit helper (10 / 12h)
   messaging.ts                   findOrCreateConversationForTrip() (the one Conversation-creation path) + isConversationUnread() (shared unread rule) + getUnreadConversationCount() (nav badge)
+  notifications.ts               createNotification() (the one Notification-creation path) + notificationLink() (type -> destination URL) + getUnreadNotificationCount() (nav badge)
 src/components/
   ProfileEditForm.tsx            Shared name/photo/home-area(+persona-specific fields) form, used by onboarding, connect-student step 0, and self-profile edit
   TripPostForm.tsx / RequestPostForm.tsx   Create+edit forms for Trip/Request
@@ -209,10 +225,12 @@ src/components/
   RespondToConnectionRequestButtons.tsx   Accept/Decline for a pending row on /connections (Received tab)
   CancelConnectionRequestButton.tsx        Cancel for a pending row on /connections (Sent tab)
   MessageThread.tsx               Client component behind /messages/[id] -- renders + polls + sends Messages in one Conversation
+  NotificationItem.tsx             One row on /notifications -- Link to notificationLink()'s target, marks read on click or via its own "Mark as read" button
+  MarkAllNotificationsReadButton.tsx        "Mark all as read" on /notifications -- POSTs to /api/notifications/read-all
 ```
 
 **API modules** (`src/app/api/**`), one per backend concern per the modular-monolith design:
-`verification/university`, `family/invite`, `family/link`, `profile`, `trips`, `requests`, `conversations`, `connection-requests`, `reviews`, `reports`, `blocks`. **`profile`, `trips`, `requests` (create/get/edit/cancel), `conversations` (list/create/get, plus polled + posted messages), and `connection-requests` (create/accept/decline/cancel) are implemented.** `reviews`, `reports`, `blocks`, `family/invite`, `family/link`, and the request/trip matching lifecycle (`requests/[id]/accept`, `decline`, `complete`) remain stubs (`501 Not Implemented`) — fill in business logic per the plan doc's lifecycle rules (capacity checks on `Request` accept must be a DB transaction; review creation must validate participant + completed-status server-side, not trust the client). Note `connection-requests/[id]/accept` is a different, already-implemented thing from `requests/[id]/accept` — the former accepts a `ConnectionRequest` (this feature), the latter would accept a `Request` against a `Trip` (the still-unbuilt matching lifecycle) — don't conflate them.
+`verification/university`, `family/invite`, `family/link`, `profile`, `trips`, `requests`, `conversations`, `connection-requests`, `notifications`, `reviews`, `reports`, `blocks`. **`profile`, `trips`, `requests` (create/get/edit/cancel), `conversations` (list/create/get, plus polled + posted messages), `connection-requests` (create/accept/decline/cancel), and `notifications` (mark one/all read) are implemented.** `reviews`, `reports`, `blocks`, `family/invite`, `family/link`, and the request/trip matching lifecycle (`requests/[id]/accept`, `decline`, `complete`) remain stubs (`501 Not Implemented`) — fill in business logic per the plan doc's lifecycle rules (capacity checks on `Request` accept must be a DB transaction; review creation must validate participant + completed-status server-side, not trust the client). Note `connection-requests/[id]/accept` is a different, already-implemented thing from `requests/[id]/accept` — the former accepts a `ConnectionRequest` (this feature), the latter would accept a `Request` against a `Trip` (the still-unbuilt matching lifecycle) — don't conflate them.
 
 ## Development Commands
 

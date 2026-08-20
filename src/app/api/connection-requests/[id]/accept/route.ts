@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { findOrCreateConversationForTrip } from "@/lib/messaging";
+import { createNotification } from "@/lib/notifications";
 
 // POST /api/connection-requests/:id/accept
 // Caller must be the request's recipientId (the trip owner) -- 403 for
@@ -26,6 +27,7 @@ export async function POST(
   const { id } = await params;
   const connectionRequest = await prisma.connectionRequest.findUnique({
     where: { id },
+    include: { trip: true },
   });
   if (!connectionRequest) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -49,6 +51,14 @@ export async function POST(
   await prisma.connectionRequest.update({
     where: { id },
     data: { status: "accepted" },
+  });
+
+  await createNotification({
+    userId: connectionRequest.requesterId,
+    type: "connection_accepted",
+    title: "Connection request accepted",
+    message: `${user.name} accepted your connection request${connectionRequest.trip.title ? ` for "${connectionRequest.trip.title}"` : ""}.`,
+    relatedId: conversation.id,
   });
 
   return NextResponse.json({ ok: true, conversationId: conversation.id });

@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { tripDisplayStatus } from "@/lib/postStatus";
 import { findOrCreateConversationForTrip } from "@/lib/messaging";
+import { createNotification, truncateForNotification } from "@/lib/notifications";
 
 // GET /api/conversations
 // Lists the caller's conversations, most recently created first, each with
@@ -88,6 +89,14 @@ export async function POST(request: Request) {
 
   await prisma.message.create({
     data: { conversationId: conversation.id, senderId: user.id, body },
+  });
+
+  await createNotification({
+    userId: trip.travelerId,
+    type: "new_message",
+    title: "New message",
+    message: `${user.name}: ${truncateForNotification(body)}`,
+    relatedId: conversation.id,
   });
 
   return NextResponse.json(

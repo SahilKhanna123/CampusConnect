@@ -11,6 +11,7 @@ import {
   hasCompletedOnboarding,
 } from "@/lib/auth";
 import { getUnreadConversationCount } from "@/lib/messaging";
+import { getUnreadNotificationCount } from "@/lib/notifications";
 
 export const metadata: Metadata = {
   title: "CampusConnect",
@@ -25,6 +26,7 @@ const NAV_ITEMS = [
   { href: "/my-posts", label: "My Posts" },
   { href: "/connections", label: "Connections" },
   { href: "/messages", label: "Messages" },
+  { href: "/notifications", label: "🔔 Alerts" },
   { href: "/profile", label: "Profile" },
 ];
 
@@ -59,6 +61,15 @@ export default async function RootLayout({
   // Powers the badge next to "Messages" below -- see src/lib/messaging.ts.
   const unreadConversationCount = user
     ? await getUnreadConversationCount(user.id)
+    : 0;
+  // Powers the badge next to "🔔 Alerts" below -- see src/lib/notifications.ts.
+  // Deliberately a separate count from unreadConversationCount above, not a
+  // merged total: an accepted/declined connection request has no
+  // corresponding "unread conversation" state at all, so folding the two
+  // together would either double-count new-message notifications or hide
+  // connection-request notifications from the badge entirely.
+  const unreadNotificationCount = user
+    ? await getUnreadNotificationCount(user.id)
     : 0;
 
   return (
@@ -123,6 +134,9 @@ export default async function RootLayout({
               {item.label}
               {item.href === "/messages" && unreadConversationCount > 0 && (
                 <span className="nav-badge">{unreadConversationCount}</span>
+              )}
+              {item.href === "/notifications" && unreadNotificationCount > 0 && (
+                <span className="nav-badge">{unreadNotificationCount}</span>
               )}
             </Link>
           ))}

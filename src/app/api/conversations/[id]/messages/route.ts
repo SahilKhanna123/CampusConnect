@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
+import { createNotification, truncateForNotification } from "@/lib/notifications";
 
 // Shared by GET and POST below -- not exported (Next's route export
 // validation rejects any named export from a route.ts that isn't a
@@ -86,6 +87,19 @@ export async function POST(
     data: { conversationId: id, senderId: user.id, body: parsed.data.body },
     include: { sender: { select: { id: true, name: true, photoUrl: true } } },
   });
+
+  const recipients = conversation.participants.filter((p) => p.userId !== user.id);
+  await Promise.all(
+    recipients.map((p) =>
+      createNotification({
+        userId: p.userId,
+        type: "new_message",
+        title: "New message",
+        message: `${user.name}: ${truncateForNotification(parsed.data.body)}`,
+        relatedId: id,
+      }),
+    ),
+  );
 
   return NextResponse.json({ ok: true, message }, { status: 201 });
 }

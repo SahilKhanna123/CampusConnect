@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { tripDisplayStatus } from "@/lib/postStatus";
+import { createNotification } from "@/lib/notifications";
 
 const createSchema = z.object({ tripId: z.string().min(1) });
 
@@ -64,6 +65,14 @@ export async function POST(request: Request) {
       recipientId: trip.travelerId,
       status: "pending",
     },
+  });
+
+  await createNotification({
+    userId: trip.travelerId,
+    type: "connection_request",
+    title: "New connection request",
+    message: `${user.name} wants to connect about your trip${trip.title ? ` "${trip.title}"` : ""}.`,
+    relatedId: created.id,
   });
 
   return NextResponse.json(

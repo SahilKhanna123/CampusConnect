@@ -77,6 +77,16 @@ enum ReportStatus {
   dismissed
 }
 
+// Kept intentionally narrow to the four events already wired up (see
+// src/lib/notifications.ts) -- add a case here only once something actually
+// creates that kind of notification, not speculatively.
+enum NotificationType {
+  connection_request
+  connection_accepted
+  connection_declined
+  new_message
+}
+
 model User {
   // Matches Supabase Auth's auth.users.id exactly — set explicitly by app
   // code in the auth callback (src/app/auth/callback/route.ts), never
@@ -167,6 +177,7 @@ model User {
   reportsAgainst           Report[]                  @relation("ReportReported")
   blocksInitiated          Block[]                   @relation("BlockBlocker")
   blocksReceived           Block[]                   @relation("BlockBlocked")
+  notifications            Notification[]
 
   @@index([homeRegionId])
   @@index([homeCityId])
@@ -617,4 +628,29 @@ model Block {
   createdAt DateTime @default(now())
 
   @@unique([blockerId, blockedId])
+}
+
+// One row per in-app notification. Deliberately flat (title/message as
+// plain strings written at creation time, not re-derived at read time from
+// relatedId) so a notification still reads correctly even if the thing it
+// points at later changes -- e.g. a ConnectionRequest's status moving on
+// doesn't rewrite history for a notification already shown to the user.
+// relatedId is untyped/unvalidated on purpose (it points at whichever
+// entity the type implies -- a ConnectionRequest, a Conversation -- never a
+// second FK per possible target) and is resolved to a destination URL by
+// notificationLink() in src/lib/notifications.ts, the one place that
+// mapping lives.
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id])
+  type      NotificationType
+  title     String
+  message   String
+  relatedId String?
+  isRead    Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  @@index([userId, isRead])
+  @@index([userId, createdAt])
 }
