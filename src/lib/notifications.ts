@@ -56,6 +56,12 @@ export function notificationLink(notification: {
     // both without needing to tell them apart here.
     case "trip_cancelled":
       return "/connections?tab=sent";
+    // relatedId is the trip's own id here (not the ConnectionRequest's, the
+    // only NotificationType where that's true) -- confirm-seat's whole point
+    // is the trip itself, and the rider's own status on it is already
+    // visible right there on /trips/[id] (see the trip detail page).
+    case "trip_seat_confirmed":
+      return `/trips/${notification.relatedId}`;
     default:
       return "/notifications";
   }

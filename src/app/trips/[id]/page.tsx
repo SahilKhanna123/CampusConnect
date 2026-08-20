@@ -7,6 +7,8 @@ import { DeletePostButton } from "@/components/DeletePostButton";
 import { MarkTripCompleteButton } from "@/components/MarkTripCompleteButton";
 import { RegisterInterestForm } from "@/components/RegisterInterestForm";
 import { ConnectionRequestButton, type ConnectionStatus } from "@/components/ConnectionRequestButton";
+import { ConfirmSeatButton } from "@/components/ConfirmSeatButton";
+import { PosterBadge } from "@/components/ExploreCard";
 
 export default async function TripDetailPage({
   params,
@@ -64,6 +66,33 @@ export default async function TripDetailPage({
         })
       : null;
 
+  // Owner-only: every accepted connection for this trip, confirmed-seat or
+  // not, is the roster the owner picks participants from -- see the Trip
+  // Participants section of CLAUDE.md for why this reuses ConnectionRequest
+  // rather than a general "add any user" search (there's no user directory
+  // in this app, and everyone here has already gone through Request to
+  // Connect -> Accept for this specific trip).
+  const acceptedConnections = isOwner
+    ? await prisma.connectionRequest.findMany({
+        where: { tripId: trip.id, status: "accepted" },
+        include: {
+          requester: {
+            select: {
+              id: true,
+              name: true,
+              photoUrl: true,
+              signedUpAsParent: true,
+              verifications: {
+                where: { status: "verified" },
+                select: { type: true, status: true },
+              },
+            },
+          },
+        },
+        orderBy: { createdAt: "asc" },
+      })
+    : [];
+
   return (
     <div>
       <h1>{trip.title || "Untitled trip"}</h1>
@@ -106,6 +135,37 @@ export default async function TripDetailPage({
         </div>
       )}
 
+      {/* Shown to the owner regardless of trip status (not just isUpcoming)
+          so a completed/cancelled trip's participant history stays visible
+          and correctable -- release-seat has no upcoming-only restriction
+          for exactly this reason. Only "Add as Participant" itself is
+          upcoming-gated, since confirm-seat requires it server-side. */}
+      {isOwner && acceptedConnections.length > 0 && (
+        <div>
+          <h2>Participants</h2>
+          <p>
+            {trip.seatsRemaining} of {trip.seatsTotal} seat
+            {trip.seatsTotal === 1 ? "" : "s"} still open
+          </p>
+          <div className="trip-participant-list">
+            {acceptedConnections.map((c) => (
+              <div key={c.id} className="trip-participant-row">
+                <PosterBadge poster={c.requester} />
+                {isUpcoming || c.seatConfirmedAt ? (
+                  <ConfirmSeatButton
+                    connectionRequestId={c.id}
+                    seatConfirmed={!!c.seatConfirmedAt}
+                    seatsAvailable={trip.seatsRemaining > 0}
+                  />
+                ) : (
+                  <span className="seat-confirmed-badge-none">Not confirmed</span>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* An already-accepted connection keeps its "Connected — View
           messages" link even once the trip stops being upcoming (cancelled
           or completed) -- only a FRESH request is blocked, per the "prevent
@@ -118,6 +178,11 @@ export default async function TripDetailPage({
             initialStatus={connectionRequestStatus}
             conversationId={acceptedConversation?.id}
           />
+          {myConnectionRequest?.seatConfirmedAt && (
+            <p className="seat-confirmed-badge">
+              ✓ You have a confirmed seat on this trip.
+            </p>
+          )}
         </div>
       )}
 

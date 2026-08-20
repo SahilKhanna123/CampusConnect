@@ -8,6 +8,40 @@ items off as you verify them; leave unchecked ones for the next pass.
 No automated test suite exists in this project (see CLAUDE.md) — this file
 is the actual test coverage.
 
+## Trip Participants / Seat Confirmation (2026-08-20)
+
+- [ ] Owner of an upcoming trip with at least one accepted connection sees a
+      "Participants" section on `/trips/[id]` listing each accepted
+      requester with an "Add as Participant" button
+- [ ] Clicking "Add as Participant" decrements "Seats available" by one,
+      the row switches to "✓ Confirmed" + "Remove", and the requester gets
+      a "You have a confirmed seat" notification (🪑 icon) linking back to
+      the trip
+- [ ] The confirmed rider, viewing `/trips/[id]` themselves, sees
+      "✓ You have a confirmed seat on this trip." next to their connection
+      status
+- [ ] "Add as Participant" is disabled (or shows "No seats remaining")
+      once `seatsRemaining` hits 0 — trying to confirm-seat a full trip
+      directly against the API also 400s
+- [ ] Clicking "Remove" on a confirmed participant asks for confirmation,
+      then gives the seat back (`seatsRemaining` increments) and reverts
+      that row to "Add as Participant" — no notification is sent for this
+- [ ] Only the trip owner can confirm/release a seat (try POSTing
+      confirm-seat/release-seat as someone else — expect 403)
+- [ ] confirm-seat is rejected (400) against a connection that isn't
+      `accepted` yet (still pending), and against a non-upcoming trip
+- [ ] Editing a trip (`PATCH`/`/trips/[id]/edit`) to reduce `seatsTotal`
+      below the number of already-confirmed riders is rejected (400) with
+      a clear message instead of silently desyncing `seatsRemaining`
+- [ ] Editing a trip's `seatsTotal` upward (or with confirmed riders
+      present) still leaves `seatsRemaining` correct — it should reflect
+      `seatsTotal - confirmedRiderCount`, not reset to `seatsTotal`
+      outright
+- [ ] The Participants section (and a confirmed rider's Remove ability)
+      still shows correctly on a trip the owner later marks Completed or
+      Cancels — participant history isn't hidden once the trip is
+      no longer upcoming
+
 ## Trip Management / Trip Lifecycle (2026-08-20)
 
 - [ ] Creating a Trip lands it in status "upcoming" — shows in `/my-posts`
