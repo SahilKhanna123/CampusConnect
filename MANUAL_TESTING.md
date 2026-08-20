@@ -8,6 +8,33 @@ items off as you verify them; leave unchecked ones for the next pass.
 No automated test suite exists in this project (see CLAUDE.md) — this file
 is the actual test coverage.
 
+## Notifications bell moved to the top bar (2026-08-20)
+
+- [ ] The bottom nav no longer has a "🔔 Alerts" text item — Notifications
+      is only reachable via the bell icon in the top header now
+- [ ] The bell icon shows in the header (next to the signed-in user's name)
+      only when logged in — logged-out visitors see no bell
+- [ ] With unread notifications, a small red count badge sits on the
+      bell's corner — same count `getUnreadNotificationCount()` always
+      produced, just relocated
+- [ ] With zero unread notifications, no badge shows on the bell at all
+- [ ] Clicking the bell navigates to `/notifications`, same as before
+- [ ] The bell has an accessible label (hover/inspect — screen reader
+      users should hear "Notifications" or "Notifications (N unread)",
+      not just a bell emoji)
+- [ ] Layout still looks right on a narrow/mobile viewport — the header
+      shouldn't overflow or wrap awkwardly with the bell added
+- [ ] With exactly one unread notification, clicking its "Mark as read"
+      button (on `/notifications`) makes the bell's badge disappear
+      immediately, without a full page reload
+- [ ] With multiple unread notifications, marking just one as read
+      decrements the bell's badge count by one (doesn't clear it, doesn't
+      require a reload)
+- [ ] Clicking straight into a notification (the row itself, not the
+      "Mark as read" button) also clears/decrements the bell's badge
+- [ ] "Mark all as read" still clears the badge entirely (already worked
+      before this fix, via the same fetch-then-`router.refresh()` shape)
+
 ## Fix: duplicate messages in a thread (2026-08-20)
 
 - [ ] Open a Conversation thread (`/messages/[id]`) and leave it open for
@@ -87,7 +114,8 @@ is the actual test coverage.
 - [ ] Recipient gets a notification when they receive a new message (both the
       first message via "Register for a seat" and later replies)
 - [ ] Sender never gets notified about their own message
-- [ ] Nav shows a "🔔 Alerts" item with a red unread-count badge
+- [ ] Header shows a 🔔 bell icon with a red unread-count badge (moved
+      from the bottom nav to the top bar — see the dated section above)
 - [ ] Badge count matches the number of unread notifications, and updates
       after a full page reload (not expected to update instantly on a
       client-side `<Link>` navigation — that's a known Next.js layout
