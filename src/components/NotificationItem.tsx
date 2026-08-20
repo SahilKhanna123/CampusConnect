@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import type { NotificationType } from "@prisma/client";
 
 const NOTIFICATION_ICONS: Record<NotificationType, string> = {
@@ -24,21 +25,27 @@ export type NotificationForDisplay = {
 
 // One row on /notifications. The whole row is a Link to wherever this
 // notification is about (a connection request or a conversation thread) --
-// clicking it marks the notification read (fire-and-forget, same pattern
-// MessageThread uses for POST .../read) and lets navigation proceed
-// normally. The separate "Mark as read" button covers the case where the
-// user wants to clear the unread state without leaving this page.
+// clicking it marks the notification read (same pattern MessageThread uses
+// for POST .../read) and lets navigation proceed normally. The separate
+// "Mark as read" button covers the case where the user wants to clear the
+// unread state without leaving this page. Either path also calls
+// router.refresh() once the POST resolves -- same fetch-then-refresh shape
+// as MarkAllNotificationsReadButton -- so the header bell's unread count
+// (computed server-side in layout.tsx) drops immediately instead of only
+// on the next full page load.
 export function NotificationItem({
   notification,
 }: {
   notification: NotificationForDisplay;
 }) {
+  const router = useRouter();
   const [isRead, setIsRead] = useState(notification.isRead);
 
-  function markRead() {
+  async function markRead() {
     if (isRead) return;
     setIsRead(true);
-    fetch(`/api/notifications/${notification.id}/read`, { method: "POST" }).catch(() => {});
+    await fetch(`/api/notifications/${notification.id}/read`, { method: "POST" }).catch(() => {});
+    router.refresh();
   }
 
   return (

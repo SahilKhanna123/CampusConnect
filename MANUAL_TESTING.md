@@ -24,6 +24,16 @@ is the actual test coverage.
       not just a bell emoji)
 - [ ] Layout still looks right on a narrow/mobile viewport — the header
       shouldn't overflow or wrap awkwardly with the bell added
+- [ ] With exactly one unread notification, clicking its "Mark as read"
+      button (on `/notifications`) makes the bell's badge disappear
+      immediately, without a full page reload
+- [ ] With multiple unread notifications, marking just one as read
+      decrements the bell's badge count by one (doesn't clear it, doesn't
+      require a reload)
+- [ ] Clicking straight into a notification (the row itself, not the
+      "Mark as read" button) also clears/decrements the bell's badge
+- [ ] "Mark all as read" still clears the badge entirely (already worked
+      before this fix, via the same fetch-then-`router.refresh()` shape)
 
 ## Trip Management / Trip Lifecycle (2026-08-20)
 
