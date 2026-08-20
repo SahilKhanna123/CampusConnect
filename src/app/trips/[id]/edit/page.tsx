@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getCitiesByRegion } from "@/lib/geo";
+import { tripDisplayStatus } from "@/lib/postStatus";
 import { TripPostForm } from "@/components/TripPostForm";
 
 export default async function EditTripPage({
@@ -19,6 +20,10 @@ export default async function EditTripPage({
   // to the (public) detail view rather than exposing an edit form they
   // can't submit successfully anyway (the API route enforces this too).
   if (trip.travelerId !== user.id) redirect(`/trips/${id}`);
+  // Same reasoning as the PATCH route's own guard -- redirect here too so a
+  // direct link to this URL for a completed/cancelled trip doesn't show a
+  // form that will just 400 on submit.
+  if (tripDisplayStatus(trip) !== "upcoming") redirect(`/trips/${id}`);
 
   const citiesByRegion = await getCitiesByRegion();
 

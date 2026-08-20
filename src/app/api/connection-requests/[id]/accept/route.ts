@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { findOrCreateConversationForTrip } from "@/lib/messaging";
 import { createNotification } from "@/lib/notifications";
+import { tripDisplayStatus } from "@/lib/postStatus";
 
 // POST /api/connection-requests/:id/accept
 // Caller must be the request's recipientId (the trip owner) -- 403 for
@@ -38,6 +39,17 @@ export async function POST(
   if (connectionRequest.status !== "pending") {
     return NextResponse.json(
       { error: "This request has already been resolved." },
+      { status: 400 },
+    );
+  }
+  // A cancelled trip already cascades its pending requests to "cancelled"
+  // (see DELETE /api/trips/[id]), so the check above already catches that
+  // case -- this specifically guards the other way a trip can stop being
+  // actionable without touching the request: the owner marking it
+  // completed, or its departure date simply passing.
+  if (tripDisplayStatus(connectionRequest.trip) !== "upcoming") {
+    return NextResponse.json(
+      { error: "This trip is no longer active." },
       { status: 400 },
     );
   }

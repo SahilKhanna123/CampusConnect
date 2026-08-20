@@ -8,6 +8,57 @@ items off as you verify them; leave unchecked ones for the next pass.
 No automated test suite exists in this project (see CLAUDE.md) — this file
 is the actual test coverage.
 
+## Trip Management / Trip Lifecycle (2026-08-20)
+
+- [ ] Creating a Trip lands it in status "upcoming" — shows in `/my-posts`
+      Upcoming tab and in `/explore` (for other users, not yourself)
+- [ ] Owner sees Edit, Mark Completed, and Cancel Trip on an upcoming trip's
+      detail page — none of the three show once the trip is completed or
+      cancelled
+- [ ] Non-owner does NOT see any of those three actions, ever
+- [ ] **Edit**: change origin/destination/date/time/flexible-time/seats/
+      package toggle/notes on an upcoming trip — changes show correctly on
+      the detail page, in `/my-posts`, and in `/explore`
+- [ ] Editing a completed or cancelled trip is blocked — both hitting
+      `/trips/[id]/edit` directly (redirects back to the detail page) and
+      `PATCH /api/trips/[id]` directly (400)
+- [ ] Only the trip owner can edit (try PATCH as someone else — expect 403)
+- [ ] **Cancel**: clicking "Cancel Trip" asks for confirmation first
+- [ ] After cancelling: trip status shows "cancelled"; it disappears from
+      `/explore` and from the Upcoming tab in `/my-posts` (moves to History
+      → Cancelled)
+- [ ] A pending connection request on the cancelled trip flips to
+      "Cancelled" (visible on the requester's `/connections?tab=sent`) and
+      the trip owner can no longer see Accept/Decline for it
+- [ ] An already-accepted connection on the cancelled trip is untouched —
+      still shows "Accepted" on `/connections`, the conversation/messages
+      are still fully accessible, and the trip detail page still shows
+      "Connected" for that requester (not the generic "no longer accepting
+      connections" message)
+- [ ] Both the pending-holder and the accepted-holder get a "Trip
+      cancelled" notification (different wording for each), and clicking it
+      lands on `/connections?tab=sent`
+- [ ] Trying to send a NEW connection request or message to a cancelled
+      trip is rejected server-side
+- [ ] Only the trip owner can cancel (try DELETE as someone else — expect
+      403); cancelling an already-cancelled/completed trip is rejected (400)
+- [ ] **Mark Completed**: clicking it asks for confirmation first
+- [ ] After marking completed: trip status shows "completed"; it
+      disappears from `/explore` and moves to History → Completed in
+      `/my-posts`, with its connection-request count still shown
+- [ ] Existing pending/accepted connection requests on a completed trip are
+      left completely alone (status unchanged, conversation untouched)
+- [ ] Trying to Accept a still-pending connection request against a
+      completed trip is rejected server-side (400) — Decline still works
+      (harmless cleanup)
+- [ ] Only the trip owner can mark completed (try POST as someone else —
+      expect 403); doing it twice, or on a cancelled trip, is rejected (400)
+- [ ] `/my-posts` History tab clearly separates Completed / Cancelled / (if
+      any) Past due trips into their own labeled groups, not one flat list
+- [ ] A trip whose date has passed without being marked completed or
+      cancelled shows under "Past due" and still offers Edit/Cancel/Mark
+      Completed (its real DB status is still "upcoming")
+
 ## Notifications (2026-08-20)
 
 - [ ] Trip owner gets a notification when someone sends a connection request

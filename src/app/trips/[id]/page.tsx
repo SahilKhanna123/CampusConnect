@@ -4,6 +4,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { tripDisplayStatus } from "@/lib/postStatus";
 import { DeletePostButton } from "@/components/DeletePostButton";
+import { MarkTripCompleteButton } from "@/components/MarkTripCompleteButton";
 import { RegisterInterestForm } from "@/components/RegisterInterestForm";
 import { ConnectionRequestButton, type ConnectionStatus } from "@/components/ConnectionRequestButton";
 
@@ -28,6 +29,13 @@ export default async function TripDetailPage({
 
   const isOwner = trip.travelerId === user.id;
   const destinationLabel = trip.destinationCity?.name ?? trip.destinationText;
+  const displayStatus = tripDisplayStatus(trip);
+  // "upcoming" is the only editable/cancellable/completable state -- an
+  // "expired" trip (upcoming in the DB but past its date) still counts as
+  // not-upcoming here on purpose, same as everywhere else that gates on
+  // this (POST /api/connection-requests, POST /api/conversations, the
+  // accept route) -- see src/lib/postStatus.ts.
+  const isUpcoming = displayStatus === "upcoming";
 
   // Only queried for non-owners -- the latest ConnectionRequest (if any)
   // decides the button state; see the "revert to actionable after
@@ -62,7 +70,7 @@ export default async function TripDetailPage({
       <p>
         {trip.originCity.name} → {destinationLabel}
       </p>
-      <p>Status: {tripDisplayStatus(trip)}</p>
+      <p>Status: {displayStatus}</p>
       <p>
         {trip.departureDate.toLocaleDateString()}
         {trip.departureTime && ` at ${trip.departureTime}`}
@@ -83,18 +91,27 @@ export default async function TripDetailPage({
         <Link href={`/profile/${trip.traveler.id}`}>{trip.traveler.name}</Link>
       </p>
 
-      {isOwner && (
+      {isOwner && isUpcoming && (
         <div>
           <Link href={`/trips/${trip.id}/edit`}>Edit</Link>
+          {" · "}
+          <MarkTripCompleteButton tripId={trip.id} />
           {" · "}
           <DeletePostButton
             deleteUrl={`/api/trips/${trip.id}`}
             redirectTo="/my-posts"
+            actionLabel="Cancel Trip"
+            confirmMessage="Cancel this trip? Anyone with a pending or accepted connection request will be notified. This can't be undone."
           />
         </div>
       )}
 
-      {!isOwner && tripDisplayStatus(trip) === "active" && (
+      {/* An already-accepted connection keeps its "Connected — View
+          messages" link even once the trip stops being upcoming (cancelled
+          or completed) -- only a FRESH request is blocked, per the "prevent
+          new connection requests to inactive trips, but don't hide existing
+          connection history" split in the Trip Management spec. */}
+      {!isOwner && (connectionRequestStatus === "accepted" || isUpcoming) && (
         <div>
           <ConnectionRequestButton
             tripId={trip.id}
@@ -104,7 +121,7 @@ export default async function TripDetailPage({
         </div>
       )}
 
-      {!isOwner && tripDisplayStatus(trip) === "active" && (
+      {!isOwner && isUpcoming && (
         <div>
           {trip.seatsRemaining > 0 ? (
             <RegisterInterestForm tripId={trip.id} />
@@ -112,6 +129,10 @@ export default async function TripDetailPage({
             <p>No seats available right now.</p>
           )}
         </div>
+      )}
+
+      {!isOwner && !isUpcoming && connectionRequestStatus !== "accepted" && (
+        <p>This trip is no longer accepting connections.</p>
       )}
     </div>
   );

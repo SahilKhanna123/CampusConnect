@@ -64,8 +64,12 @@ enum RequestStatus {
   cancelled
 }
 
+// Renamed from an earlier `active` (see git history) to match the product's
+// own three-stage vocabulary exactly -- a Postgres enum value rename
+// (`ALTER TYPE ... RENAME VALUE`) is a metadata-only change, so existing
+// rows carried the new label automatically with no data rewrite.
 enum TripStatus {
-  active
+  upcoming
   completed
   cancelled
 }
@@ -77,7 +81,7 @@ enum ReportStatus {
   dismissed
 }
 
-// Kept intentionally narrow to the four events already wired up (see
+// Kept intentionally narrow to the events already wired up (see
 // src/lib/notifications.ts) -- add a case here only once something actually
 // creates that kind of notification, not speculatively.
 enum NotificationType {
@@ -85,6 +89,10 @@ enum NotificationType {
   connection_accepted
   connection_declined
   new_message
+  // Sent to the requester of a ConnectionRequest (pending or accepted) when
+  // the trip owner cancels the trip out from under it -- see the Trip
+  // Management section of CLAUDE.md and DELETE /api/trips/[id].
+  trip_cancelled
 }
 
 model User {
@@ -429,7 +437,7 @@ model Trip {
   // Free text describing the TRIP (e.g. "driving my own car" vs. "organizing
   // a shared ride") — never a contribution/gas-money/payment field.
   tripNotes             String?
-  status                TripStatus @default(active)
+  status                TripStatus @default(upcoming)
   createdAt             DateTime   @default(now())
 
   requests            Request[]

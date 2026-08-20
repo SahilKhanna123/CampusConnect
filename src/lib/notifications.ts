@@ -48,6 +48,14 @@ export function notificationLink(notification: {
       return notification.relatedId
         ? `/messages/${notification.relatedId}`
         : "/messages";
+    // relatedId is the ConnectionRequest's own id (not the trip's) for both
+    // the pending-invalidated and still-accepted cases -- the Sent tab
+    // already shows the request's current status either way, and an
+    // accepted row's trip link still leads to the "Connected — View
+    // messages" call-to-action on /trips/[id], so one destination covers
+    // both without needing to tell them apart here.
+    case "trip_cancelled":
+      return "/connections?tab=sent";
     default:
       return "/notifications";
   }

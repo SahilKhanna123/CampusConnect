@@ -497,3 +497,33 @@ body {
   flex-shrink: 0;
   font-size: 0.75rem;
 }
+
+.trip-status-label {
+  font-weight: 600;
+}
+
+.trip-status-label-upcoming {
+  color: #0b57d0;
+}
+
+.trip-status-label-completed {
+  color: #1a7a3a;
+}
+
+.trip-status-label-cancelled {
+  color: #888;
+}
+
+.trip-status-label-expired {
+  color: #8a6d00;
+}
+
+.trip-connection-summary {
+  font-size: 0.875rem;
+  color: #666;
+}
+
+.trip-row-actions {
+  margin: 0.25rem 0 0.75rem;
+  font-size: 0.875rem;
+}

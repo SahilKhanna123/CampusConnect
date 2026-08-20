@@ -74,7 +74,7 @@ export async function POST(request: Request) {
       { status: 400 },
     );
   }
-  if (tripDisplayStatus(trip) !== "active") {
+  if (tripDisplayStatus(trip) !== "upcoming") {
     return NextResponse.json(
       { error: "This trip is no longer accepting messages." },
       { status: 400 },

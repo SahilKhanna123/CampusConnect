@@ -9,6 +9,7 @@ const NOTIFICATION_ICONS: Record<NotificationType, string> = {
   connection_accepted: "✅",
   connection_declined: "✖️",
   new_message: "💬",
+  trip_cancelled: "🚫",
 };
 
 export type NotificationForDisplay = {

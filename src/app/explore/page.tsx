@@ -47,7 +47,7 @@ export default async function ExplorePage({
     getCitiesByRegion(),
     prisma.trip.findMany({
       where: {
-        status: "active",
+        status: "upcoming",
         travelerId: { not: user.id },
         ...(originCityId ? { originCityId } : {}),
         ...(destinationCityId ? { destinationCityId } : {}),
@@ -123,7 +123,7 @@ export default async function ExplorePage({
 
   const offerPosts: { sortDate: Date | null; post: ExploreCardPost }[] = showOffers
     ? trips
-        .filter((trip) => tripDisplayStatus(trip) === "active")
+        .filter((trip) => tripDisplayStatus(trip) === "upcoming")
         .map((trip) => ({
           sortDate: trip.departureDate,
           post: {

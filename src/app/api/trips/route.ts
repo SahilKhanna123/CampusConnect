@@ -16,7 +16,7 @@ export async function GET(request: Request) {
 
   const trips = await prisma.trip.findMany({
     where: {
-      status: "active",
+      status: "upcoming",
       ...(originCityId ? { originCityId } : {}),
       ...(destinationCityId ? { destinationCityId } : {}),
       ...(date ? { departureDate: new Date(date) } : {}),

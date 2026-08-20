@@ -12,7 +12,7 @@ export function tripDisplayStatus(trip: {
   status: TripStatus;
   departureDate: Date;
 }): TripStatus | "expired" {
-  if (trip.status === "active" && trip.departureDate < new Date()) {
+  if (trip.status === "upcoming" && trip.departureDate < new Date()) {
     return "expired";
   }
   return trip.status;
