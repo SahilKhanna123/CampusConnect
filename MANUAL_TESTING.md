@@ -39,13 +39,16 @@ is the actual test coverage.
       report count anywhere (profile, trip/request cards, nav), no
       notification to anyone, no moderation queue page exists to check
 
-## Connection Request Note (2026-08-20)
+## Connection Request Note (2026-08-20, made mandatory 2026-08-22)
 
 - [ ] Clicking "Request to Connect" (on `/trips/[id]` or an Explore card)
-      reveals an optional note composer instead of firing immediately
-- [ ] Submitting with the note left blank still works exactly like before
-      (plain "Request Sent", no note shown anywhere)
-- [ ] Submitting with a note attached: button still shows "Request Sent"
+      reveals a note composer labeled "Tell the trip owner why you're
+      connecting" instead of firing immediately
+- [ ] Submit is disabled until a note is entered (whitespace-only doesn't
+      count) — a plain one-click request with no note is no longer possible
+- [ ] Submitting with a note attached: button shows "Request Sent"
+- [ ] Posting directly to `POST /api/connection-requests` with `message`
+      omitted or blank returns 400, not a request created with no note
 - [ ] "Cancel" on the composer collapses it back to the plain button
       without sending anything
 - [ ] The trip owner sees the note on `/connections` (Received tab) under

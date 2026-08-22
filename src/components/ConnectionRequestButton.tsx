@@ -12,14 +12,13 @@ export type ConnectionStatus = "none" | "pending" | "accepted" | "declined" | "c
 // Sent tab is for, not this button). See POST /api/connection-requests for
 // the server-side duplicate-pending check this mirrors.
 //
-// Clicking "Request to Connect" reveals an optional note composer (same
+// Clicking "Request to Connect" reveals a note composer (same
 // reveal-a-form-on-click shape as RegisterInterestForm) rather than firing
-// immediately -- the note is never required, so a plain one-click request
-// is still possible by submitting with it empty, but it gives the
-// requester a place to add context the trip owner sees before deciding
-// (on /connections and in the connection_request notification), and which
-// carries into the chat as the first Message if the request is accepted
-// (see POST /api/connection-requests/[id]/accept).
+// immediately. The note is required -- a plain one-click request with no
+// context is no longer possible -- so the trip owner always has something
+// to go on before deciding (on /connections and in the connection_request
+// notification), and it carries into the chat as the first Message if the
+// request is accepted (see POST /api/connection-requests/[id]/accept).
 export function ConnectionRequestButton({
   tripId,
   initialStatus,
@@ -47,7 +46,7 @@ export function ConnectionRequestButton({
     const res = await fetch("/api/connection-requests", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ tripId, message: message.trim() || undefined }),
+      body: JSON.stringify({ tripId, message: message.trim() }),
     });
 
     if (!res.ok) {
@@ -80,10 +79,11 @@ export function ConnectionRequestButton({
     return (
       <form onSubmit={handleRequest} className="connection-request-compose">
         <label htmlFor={`connection-note-${tripId}`}>
-          Add a note for the trip owner (optional)
+          Tell the trip owner why you&apos;re connecting
         </label>
         <textarea
           id={`connection-note-${tripId}`}
+          required
           maxLength={500}
           value={message}
           onChange={(e) => setMessage(e.target.value)}
@@ -91,7 +91,7 @@ export function ConnectionRequestButton({
         />
         {error && <p role="alert">{error}</p>}
         <div>
-          <button type="submit" disabled={loading}>
+          <button type="submit" disabled={loading || !message.trim()}>
             {loading ? "Sending…" : "Send Request"}
           </button>{" "}
           <button
