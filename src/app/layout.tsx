@@ -31,9 +31,17 @@ const NAV_ITEMS = [
 
 // A parent-signup account can't use the rest of the app until they've
 // linked at least one student via OTP -- per product decision, this
-// mirrors how university verification gates a student account. This is the
-// ONE page a gated parent can still reach; every other page redirects here.
-const PARENT_LINK_GATE_EXEMPT_PATH = "/family/connect-student";
+// mirrors how university verification gates a student account. These are
+// the ONLY pages a gated parent can still reach; every other page redirects
+// to the first one. /family/invite/accept is exempt for the same reason:
+// accepting a student-sent invite (see POST /api/family/invite/accept) is
+// an equally valid way to satisfy "has linked a student" as the OTP flow --
+// without this, a parent who signed up specifically to accept an invite
+// would get bounced to the OTP wizard before ever reaching the accept page.
+const PARENT_LINK_GATE_EXEMPT_PATHS = [
+  "/family/connect-student",
+  "/family/invite/accept",
+];
 
 export default async function RootLayout({
   children,
@@ -42,8 +50,8 @@ export default async function RootLayout({
   const pathname = (await headers()).get("x-pathname");
 
   if (user?.signedUpAsParent && !hasLinkedStudent(user)) {
-    if (pathname !== PARENT_LINK_GATE_EXEMPT_PATH) {
-      redirect(PARENT_LINK_GATE_EXEMPT_PATH);
+    if (!pathname || !PARENT_LINK_GATE_EXEMPT_PATHS.includes(pathname)) {
+      redirect(PARENT_LINK_GATE_EXEMPT_PATHS[0]);
     }
   }
 
@@ -55,7 +63,8 @@ export default async function RootLayout({
     !!user &&
     !hasCompletedOnboarding(user) &&
     pathname !== "/onboarding" &&
-    pathname !== PARENT_LINK_GATE_EXEMPT_PATH;
+    !!pathname &&
+    !PARENT_LINK_GATE_EXEMPT_PATHS.includes(pathname);
 
   // Powers the badge next to "Messages" below -- see src/lib/messaging.ts.
   const unreadConversationCount = user

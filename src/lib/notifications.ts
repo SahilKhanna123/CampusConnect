@@ -62,6 +62,10 @@ export function notificationLink(notification: {
     // visible right there on /trips/[id] (see the trip detail page).
     case "trip_seat_confirmed":
       return `/trips/${notification.relatedId}`;
+    // No deep link needed -- /family already shows the accepted link
+    // (and every other family connection) in one place.
+    case "family_invite_accepted":
+      return "/family";
     default:
       return "/notifications";
   }
