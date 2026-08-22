@@ -8,6 +8,29 @@ items off as you verify them; leave unchecked ones for the next pass.
 No automated test suite exists in this project (see CLAUDE.md) — this file
 is the actual test coverage.
 
+## Connection Request Note (2026-08-20)
+
+- [ ] Clicking "Request to Connect" (on `/trips/[id]` or an Explore card)
+      reveals an optional note composer instead of firing immediately
+- [ ] Submitting with the note left blank still works exactly like before
+      (plain "Request Sent", no note shown anywhere)
+- [ ] Submitting with a note attached: button still shows "Request Sent"
+- [ ] "Cancel" on the composer collapses it back to the plain button
+      without sending anything
+- [ ] The trip owner sees the note on `/connections` (Received tab) under
+      the pending row, in quotes, *before* they Accept/Decline
+- [ ] The note also appears in the "New connection request" notification
+      text (truncated if long)
+- [ ] The requester also sees their own note on `/connections?tab=sent`
+- [ ] If the owner **accepts** a request that had a note, the resulting
+      conversation's first message is that exact note, shown as sent by the
+      requester (not the owner) when the owner lands on `/messages/[id]`
+- [ ] If the owner **declines** a request that had a note, no message is
+      created anywhere — the note just stays visible as history on
+      `/connections`
+- [ ] A note over 500 characters is rejected/truncated by the input
+      (`maxLength`) — no need to test the server 500-char cap directly
+
 ## Trip Participants / Seat Confirmation (2026-08-20)
 
 - [ ] Owner of an upcoming trip with at least one accepted connection sees a

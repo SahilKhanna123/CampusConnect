@@ -104,6 +104,7 @@ export default async function ConnectionsPage({
                       {r.status}
                     </span>
                   </div>
+                  {r.message && <p className="connection-item-message">&ldquo;{r.message}&rdquo;</p>}
                   {r.status === "pending" && (
                     <RespondToConnectionRequestButtons connectionRequestId={r.id} />
                   )}
@@ -134,6 +135,7 @@ export default async function ConnectionsPage({
                     {r.status}
                   </span>
                 </div>
+                {r.message && <p className="connection-item-message">&ldquo;{r.message}&rdquo;</p>}
                 {r.status === "pending" && (
                   <CancelConnectionRequestButton connectionRequestId={r.id} />
                 )}
