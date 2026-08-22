@@ -7,15 +7,16 @@ import { createNotification, truncateForNotification } from "@/lib/notifications
 
 const createSchema = z.object({
   tripId: z.string().min(1),
-  // Optional context the requester can attach for the trip owner -- see
-  // the schema comment on ConnectionRequest.message. Never required: the
-  // plain one-click "Request to Connect" flow (message omitted) must keep
-  // working exactly as it did before this field existed.
-  message: z.string().trim().max(500).optional(),
+  // Required context the requester must give the trip owner -- see the
+  // schema comment on ConnectionRequest.message. Enforced here at the Zod
+  // layer only, same "required going forward, nullable in the DB since it
+  // postdates earlier rows" convention already used for Trip.title -- no
+  // migration needed just to tighten a validation rule.
+  message: z.string().trim().min(1, "Tell the trip owner why you're connecting.").max(500),
 });
 
 // POST /api/connection-requests
-// Body: { tripId, message? }
+// Body: { tripId, message }
 // Creates a pending ConnectionRequest from the caller to the Trip's
 // traveler -- requesterId/recipientId are always derived server-side
 // (requesterId = the authenticated caller, recipientId = trip.travelerId),
@@ -34,7 +35,10 @@ export async function POST(request: Request) {
 
   const parsed = createSchema.safeParse(await request.json());
   if (!parsed.success) {
-    return NextResponse.json({ error: "A trip is required." }, { status: 400 });
+    return NextResponse.json(
+      { error: "A trip and a note for the trip owner are required." },
+      { status: 400 },
+    );
   }
   const { tripId, message } = parsed.data;
 
@@ -71,7 +75,7 @@ export async function POST(request: Request) {
       requesterId: user.id,
       recipientId: trip.travelerId,
       status: "pending",
-      message: message || null,
+      message,
     },
   });
 
@@ -79,7 +83,7 @@ export async function POST(request: Request) {
     userId: trip.travelerId,
     type: "connection_request",
     title: "New connection request",
-    message: `${user.name} wants to connect about your trip${trip.title ? ` "${trip.title}"` : ""}.${message ? ` "${truncateForNotification(message)}"` : ""}`,
+    message: `${user.name} wants to connect about your trip${trip.title ? ` "${trip.title}"` : ""}. "${truncateForNotification(message)}"`,
     relatedId: created.id,
   });
 

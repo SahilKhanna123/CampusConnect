@@ -481,13 +481,14 @@ model ConnectionRequest {
   recipientId String
   recipient   User                    @relation("ConnectionRequestRecipient", fields: [recipientId], references: [id])
   status      ConnectionRequestStatus @default(pending)
-  // Optional note the requester can attach when asking to connect, so the
-  // trip owner has context for what they're deciding on (shown on
+  // Note the requester must attach when asking to connect, so the trip
+  // owner always has context for what they're deciding on (shown on
   // /connections and included in the connection_request notification) --
-  // never required, since the plain one-click "Request to Connect" flow
-  // must keep working exactly as it did before this field existed. If the
-  // request is later accepted, this same text is seeded as the first
-  // Message in the resulting Conversation (see POST
+  // required at the Zod layer (POST /api/connection-requests), nullable
+  // here only because it postdates this model's earliest rows, same
+  // "required going forward, nullable in the DB" convention already used
+  // for Trip.title. If the request is later accepted, this same text is
+  // seeded as the first Message in the resulting Conversation (see POST
   // /api/connection-requests/[id]/accept) so the context carries into the
   // chat itself rather than being stranded on a row the recipient can no
   // longer see once they've acted on it.
