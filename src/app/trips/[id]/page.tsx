@@ -9,6 +9,7 @@ import { RegisterInterestForm } from "@/components/RegisterInterestForm";
 import { ConnectionRequestButton, type ConnectionStatus } from "@/components/ConnectionRequestButton";
 import { ConfirmSeatButton } from "@/components/ConfirmSeatButton";
 import { PosterBadge } from "@/components/ExploreCard";
+import { ReportButton } from "@/components/ReportButton";
 
 export default async function TripDetailPage({
   params,
@@ -119,6 +120,13 @@ export default async function TripDetailPage({
         Posted by{" "}
         <Link href={`/profile/${trip.traveler.id}`}>{trip.traveler.name}</Link>
       </p>
+      {!isOwner && (
+        <ReportButton
+          reportedUserId={trip.traveler.id}
+          contextType="trip"
+          contextId={trip.id}
+        />
+      )}
 
       {isOwner && isUpcoming && (
         <div>

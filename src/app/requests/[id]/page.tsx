@@ -4,6 +4,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { requestDisplayStatus } from "@/lib/postStatus";
 import { DeletePostButton } from "@/components/DeletePostButton";
+import { ReportButton } from "@/components/ReportButton";
 
 export default async function RequestDetailPage({
   params,
@@ -58,6 +59,13 @@ export default async function RequestDetailPage({
           {found.postedBy.name}
         </Link>
       </p>
+      {!isOwner && (
+        <ReportButton
+          reportedUserId={found.postedBy.id}
+          contextType="request"
+          contextId={found.id}
+        />
+      )}
 
       {isOwner && (
         <div>
