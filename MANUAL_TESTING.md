@@ -8,6 +8,37 @@ items off as you verify them; leave unchecked ones for the next pass.
 No automated test suite exists in this project (see CLAUDE.md) — this file
 is the actual test coverage.
 
+## Report a User (2026-08-22)
+
+- [ ] "Report user" appears on another user's public profile
+      (`/profile/[userId]`), a trip you don't own, a request you don't own,
+      and a message thread — and never on the equivalent page for yourself
+      (your own profile, your own trip/request, or — trivially, since every
+      thread is 2-party — never lets you target yourself in a thread)
+- [ ] Clicking it reveals a composer (reason dropdown + optional detail),
+      not an immediate submit
+- [ ] Submit is disabled/blocked until a reason is selected; leaving detail
+      blank still submits fine
+- [ ] "Cancel" collapses the composer back to the plain button without
+      sending anything
+- [ ] After submitting, the control is replaced by a "Reported. Our team
+      will review this." message — no page reload
+- [ ] Each submission creates the right `Report` row (verify via Prisma
+      Studio): `reporterId`/`reportedUserId` correct, `status = "open"`,
+      and `contextType`/`contextId` match the surface it was sent from
+      (`"profile"` with no `contextId`; `"trip"`/`"request"` with the
+      post's id; `"message"` with the **conversation's** id, not a single
+      message)
+- [ ] The same reporter can report the same user a second time (e.g. a
+      different incident) and it succeeds both times — no duplicate
+      blocking exists, by design
+- [ ] `POST /api/reports` while logged out returns 401; `reportedUserId`
+      equal to your own id returns 400; a nonexistent `reportedUserId`
+      returns 404
+- [ ] Nothing else in the app changes as a result of a report — no visible
+      report count anywhere (profile, trip/request cards, nav), no
+      notification to anyone, no moderation queue page exists to check
+
 ## Connection Request Note (2026-08-20)
 
 - [ ] Clicking "Request to Connect" (on `/trips/[id]` or an Explore card)

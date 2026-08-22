@@ -389,6 +389,15 @@ body {
   cursor: pointer;
 }
 
+.report-button {
+  cursor: pointer;
+}
+
+.report-submitted {
+  color: #1a7a3a;
+  font-size: 0.875rem;
+}
+
 .connection-request-compose {
   display: flex;
   flex-direction: column;

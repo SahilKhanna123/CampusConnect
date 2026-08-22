@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { getPublicProfile } from "@/lib/profile";
 import { lookingForLabel } from "@/lib/lookingFor";
+import { ReportButton } from "@/components/ReportButton";
 
 // Public profile view of another user -- only the fields getPublicProfile
 // (src/lib/profile.ts) allowlists: name, photo, university, general home
@@ -57,6 +58,9 @@ export default async function PublicProfilePage({
         )}
         {profile.badges.identity && <li>✓ Identity Verified</li>}
       </ul>
+      {viewer.id !== userId && (
+        <ReportButton reportedUserId={userId} contextType="profile" />
+      )}
     </div>
   );
 }

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { MessageThread } from "@/components/MessageThread";
+import { ReportButton } from "@/components/ReportButton";
 
 // A single conversation thread -- reached from /messages or from the
 // "Register for a seat" flow on /trips/[id]. 404s (not a permission error
@@ -51,6 +52,13 @@ export default async function ConversationPage({
         </Link>
       </p>
       <h1>{counterpart?.name ?? "Conversation"}</h1>
+      {counterpart && (
+        <ReportButton
+          reportedUserId={counterpart.id}
+          contextType="message"
+          contextId={conversation.id}
+        />
+      )}
       <MessageThread
         conversationId={conversation.id}
         currentUserId={user.id}
