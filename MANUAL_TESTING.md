@@ -8,6 +8,40 @@ items off as you verify them; leave unchecked ones for the next pass.
 No automated test suite exists in this project (see CLAUDE.md) — this file
 is the actual test coverage.
 
+## Block a User + Payment Safety Notice (2026-08-25)
+
+- [ ] "Block user" appears next to "Report user" on another user's public
+      profile (`/profile/[userId]`), a trip you don't own, a request you
+      don't own, and a message thread — never on the equivalent page for
+      yourself
+- [ ] Clicking it shows a confirm() dialog explaining what blocking does;
+      cancelling the dialog does nothing
+- [ ] After confirming, the button flips to "Unblock user" with no page
+      reload; clicking that (with its own confirm dialog) flips it back
+- [ ] A blocked user's Trips/Requests disappear from **your** `/explore`,
+      and your Trips/Requests disappear from **theirs** — bidirectional,
+      even though the `Block` row is one-directional
+- [ ] Neither of you can start a **new** conversation with the other:
+      `POST /api/conversations` and `POST /api/connection-requests` both
+      return 403 once blocked (in either direction)
+- [ ] If a `ConnectionRequest` was already pending when the block happened,
+      accepting it afterward also fails (403) instead of creating a
+      conversation
+- [ ] An **existing** conversation/history between the two of you (trip
+      history, reviews) is unaffected by a later block — it isn't hidden or
+      deleted
+- [ ] `/profile` (your own profile) has a "Blocked Users" section listing
+      everyone you've blocked, each with an "Unblock user" button — section
+      only appears once you've blocked at least one person
+- [ ] Blocking the same user twice doesn't error (idempotent); unblocking a
+      user you never blocked, or that belongs to someone else, returns 404
+- [ ] `POST /api/blocks` with `blockedId` equal to your own id returns 400;
+      a nonexistent `blockedId` returns 404; logged out returns 401
+- [ ] Opening any conversation thread (`/messages/[id]`) — a brand-new one
+      or a previously-existing one — always shows the "⚠️ Safety notice"
+      banner about handling payment in person, above the message list,
+      every time the page loads
+
 ## Report a User (2026-08-22)
 
 - [ ] "Report user" appears on another user's public profile

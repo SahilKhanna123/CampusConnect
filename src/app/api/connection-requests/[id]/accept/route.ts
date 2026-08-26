@@ -4,6 +4,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { findOrCreateConversationForTrip } from "@/lib/messaging";
 import { createNotification } from "@/lib/notifications";
 import { tripDisplayStatus } from "@/lib/postStatus";
+import { isBlockedBetween } from "@/lib/blocks";
 
 // POST /api/connection-requests/:id/accept
 // Caller must be the request's recipientId (the trip owner) -- 403 for
@@ -51,6 +52,21 @@ export async function POST(
     return NextResponse.json(
       { error: "This trip is no longer active." },
       { status: 400 },
+    );
+  }
+  // A block could have happened after the request was sent but before it
+  // was accepted -- accepting would otherwise create the exact new
+  // Conversation a block is supposed to prevent, so this is checked again
+  // here rather than trusting the pending request alone.
+  if (
+    await isBlockedBetween(
+      connectionRequest.requesterId,
+      connectionRequest.recipientId,
+    )
+  ) {
+    return NextResponse.json(
+      { error: "You can't connect with this user." },
+      { status: 403 },
     );
   }
 

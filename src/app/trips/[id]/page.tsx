@@ -10,6 +10,8 @@ import { ConnectionRequestButton, type ConnectionStatus } from "@/components/Con
 import { ConfirmSeatButton } from "@/components/ConfirmSeatButton";
 import { PosterBadge } from "@/components/ExploreCard";
 import { ReportButton } from "@/components/ReportButton";
+import { BlockButton } from "@/components/BlockButton";
+import { isBlockedBetween } from "@/lib/blocks";
 
 export default async function TripDetailPage({
   params,
@@ -31,6 +33,9 @@ export default async function TripDetailPage({
   if (!trip) notFound();
 
   const isOwner = trip.travelerId === user.id;
+  const initialBlocked = isOwner
+    ? false
+    : await isBlockedBetween(user.id, trip.travelerId);
   const destinationLabel = trip.destinationCity?.name ?? trip.destinationText;
   const displayStatus = tripDisplayStatus(trip);
   // "upcoming" is the only editable/cancellable/completable state -- an
@@ -121,11 +126,17 @@ export default async function TripDetailPage({
         <Link href={`/profile/${trip.traveler.id}`}>{trip.traveler.name}</Link>
       </p>
       {!isOwner && (
-        <ReportButton
-          reportedUserId={trip.traveler.id}
-          contextType="trip"
-          contextId={trip.id}
-        />
+        <>
+          <ReportButton
+            reportedUserId={trip.traveler.id}
+            contextType="trip"
+            contextId={trip.id}
+          />{" "}
+          <BlockButton
+            blockedUserId={trip.traveler.id}
+            initialBlocked={initialBlocked}
+          />
+        </>
       )}
 
       {isOwner && isUpcoming && (

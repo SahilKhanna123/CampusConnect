@@ -4,6 +4,8 @@ import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { MessageThread } from "@/components/MessageThread";
 import { ReportButton } from "@/components/ReportButton";
+import { BlockButton } from "@/components/BlockButton";
+import { isBlockedBetween } from "@/lib/blocks";
 
 // A single conversation thread -- reached from /messages or from the
 // "Register for a seat" flow on /trips/[id]. 404s (not a permission error
@@ -39,6 +41,9 @@ export default async function ConversationPage({
   const counterpart = conversation.participants.find(
     (p) => p.userId !== user.id,
   )?.user;
+  const initialBlocked = counterpart
+    ? await isBlockedBetween(user.id, counterpart.id)
+    : false;
   const destinationLabel =
     conversation.trip.destinationCity?.name ??
     conversation.trip.destinationText ??
@@ -46,6 +51,15 @@ export default async function ConversationPage({
 
   return (
     <div>
+      {/* Shown every time a chat is opened, before the thread itself --
+          this app has no payment/escrow infrastructure (see CLAUDE.md,
+          "No payment fields"), so any money changing hands is strictly an
+          in-person, off-platform arrangement between the two riders. */}
+      <p className="chat-safety-notice">
+        ⚠️ Safety notice: Handle any payment (gas money, delivery fees, etc.)
+        in person, at the time of the ride or pickup. CampusConnect doesn't
+        process payments and can't help recover money sent to someone here.
+      </p>
       <p>
         <Link href={`/trips/${conversation.tripId}`}>
           {conversation.trip.originCity.name} → {destinationLabel}
@@ -53,11 +67,17 @@ export default async function ConversationPage({
       </p>
       <h1>{counterpart?.name ?? "Conversation"}</h1>
       {counterpart && (
-        <ReportButton
-          reportedUserId={counterpart.id}
-          contextType="message"
-          contextId={conversation.id}
-        />
+        <>
+          <ReportButton
+            reportedUserId={counterpart.id}
+            contextType="message"
+            contextId={conversation.id}
+          />{" "}
+          <BlockButton
+            blockedUserId={counterpart.id}
+            initialBlocked={initialBlocked}
+          />
+        </>
       )}
       <MessageThread
         conversationId={conversation.id}

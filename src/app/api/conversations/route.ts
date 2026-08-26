@@ -5,6 +5,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { tripDisplayStatus } from "@/lib/postStatus";
 import { findOrCreateConversationForTrip } from "@/lib/messaging";
 import { createNotification, truncateForNotification } from "@/lib/notifications";
+import { isBlockedBetween } from "@/lib/blocks";
 
 // GET /api/conversations
 // Lists the caller's conversations, most recently created first, each with
@@ -78,6 +79,16 @@ export async function POST(request: Request) {
     return NextResponse.json(
       { error: "This trip is no longer accepting messages." },
       { status: 400 },
+    );
+  }
+  // Neither party can start a new conversation with the other once blocked,
+  // regardless of who initiated the block (plan doc §7) -- an existing
+  // conversation that predates the block is untouched (this endpoint only
+  // finds-or-creates; it never reaches an already-existing thread).
+  if (await isBlockedBetween(user.id, trip.travelerId)) {
+    return NextResponse.json(
+      { error: "You can't message this user." },
+      { status: 403 },
     );
   }
 

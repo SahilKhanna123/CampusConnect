@@ -5,6 +5,8 @@ import { prisma } from "@/lib/prisma";
 import { requestDisplayStatus } from "@/lib/postStatus";
 import { DeletePostButton } from "@/components/DeletePostButton";
 import { ReportButton } from "@/components/ReportButton";
+import { BlockButton } from "@/components/BlockButton";
+import { isBlockedBetween } from "@/lib/blocks";
 
 export default async function RequestDetailPage({
   params,
@@ -26,6 +28,9 @@ export default async function RequestDetailPage({
   if (!found) notFound();
 
   const isOwner = found.postedById === user.id;
+  const initialBlocked = isOwner
+    ? false
+    : await isBlockedBetween(user.id, found.postedById);
   const destinationLabel =
     found.destinationCity?.name ?? found.destinationText ?? "?";
 
@@ -60,11 +65,17 @@ export default async function RequestDetailPage({
         </Link>
       </p>
       {!isOwner && (
-        <ReportButton
-          reportedUserId={found.postedBy.id}
-          contextType="request"
-          contextId={found.id}
-        />
+        <>
+          <ReportButton
+            reportedUserId={found.postedBy.id}
+            contextType="request"
+            contextId={found.id}
+          />{" "}
+          <BlockButton
+            blockedUserId={found.postedBy.id}
+            initialBlocked={initialBlocked}
+          />
+        </>
       )}
 
       {isOwner && (
