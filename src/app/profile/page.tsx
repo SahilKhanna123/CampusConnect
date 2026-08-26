@@ -7,6 +7,8 @@ import {
 } from "@/lib/auth";
 import { getCitiesByRegion, getPrimaryRouteLabel } from "@/lib/geo";
 import { ProfileEditForm } from "@/components/ProfileEditForm";
+import { BlockButton } from "@/components/BlockButton";
+import { prisma } from "@/lib/prisma";
 
 // Self profile view + edit. Name/photo/home-area are editable here (per
 // "students should eventually be able to edit non-verification
@@ -18,9 +20,14 @@ export default async function ProfilePage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
-  const [citiesByRegion, primaryRoute] = await Promise.all([
+  const [citiesByRegion, primaryRoute, blockedUsers] = await Promise.all([
     getCitiesByRegion(),
     getPrimaryRouteLabel(user),
+    prisma.block.findMany({
+      where: { blockerId: user.id },
+      include: { blocked: { select: { id: true, name: true, photoUrl: true } } },
+      orderBy: { createdAt: "desc" },
+    }),
   ]);
   // Same fallback order as the nav header in src/app/layout.tsx: a
   // parent's own email is never expected to be university-verified, so
@@ -79,6 +86,21 @@ export default async function ProfilePage() {
                 {link.status === "otp_verified" &&
                   " (connection not yet confirmed by student)"}
                 {link.status === "revoked" && " (removed)"}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {blockedUsers.length > 0 && (
+        <section>
+          <h2>Blocked Users</h2>
+          <p>Visible only to you.</p>
+          <ul className="blocked-users-list">
+            {blockedUsers.map((b) => (
+              <li key={b.id} className="blocked-user-row">
+                {b.blocked.name}
+                <BlockButton blockedUserId={b.blockedId} initialBlocked={true} />
               </li>
             ))}
           </ul>

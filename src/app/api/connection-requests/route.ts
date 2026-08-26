@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { tripDisplayStatus } from "@/lib/postStatus";
 import { createNotification, truncateForNotification } from "@/lib/notifications";
+import { isBlockedBetween } from "@/lib/blocks";
 
 const createSchema = z.object({
   tripId: z.string().min(1),
@@ -56,6 +57,15 @@ export async function POST(request: Request) {
     return NextResponse.json(
       { error: "This trip is no longer accepting connection requests." },
       { status: 400 },
+    );
+  }
+  // Same "neither can start a new conversation" block rule POST
+  // /api/conversations enforces -- a ConnectionRequest is a precursor to a
+  // Conversation (see accept/route.ts), so it's gated the same way.
+  if (await isBlockedBetween(user.id, trip.travelerId)) {
+    return NextResponse.json(
+      { error: "You can't connect with this user." },
+      { status: 403 },
     );
   }
 

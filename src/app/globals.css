@@ -398,6 +398,39 @@ body {
   font-size: 0.875rem;
 }
 
+.block-button {
+  cursor: pointer;
+}
+
+.blocked-users-list {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.blocked-user-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid #e5e5e5;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.chat-safety-notice {
+  padding: 0.75rem 1rem;
+  border: 1px solid #f0d58c;
+  border-radius: 8px;
+  background: #fff8e1;
+  font-size: 0.875rem;
+  color: #6b5300;
+}
+
 .connection-request-compose {
   display: flex;
   flex-direction: column;

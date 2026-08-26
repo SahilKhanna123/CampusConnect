@@ -6,6 +6,7 @@ import { getCitiesByRegion } from "@/lib/geo";
 import { tripDisplayStatus, requestDisplayStatus } from "@/lib/postStatus";
 import { ExploreCard, type ExploreCardPost } from "@/components/ExploreCard";
 import type { ConnectionStatus } from "@/components/ConnectionRequestButton";
+import { getBlockedCounterpartIds } from "@/lib/blocks";
 
 function parseDateFilter(date?: string) {
   if (!date) return null;
@@ -43,12 +44,17 @@ export default async function ExplorePage({
   const dateFilter = parseDateFilter(date);
   const hasActiveFilter = Boolean(originCityId || destinationCityId || date || kind);
 
+  // A blocked pair disappears from each other's Explore results regardless
+  // of who initiated the block (plan doc §7) -- fetched once up front and
+  // applied to both the Trip and Request queries below.
+  const blockedUserIds = await getBlockedCounterpartIds(user.id);
+
   const [citiesByRegion, trips, requests] = await Promise.all([
     getCitiesByRegion(),
     prisma.trip.findMany({
       where: {
         status: "upcoming",
-        travelerId: { not: user.id },
+        travelerId: { not: user.id, notIn: blockedUserIds },
         ...(originCityId ? { originCityId } : {}),
         ...(destinationCityId ? { destinationCityId } : {}),
         ...(dateFilter ? { departureDate: dateFilter } : {}),
@@ -76,7 +82,7 @@ export default async function ExplorePage({
         type: "ride",
         tripId: null,
         status: "pending",
-        postedById: { not: user.id },
+        postedById: { not: user.id, notIn: blockedUserIds },
         ...(originCityId ? { originCityId } : {}),
         ...(destinationCityId ? { destinationCityId } : {}),
         ...(dateFilter ? { neededDate: dateFilter } : {}),
