@@ -111,6 +111,15 @@ enum NotificationType {
   // ConnectionRequest.id apart from a Request.id sharing the same
   // type/relatedId shape, and the two need different destination URLs.
   request_trip_cancelled
+  // Sent to a Request's reviewee (the other participant) when the caller
+  // leaves a Review via POST /api/reviews. relatedId is the Request's own
+  // id, same shape as request_accepted/request_trip_cancelled -- kept as
+  // its own distinct value even though the destination URL happens to
+  // match, since it's a semantically different event and
+  // notificationLink() dispatches purely on `type`. Both participants can
+  // each trigger this once (one per reviewer, per Review's
+  // @@unique([requestId, reviewerId])), so it can fire twice per request.
+  review_received
 }
 
 model User {

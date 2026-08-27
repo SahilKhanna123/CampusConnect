@@ -8,6 +8,34 @@ items off as you verify them; leave unchecked ones for the next pass.
 No automated test suite exists in this project (see CLAUDE.md) — this file
 is the actual test coverage.
 
+## Reviews (2026-08-27)
+
+- [ ] Continuing from a completed Request (User A posted, User B fulfilled
+      and marked it completed — see the Matching Lifecycle checklist below):
+      as A, `/requests/[id]` shows a rating `<select>` + optional comment
+      form, no "they reviewed you" text yet (B hasn't reviewed)
+- [ ] Submitting with no rating selected is blocked (disabled submit); pick
+      a rating (e.g. 4 stars) + a comment and submit — page updates to
+      "You rated B 4/5" in place of the form, no reload needed
+- [ ] As B, load the same page — sees "A rated you 4/5: <comment>" plus
+      their own still-empty rating form (they haven't reviewed A yet)
+- [ ] B submits a 5-star review with no comment — as A, reload and confirm
+      "B rated you 5/5" (no comment shown, since none was given)
+- [ ] As A, check `/notifications` — a new row with a ⭐ icon (not the
+      generic 🔔 fallback), title "You got a new review," clicking it
+      lands on `/requests/[id]`
+- [ ] Try `POST /api/reviews` again as A for the same request — expect 409
+      "You've already reviewed this."
+- [ ] Try `POST /api/reviews` as a third user with no connection to this
+      request — expect 403
+- [ ] Try `POST /api/reviews` against a Request that's only `accepted`
+      (not yet completed) — expect 400 "This request isn't completed yet."
+- [ ] Try `rating: 6`, `rating: 0`, or an omitted `requestId` — expect 400
+      in each case
+- [ ] Nothing changed on `/profile` or `/profile/[userId]` — no aggregate
+      rating or review list appears anywhere outside the specific
+      request's own page (deliberately out of scope this pass)
+
 ## Request/Trip Matching Lifecycle (2026-08-26)
 
 - [ ] As User A, post a standalone ride Request needing 2 seats

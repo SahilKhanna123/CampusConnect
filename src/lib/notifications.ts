@@ -69,6 +69,11 @@ export function notificationLink(notification: {
     case "request_accepted":
     case "request_trip_cancelled":
       return `/requests/${notification.relatedId}`;
+    // Same destination as the two cases above (relatedId is the Request's
+    // own id) -- kept as its own NotificationType anyway since it's a
+    // semantically different event, not a reuse for reuse's sake.
+    case "review_received":
+      return `/requests/${notification.relatedId}`;
     default:
       return "/notifications";
   }
