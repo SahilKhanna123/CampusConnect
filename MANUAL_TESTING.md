@@ -8,6 +8,34 @@ items off as you verify them; leave unchecked ones for the next pass.
 No automated test suite exists in this project (see CLAUDE.md) — this file
 is the actual test coverage.
 
+## Home Page (2026-08-27)
+
+- [ ] Logged out, hitting `/` redirects to `/login` (previously showed the
+      placeholder with no login required — this is the behavior change)
+- [ ] As a student with a home city in one region and a verified
+      university in a different region that has a `RouteCommunity` row,
+      `/` shows "Your route: X ↔ Y"
+- [ ] Another user's upcoming Trip or standalone ride Request on that same
+      route (origin in one region, destination in the other) appears as a
+      card, rendered identically to how it looks on `/explore`
+- [ ] A package-type Request never appears on `/` (ride-only, by design)
+- [ ] Your own posts never appear on your own `/` feed, even if they're on
+      your route
+- [ ] Blocking a user whose post would otherwise match makes it disappear
+      from `/` (same as it already does on `/explore`)
+- [ ] A parent account, or an alumni/traveler account with no
+      `StudentRecord`, sees "Featured route: X ↔ Y" (the active
+      `RouteCommunity`, not a personal one) instead of "Your route"
+- [ ] A student whose home region has no matching `RouteCommunity` row
+      also falls back to "Featured route" the same way
+- [ ] With zero matching upcoming trips/requests on the resolved route,
+      `/` shows "Nothing on your route right now." with working links to
+      `/explore` and `/post` — no blank page or error
+- [ ] Clicking an offer's "Request to Connect" (or seeing "Connected" if
+      you already have one) on a Home card works identically to the same
+      trip's card on `/explore` — confirms the batched `ConnectionRequest`
+      status lookup carried over correctly
+
 ## Reviews (2026-08-27)
 
 - [ ] Continuing from a completed Request (User A posted, User B fulfilled
