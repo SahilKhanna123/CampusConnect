@@ -9,6 +9,7 @@ import { BlockButton } from "@/components/BlockButton";
 import { isBlockedBetween } from "@/lib/blocks";
 import { FulfillRequestForm } from "@/components/FulfillRequestForm";
 import { MarkRequestCompleteButton } from "@/components/MarkRequestCompleteButton";
+import { ReviewForm } from "@/components/ReviewForm";
 
 export default async function RequestDetailPage({
   params,
@@ -32,12 +33,23 @@ export default async function RequestDetailPage({
           traveler: { select: { id: true, name: true, photoUrl: true } },
         },
       },
+      reviews: {
+        include: {
+          reviewer: { select: { id: true, name: true, photoUrl: true } },
+        },
+      },
     },
   });
   if (!found) notFound();
 
   const isOwner = found.postedById === user.id;
   const isTripOwner = found.trip?.traveler.id === user.id;
+  const counterpartId = isOwner ? found.trip?.traveler.id : found.postedBy.id;
+  const counterpartName = isOwner ? found.trip?.traveler.name : found.postedBy.name;
+  const myReview = found.reviews.find((r) => r.reviewerId === user.id);
+  const theirReview = counterpartId
+    ? found.reviews.find((r) => r.reviewerId === counterpartId)
+    : undefined;
   const initialBlocked = isOwner
     ? false
     : await isBlockedBetween(user.id, found.postedById);
@@ -158,6 +170,24 @@ export default async function RequestDetailPage({
           </p>
           {found.status === "accepted" && (isOwner || isTripOwner) && (
             <MarkRequestCompleteButton requestId={found.id} />
+          )}
+        </div>
+      )}
+
+      {found.status === "completed" && found.trip && (isOwner || isTripOwner) && (
+        <div className="review-section">
+          {theirReview && (
+            <p>
+              {counterpartName} rated you {theirReview.rating}/5
+              {theirReview.comment && `: "${theirReview.comment}"`}
+            </p>
+          )}
+          {myReview ? (
+            <p>
+              You rated {counterpartName} {myReview.rating}/5.
+            </p>
+          ) : (
+            <ReviewForm requestId={found.id} revieweeName={counterpartName ?? "them"} />
           )}
         </div>
       )}
