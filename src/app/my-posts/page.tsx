@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { requestDisplayStatus, tripDisplayStatus } from "@/lib/postStatus";
 import { DeletePostButton } from "@/components/DeletePostButton";
 import { MarkTripCompleteButton } from "@/components/MarkTripCompleteButton";
+import { MarkRequestCompleteButton } from "@/components/MarkRequestCompleteButton";
 
 // Lists the current user's own Trip (offer) and Request (need) posts --
 // travelerId / postedById are the ownership fields the API routes enforce
@@ -244,6 +245,12 @@ export default async function MyPostsPage({
                 {r.neededDate && ` — ${r.neededDate.toLocaleDateString()}`}
               </Link>
               {" "}({requestDisplayStatus(r)})
+              {r.status === "accepted" && (
+                <>
+                  {" · "}
+                  <MarkRequestCompleteButton requestId={r.id} />
+                </>
+              )}
             </li>
           ))}
         </ul>

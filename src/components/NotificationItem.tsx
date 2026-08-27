@@ -12,6 +12,8 @@ const NOTIFICATION_ICONS: Record<NotificationType, string> = {
   new_message: "💬",
   trip_cancelled: "🚫",
   trip_seat_confirmed: "🪑",
+  request_accepted: "🚗",
+  request_trip_cancelled: "🚫",
 };
 
 export type NotificationForDisplay = {

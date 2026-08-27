@@ -12,6 +12,7 @@ import { PosterBadge } from "@/components/ExploreCard";
 import { ReportButton } from "@/components/ReportButton";
 import { BlockButton } from "@/components/BlockButton";
 import { isBlockedBetween } from "@/lib/blocks";
+import { MarkRequestCompleteButton } from "@/components/MarkRequestCompleteButton";
 
 export default async function TripDetailPage({
   params,
@@ -99,6 +100,33 @@ export default async function TripDetailPage({
       })
     : [];
 
+  // Owner-only: standalone Requests this trip has been matched to via POST
+  // /api/requests/[id]/accept -- a separate mechanism from ConnectionRequest
+  // (the Participants section above), but drawing from the same
+  // seatsRemaining pool, so it's shown here for the same "relevant trip
+  // information" reason. Both accepted and completed are shown (history
+  // stays visible), same pattern as Participants/ConfirmSeatButton.
+  const fulfillingRequests = isOwner
+    ? await prisma.request.findMany({
+        where: { tripId: trip.id, status: { in: ["accepted", "completed"] } },
+        include: {
+          postedBy: {
+            select: {
+              id: true,
+              name: true,
+              photoUrl: true,
+              signedUpAsParent: true,
+              verifications: {
+                where: { status: "verified" },
+                select: { type: true, status: true },
+              },
+            },
+          },
+        },
+        orderBy: { respondedAt: "asc" },
+      })
+    : [];
+
   return (
     <div>
       <h1>{trip.title || "Untitled trip"}</h1>
@@ -178,6 +206,31 @@ export default async function TripDetailPage({
                   />
                 ) : (
                   <span className="seat-confirmed-badge-none">Not confirmed</span>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {isOwner && fulfillingRequests.length > 0 && (
+        <div>
+          <h2>Requests You&apos;re Fulfilling</h2>
+          <div className="trip-participant-list">
+            {fulfillingRequests.map((r) => (
+              <div key={r.id} className="trip-participant-row">
+                <Link href={`/requests/${r.id}`}>
+                  <PosterBadge poster={r.postedBy} />
+                </Link>
+                <span>
+                  {r.type === "ride"
+                    ? `Ride, ${r.seatsRequested ?? 1} seat(s)`
+                    : `Package: ${r.packageDescription ?? ""}`}
+                </span>
+                {r.status === "accepted" ? (
+                  <MarkRequestCompleteButton requestId={r.id} />
+                ) : (
+                  <span className="seat-confirmed-badge-none">Completed</span>
                 )}
               </div>
             ))}

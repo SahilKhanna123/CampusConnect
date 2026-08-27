@@ -8,6 +8,55 @@ items off as you verify them; leave unchecked ones for the next pass.
 No automated test suite exists in this project (see CLAUDE.md) — this file
 is the actual test coverage.
 
+## Request/Trip Matching Lifecycle (2026-08-26)
+
+- [ ] As User A, post a standalone ride Request needing 2 seats
+      (`/post/request`). Confirm it shows `status: pending` on `/requests/[id]`
+      and `/my-posts`, with no trip attached
+- [ ] As User B (a different account with an upcoming Trip that has at
+      least 2 seats), open A's request detail page — a "fulfill this
+      request" panel with a trip picker + "Offer This Trip" button should
+      appear (only because B has an eligible upcoming trip; if B has none,
+      a message pointing at `/post/trip` shows instead)
+- [ ] Submitting the picker: the request flips to `accepted`, gets a
+      `tripId`, and B's Trip's `seatsRemaining` drops by 2 (not always by 1
+      — confirm a multi-seat request actually consumes multiple seats)
+- [ ] As A, a `request_accepted` notification appears, unread, and clicking
+      it lands on `/requests/[id]` (not `/connections` — this is the bug
+      the distinct `request_trip_cancelled`/`request_accepted` notification
+      types were added to avoid)
+- [ ] Attempting to accept a request needing more seats than remain on a
+      trip returns a clean error and doesn't partially write anything
+      (status stays `pending`, `seatsRemaining` unchanged)
+- [ ] Repeat with a `type: package` request against a trip with
+      `packageSpaceAvailable: true` — acceptance succeeds with **no**
+      change to `seatsRemaining`/`seatsTotal`; toggling that flag off
+      beforehand makes acceptance fail cleanly
+- [ ] Once accepted, `/requests/[id]` shows who's fulfilling it (trip +
+      traveler name) and a "Mark Completed" button, visible to **both** A
+      and B but to no one else
+- [ ] "Mark Completed" also appears (and works, hitting the same route) on
+      B's `/trips/[id]` under a new "Requests You're Fulfilling" section,
+      and inline next to A's request on `/my-posts` — clicking it from any
+      of the three flips `status: completed`, and a second attempt (or a
+      non-participant hitting the API directly) is rejected
+- [ ] With the Request still `accepted` (2 seats) plus a separately
+      confirmed `ConnectionRequest` seat (1 seat) on the same trip, try
+      `PATCH /api/trips/[id]` reducing `seatsTotal` below 3 — expect a 400
+      citing seats "spoken for by confirmed riders and accepted requests";
+      raising it above 3 should succeed with the right `seatsRemaining`
+- [ ] Cancel B's trip while A's Request is still `accepted` — A's Request
+      status is untouched (still `accepted`), A gets a
+      `request_trip_cancelled` notification linking to `/requests/[id]`,
+      and B's existing `ConnectionRequest`-side cancellation notifications
+      (if any) still work exactly as before (regression check)
+- [ ] `POST /api/requests/[id]/decline` (no UI button calls this by
+      design — test by hitting the API directly as the trip owner) sets
+      `status: declined`, leaves `tripId` null, sends no notification
+- [ ] Trying to fulfill your own request (as A, against A's own trip)
+      returns 400; a non-owner trying to act as if they own a different
+      trip returns 403
+
 ## Block a User + Payment Safety Notice (2026-08-25)
 
 - [ ] "Block user" appears next to "Report user" on another user's public
