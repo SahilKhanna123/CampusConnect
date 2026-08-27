@@ -100,6 +100,17 @@ enum NotificationType {
   // on release-seat (an owner-side correction of their own mistake, not an
   // event worth notifying the rider about).
   trip_seat_confirmed
+  // Sent to a standalone Request's postedById when a Trip owner accepts it
+  // via POST /api/requests/[id]/accept -- see the Request/Trip Matching
+  // Lifecycle section of CLAUDE.md.
+  request_accepted
+  // Sent to a Request's postedById when the Trip it's accepted-and-attached
+  // to (Request.tripId) gets cancelled by its owner -- the Request-side
+  // analogue of trip_cancelled. Kept as a distinct type rather than reusing
+  // trip_cancelled because notificationLink() has no way to tell a
+  // ConnectionRequest.id apart from a Request.id sharing the same
+  // type/relatedId shape, and the two need different destination URLs.
+  request_trip_cancelled
 }
 
 model User {

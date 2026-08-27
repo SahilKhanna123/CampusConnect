@@ -261,6 +261,23 @@ body {
   font: inherit;
 }
 
+.fulfill-request-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-width: 480px;
+  margin-top: 0.5rem;
+  padding: 1rem;
+  border: 1px solid #e5e5e5;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.fulfill-request-form label {
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
 .message-thread {
   list-style: none;
   margin: 0 0 1rem;

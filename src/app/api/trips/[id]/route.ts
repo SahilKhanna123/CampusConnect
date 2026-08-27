@@ -88,10 +88,25 @@ export async function PATCH(
   const confirmedParticipantCount = await prisma.connectionRequest.count({
     where: { tripId: id, seatConfirmedAt: { not: null } },
   });
-  if (data.seatsTotal < confirmedParticipantCount) {
+  // Accepted/completed standalone Requests (see POST /api/requests/[id]/accept)
+  // draw from this same seatsRemaining pool, alongside ConnectionRequest's
+  // seatConfirmedAt riders -- both must be accounted for here, or editing
+  // seatsTotal could silently desync seatsRemaining from either source. A
+  // plain JS reduce (not a Prisma _sum aggregate) is needed because a SQL
+  // sum skips NULLs, and seatsRequested defaults to 1 when null.
+  const consumingRequests = await prisma.request.findMany({
+    where: { tripId: id, type: "ride", status: { in: ["accepted", "completed"] } },
+    select: { seatsRequested: true },
+  });
+  const requestSeatsConsumed = consumingRequests.reduce(
+    (sum, r) => sum + (r.seatsRequested ?? 1),
+    0,
+  );
+  const totalConsumed = confirmedParticipantCount + requestSeatsConsumed;
+  if (data.seatsTotal < totalConsumed) {
     return NextResponse.json(
       {
-        error: `Can't reduce seats below the ${confirmedParticipantCount} rider${confirmedParticipantCount === 1 ? "" : "s"} already confirmed. Release a seat first.`,
+        error: `Can't reduce seats below the ${totalConsumed} seat${totalConsumed === 1 ? "" : "s"} already spoken for by confirmed riders and accepted requests. Release one first.`,
       },
       { status: 400 },
     );
@@ -108,7 +123,7 @@ export async function PATCH(
       departureTime: data.departureTime || null,
       flexibleTime: data.flexibleTime ?? false,
       seatsTotal: data.seatsTotal,
-      seatsRemaining: data.seatsTotal - confirmedParticipantCount,
+      seatsRemaining: data.seatsTotal - totalConsumed,
       packageSpaceAvailable: data.packageSpaceAvailable ?? false,
       packageCapacityNote: data.packageCapacityNote || null,
       tripNotes: data.tripNotes || null,
@@ -168,6 +183,16 @@ export async function DELETE(
     where: { tripId: id, status: { in: ["pending", "accepted"] } },
     select: { id: true, requesterId: true, status: true },
   });
+  // Standalone Requests that got matched to this trip (POST
+  // /api/requests/[id]/accept) are a separate mechanism from
+  // ConnectionRequest, but need the same courtesy notice -- only "accepted"
+  // is possible here since a pending standalone Request never has tripId
+  // set. Left untouched (status stays "accepted"), same "don't delete
+  // historical data" precedent as the ConnectionRequest handling above.
+  const affectedStandaloneRequests = await prisma.request.findMany({
+    where: { tripId: id, status: "accepted" },
+    select: { id: true, postedById: true },
+  });
 
   await prisma.$transaction([
     prisma.trip.update({ where: { id }, data: { status: "cancelled" } }),
@@ -188,6 +213,18 @@ export async function DELETE(
           r.status === "pending"
             ? `${user.name} cancelled the trip${tripLabel}. Your connection request has been cancelled.`
             : `${user.name} cancelled the trip${tripLabel} you were connected on. Your conversation is still available.`,
+        relatedId: r.id,
+      }),
+    ),
+  );
+
+  await Promise.all(
+    affectedStandaloneRequests.map((r) =>
+      createNotification({
+        userId: r.postedById,
+        type: "request_trip_cancelled",
+        title: "Trip cancelled",
+        message: `${user.name} cancelled the trip${tripLabel} that was fulfilling your request. Your request is still marked accepted -- you may want to re-post if you still need this.`,
         relatedId: r.id,
       }),
     ),

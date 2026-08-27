@@ -62,6 +62,13 @@ export function notificationLink(notification: {
     // visible right there on /trips/[id] (see the trip detail page).
     case "trip_seat_confirmed":
       return `/trips/${notification.relatedId}`;
+    // Both carry the Request's own id as relatedId -- deliberately NOT the
+    // same case as trip_cancelled above, since that one's relatedId is
+    // always a ConnectionRequest.id and this function has no way to tell
+    // the two apart if they shared a case.
+    case "request_accepted":
+    case "request_trip_cancelled":
+      return `/requests/${notification.relatedId}`;
     default:
       return "/notifications";
   }
