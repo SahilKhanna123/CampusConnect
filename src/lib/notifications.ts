@@ -74,6 +74,11 @@ export function notificationLink(notification: {
     // semantically different event, not a reuse for reuse's sake.
     case "review_received":
       return `/requests/${notification.relatedId}`;
+    // No relatedId (there's no per-link page to deep-link to yet) -- the
+    // parent's own /profile "Linked Students" section already shows
+    // current status for every link they have.
+    case "parent_link_approved":
+      return "/profile";
     default:
       return "/notifications";
   }

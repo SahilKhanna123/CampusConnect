@@ -15,6 +15,7 @@ const NOTIFICATION_ICONS: Record<NotificationType, string> = {
   request_accepted: "🚗",
   request_trip_cancelled: "🚫",
   review_received: "⭐",
+  parent_link_approved: "🤝",
 };
 
 export type NotificationForDisplay = {

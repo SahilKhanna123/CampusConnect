@@ -120,6 +120,12 @@ enum NotificationType {
   // each trigger this once (one per reviewer, per Review's
   // @@unique([requestId, reviewerId])), so it can fire twice per request.
   review_received
+  // Sent to a ParentStudentLink's parent when the student explicitly
+  // approves it via POST /api/family/link/[id]/approve (otp_verified ->
+  // approved). relatedId is unused (null) -- there's no per-link page to
+  // deep-link to yet, and the parent's own /profile "Linked Students"
+  // section already shows current status for every link they have.
+  parent_link_approved
 }
 
 model User {
