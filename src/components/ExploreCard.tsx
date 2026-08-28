@@ -77,6 +77,11 @@ export type TripCardPost = {
   // ever set for offer posts -- a Request has no "trip owner" to connect
   // with in this feature's scope.
   connectionRequestStatus: ConnectionStatus;
+  // See the schema comment on Request.studentsOnly -- this card only ever
+  // renders for a viewer who's actually allowed to see it (the query that
+  // builds this post already excludes it otherwise), so this is purely a
+  // "🎓 Students only" label, not an access check.
+  studentsOnly: boolean;
 };
 
 export type RequestCardPost = {
@@ -89,6 +94,7 @@ export type RequestCardPost = {
   flexibleTime: boolean;
   seatsRequested: number;
   poster: Poster;
+  studentsOnly: boolean;
 };
 
 export type ExploreCardPost = TripCardPost | RequestCardPost;
@@ -118,6 +124,10 @@ export function ExploreCard({ post }: { post: ExploreCardPost }) {
             {post.kind === "offer" ? "Offering a ride" : "Needs a ride"}
           </span>
         </div>
+
+        {post.studentsOnly && (
+          <div className="explore-card-students-only">🎓 Students only</div>
+        )}
 
         {post.kind === "offer" && (
           <div className="explore-card-title">{post.title || "Untitled trip"}</div>

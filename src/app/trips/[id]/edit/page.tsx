@@ -1,5 +1,5 @@
 import { notFound, redirect } from "next/navigation";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, hasStudentRecord } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getCitiesByRegion } from "@/lib/geo";
 import { tripDisplayStatus } from "@/lib/postStatus";
@@ -33,6 +33,7 @@ export default async function EditTripPage({
       <TripPostForm
         citiesByRegion={citiesByRegion}
         tripId={trip.id}
+        isStudent={hasStudentRecord(user)}
         initialValues={{
           title: trip.title ?? "",
           originCityId: trip.originCityId,
@@ -45,6 +46,7 @@ export default async function EditTripPage({
           packageSpaceAvailable: trip.packageSpaceAvailable,
           packageCapacityNote: trip.packageCapacityNote ?? "",
           tripNotes: trip.tripNotes ?? "",
+          studentsOnly: trip.studentsOnly,
         }}
       />
     </div>

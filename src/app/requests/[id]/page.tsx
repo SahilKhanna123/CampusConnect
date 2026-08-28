@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, hasStudentRecord } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { requestDisplayStatus, tripDisplayStatus } from "@/lib/postStatus";
 import { DeletePostButton } from "@/components/DeletePostButton";
@@ -43,6 +43,9 @@ export default async function RequestDetailPage({
   if (!found) notFound();
 
   const isOwner = found.postedById === user.id;
+  // studentsOnly requests are invisible to a non-student, non-owner viewer
+  // -- same 404-not-403 idiom as the equivalent gate on /trips/[id].
+  if (found.studentsOnly && !isOwner && !hasStudentRecord(user)) notFound();
   const isTripOwner = found.trip?.traveler.id === user.id;
   const counterpartId = isOwner ? found.trip?.traveler.id : found.postedBy.id;
   const counterpartName = isOwner ? found.trip?.traveler.name : found.postedBy.name;
@@ -85,6 +88,7 @@ export default async function RequestDetailPage({
         {found.originCity?.name ?? "?"} → {destinationLabel}
       </h1>
       <p>Status: {requestDisplayStatus(found)}</p>
+      {found.studentsOnly && <p>🎓 Visible to students only</p>}
       {found.neededDate && (
         <p>
           {found.neededDate.toLocaleDateString()}

@@ -105,6 +105,21 @@ export function hasCompletedOnboarding(user: CurrentUser): boolean {
   return user.onboardingCompletedAt !== null;
 }
 
+/**
+ * True once this account has a claimed StudentRecord (StudentRecord.userId
+ * = this user's id) -- i.e. they signed up with, or later verified, an
+ * actual university email, per claimOrCreateStudentRecord in
+ * src/lib/onboarding.ts. This is the precise definition of "a student" used
+ * to gate students-only posts (Trip.studentsOnly / Request.studentsOnly,
+ * see the schema comment on the latter): narrower than "didn't sign up as a
+ * parent" (!signedUpAsParent), since an alumni/traveler account that never
+ * verified a university email doesn't count either. getCurrentUser()
+ * already includes studentRecord, so this needs no extra query.
+ */
+export function hasStudentRecord(user: CurrentUser): boolean {
+  return user.studentRecord !== null;
+}
+
 export async function canActOnBehalfOf(
   parentUserId: string,
   studentRecordId: string,

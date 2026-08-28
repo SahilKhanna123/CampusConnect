@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, hasStudentRecord } from "@/lib/auth";
 import { canCreatePost } from "@/lib/rate-limit";
 import { requestFieldsSchema } from "@/lib/postSchemas";
 
@@ -56,6 +56,13 @@ export async function POST(request: Request) {
   }
   const data = parsed.data;
 
+  if (data.studentsOnly && !hasStudentRecord(user)) {
+    return NextResponse.json(
+      { error: "Only students can create a students-only post." },
+      { status: 403 },
+    );
+  }
+
   if (!(await canCreatePost(user.id))) {
     return NextResponse.json(
       { error: "You've reached the posting limit for now. Try again later." },
@@ -90,6 +97,7 @@ export async function POST(request: Request) {
         data.type === "package" ? data.packageDescription || null : null,
       packageSize: data.type === "package" ? data.packageSize || null : null,
       notes: data.notes || null,
+      studentsOnly: data.studentsOnly ?? false,
       postedById: user.id,
       beneficiaryId: user.id,
     },

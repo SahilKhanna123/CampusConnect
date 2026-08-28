@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, hasStudentRecord } from "@/lib/auth";
 import { getCitiesByRegion } from "@/lib/geo";
 import { RequestPostForm } from "@/components/RequestPostForm";
 
@@ -21,6 +21,7 @@ export default async function CreateRequestPage({
       <h1>Post a Request</h1>
       <RequestPostForm
         citiesByRegion={citiesByRegion}
+        isStudent={hasStudentRecord(user)}
         initialValues={{
           type: type === "package" ? "package" : "ride",
         }}

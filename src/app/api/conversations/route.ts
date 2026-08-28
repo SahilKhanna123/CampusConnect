@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, hasStudentRecord } from "@/lib/auth";
 import { tripDisplayStatus } from "@/lib/postStatus";
 import { findOrCreateConversationForTrip } from "@/lib/messaging";
 import { createNotification, truncateForNotification } from "@/lib/notifications";
@@ -79,6 +79,15 @@ export async function POST(request: Request) {
     return NextResponse.json(
       { error: "This trip is no longer accepting messages." },
       { status: 400 },
+    );
+  }
+  // Same studentsOnly gate POST /api/connection-requests enforces -- closes
+  // the direct-endpoint gap for a non-student who can't discover or open
+  // this trip's page in the first place.
+  if (trip.studentsOnly && !hasStudentRecord(user)) {
+    return NextResponse.json(
+      { error: "This trip is only visible to students." },
+      { status: 403 },
     );
   }
   // Neither party can start a new conversation with the other once blocked,

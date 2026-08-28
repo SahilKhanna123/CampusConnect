@@ -17,6 +17,7 @@ export type RequestFormValues = {
   packageDescription: string;
   packageSize: string;
   notes: string;
+  studentsOnly: boolean;
 };
 
 // Sentinel <option> value that switches the "To" field from a City picker
@@ -32,10 +33,14 @@ export function RequestPostForm({
   citiesByRegion,
   requestId,
   initialValues,
+  isStudent,
 }: {
   citiesByRegion: CityGroup[];
   requestId?: string;
   initialValues?: Partial<RequestFormValues>;
+  // Whether the current viewer has a claimed StudentRecord -- see the same
+  // prop on TripPostForm for the full rationale.
+  isStudent: boolean;
 }) {
   const router = useRouter();
   const [type, setType] = useState<"ride" | "package">(
@@ -69,6 +74,9 @@ export function RequestPostForm({
     initialValues?.packageSize ?? "",
   );
   const [notes, setNotes] = useState(initialValues?.notes ?? "");
+  const [studentsOnly, setStudentsOnly] = useState(
+    initialValues?.studentsOnly ?? false,
+  );
   const [status, setStatus] = useState<"idle" | "submitting">("idle");
   const [error, setError] = useState<string | null>(null);
 
@@ -97,6 +105,7 @@ export function RequestPostForm({
             type === "package" ? packageDescription || undefined : undefined,
           packageSize: type === "package" ? packageSize || undefined : undefined,
           notes: notes || undefined,
+          studentsOnly: isStudent ? studentsOnly : false,
         }),
       },
     );
@@ -274,6 +283,19 @@ export function RequestPostForm({
           onChange={(e) => setNotes(e.target.value)}
         />
       </div>
+      {isStudent && (
+        <div>
+          <label>
+            <input
+              type="checkbox"
+              checked={studentsOnly}
+              onChange={(e) => setStudentsOnly(e.target.checked)}
+            />
+            {" "}
+            🎓 Visible to students only
+          </label>
+        </div>
+      )}
       {error && <p role="alert">{error}</p>}
       <button type="submit" disabled={status === "submitting"}>
         {status === "submitting"

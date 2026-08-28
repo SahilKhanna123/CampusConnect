@@ -8,6 +8,48 @@ items off as you verify them; leave unchecked ones for the next pass.
 No automated test suite exists in this project (see CLAUDE.md) — this file
 is the actual test coverage.
 
+## Students-Only Posts (2026-08-28)
+
+- [ ] As a student account (has a claimed `StudentRecord` — signed up with,
+      or later verified, a real university email), go to `/post/trip` or
+      `/post/request` — a "🎓 Visible to students only" checkbox appears at
+      the bottom of the form
+- [ ] As a parent account, or an alumni/traveler account that never
+      verified a university email, go to `/post/trip` or `/post/request` —
+      the checkbox does **not** appear at all
+- [ ] As a non-student, try `POST /api/trips` (or `/api/requests`) directly
+      with `studentsOnly: true` in the body — rejected with 403 "Only
+      students can create a students-only post."
+- [ ] As a student, check the box and post a Trip and a Request — both
+      succeed, and the detail page (`/trips/[id]` / `/requests/[id]`) shows
+      "🎓 Visible to students only" under the status line
+- [ ] As a different student account, browse `/explore` and `/` (Home) —
+      both students-only posts appear, each with a "🎓 Students only" pill
+      on the card
+- [ ] As a parent (or non-student) account, browse `/explore` and `/` —
+      neither students-only post appears anywhere in the feed
+- [ ] As that same non-student account, navigate directly to the
+      students-only post's URL (`/trips/[id]` or `/requests/[id]`) — a
+      normal 404 page, not an error or a "not allowed" message
+- [ ] As the owner (a student) of a students-only post, still viewing it as
+      the non-owner-would-see-it is unaffected — you always see your own
+      post regardless of student status
+- [ ] As the non-student account, hit the interaction endpoints directly
+      with the students-only trip/request's real id — `POST
+      /api/connection-requests`, `POST /api/conversations` (both with the
+      studentsOnly `tripId`), and `POST /api/requests/[id]/accept` (with
+      the studentsOnly Request's id) all return 403 "...only visible to
+      students."
+- [ ] As the student owner, edit the post via `/trips/[id]/edit` or
+      `/requests/[id]/edit` — the checkbox reflects its current state and
+      can be toggled off (post becomes visible to everyone) or back on
+- [ ] On `/my-posts`, a 🎓 prefix appears on any of your own posts (in
+      every tab/section — Upcoming, Completed, Cancelled, Past due) that
+      have `studentsOnly` set, and does **not** appear on ones that don't
+- [ ] Confirm a normal (non-students-only) post is completely unaffected
+      end-to-end for both student and non-student viewers — no regression
+      to the existing create/browse/view flow
+
 ## Message List: Timestamps + Archive/Delete (2026-08-28)
 
 - [ ] `/messages` — every row now shows a timestamp under the preview text

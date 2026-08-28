@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, hasStudentRecord } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { tripDisplayStatus } from "@/lib/postStatus";
 import { DeletePostButton } from "@/components/DeletePostButton";
@@ -34,6 +34,12 @@ export default async function TripDetailPage({
   if (!trip) notFound();
 
   const isOwner = trip.travelerId === user.id;
+  // studentsOnly trips are invisible to a non-student, non-owner viewer --
+  // 404 rather than a "not allowed" message, matching this app's existing
+  // don't-leak-existence idiom for private content (e.g. a Conversation a
+  // non-participant hits directly). See the schema comment on
+  // Request.studentsOnly for the full enforcement list.
+  if (trip.studentsOnly && !isOwner && !hasStudentRecord(user)) notFound();
   const initialBlocked = isOwner
     ? false
     : await isBlockedBetween(user.id, trip.travelerId);
@@ -180,6 +186,7 @@ export default async function TripDetailPage({
         {trip.originCity.name} → {destinationLabel}
       </p>
       <p>Status: {displayStatus}</p>
+      {trip.studentsOnly && <p>🎓 Visible to students only</p>}
       <p>
         {trip.departureDate.toLocaleDateString()}
         {trip.departureTime && ` at ${trip.departureTime}`}
