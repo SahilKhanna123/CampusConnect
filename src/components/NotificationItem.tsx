@@ -16,6 +16,10 @@ const NOTIFICATION_ICONS: Record<NotificationType, string> = {
   request_trip_cancelled: "🚫",
   review_received: "⭐",
   parent_link_approved: "🤝",
+  seat_offer_received: "💺",
+  seat_offer_accepted: "🎫",
+  seat_offer_declined: "✖️",
+  seat_offer_trip_cancelled: "🚫",
 };
 
 export type NotificationForDisplay = {

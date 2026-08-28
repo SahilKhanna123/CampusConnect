@@ -102,11 +102,18 @@ export async function PATCH(
     (sum, r) => sum + (r.seatsRequested ?? 1),
     0,
   );
-  const totalConsumed = confirmedParticipantCount + requestSeatsConsumed;
+  // Accepted SeatOffers (see the Seat Offers section of CLAUDE.md) draw
+  // from this same pool too -- always exactly 1 seat each, same as
+  // ConnectionRequest.seatConfirmedAt.
+  const seatOfferSeatsConsumed = await prisma.seatOffer.count({
+    where: { tripId: id, seatConfirmedAt: { not: null } },
+  });
+  const totalConsumed =
+    confirmedParticipantCount + requestSeatsConsumed + seatOfferSeatsConsumed;
   if (data.seatsTotal < totalConsumed) {
     return NextResponse.json(
       {
-        error: `Can't reduce seats below the ${totalConsumed} seat${totalConsumed === 1 ? "" : "s"} already spoken for by confirmed riders and accepted requests. Release one first.`,
+        error: `Can't reduce seats below the ${totalConsumed} seat${totalConsumed === 1 ? "" : "s"} already spoken for by confirmed riders, accepted requests, and accepted seat offers. Release one first.`,
       },
       { status: 400 },
     );
@@ -152,9 +159,13 @@ export async function PATCH(
 //     connection data); the notification just lets the other party know
 //     the trip itself fell through
 // Both groups get a trip_cancelled notification via the one notification
-// path (see src/lib/notifications.ts). The affected-rows read happens
-// BEFORE the transaction so the notification loop below still has each
-// row's pre-update status (pending vs. accepted) to pick the right wording.
+// path (see src/lib/notifications.ts). Accepted standalone Requests (see
+// Request/Trip Matching Lifecycle) and pending/accepted SeatOffers (see
+// Seat Offers) get the exact same pending-cancelled/accepted-untouched
+// treatment, each with their own distinct NotificationType. The
+// affected-rows reads happen BEFORE the transaction so the notification
+// loops below still have each row's pre-update status (pending vs.
+// accepted) to pick the right wording.
 export async function DELETE(
   _request: Request,
   { params }: { params: Promise<{ id: string }> },
@@ -193,12 +204,23 @@ export async function DELETE(
     where: { tripId: id, status: "accepted" },
     select: { id: true, postedById: true },
   });
+  // SeatOffers (see the Seat Offers section of CLAUDE.md) get the same
+  // pending-flips-to-cancelled / accepted-stays-untouched-but-notified
+  // treatment as ConnectionRequest above.
+  const affectedSeatOffers = await prisma.seatOffer.findMany({
+    where: { tripId: id, status: { in: ["pending", "accepted"] } },
+    select: { id: true, recipientId: true, conversationId: true, status: true },
+  });
 
   await prisma.$transaction([
     prisma.trip.update({ where: { id }, data: { status: "cancelled" } }),
     prisma.connectionRequest.updateMany({
       where: { tripId: id, status: "pending" },
       data: { status: "cancelled" },
+    }),
+    prisma.seatOffer.updateMany({
+      where: { tripId: id, status: "pending" },
+      data: { status: "cancelled", respondedAt: new Date() },
     }),
   ]);
 
@@ -226,6 +248,21 @@ export async function DELETE(
         title: "Trip cancelled",
         message: `${user.name} cancelled the trip${tripLabel} that was fulfilling your request. Your request is still marked accepted -- you may want to re-post if you still need this.`,
         relatedId: r.id,
+      }),
+    ),
+  );
+
+  await Promise.all(
+    affectedSeatOffers.map((s) =>
+      createNotification({
+        userId: s.recipientId,
+        type: "seat_offer_trip_cancelled",
+        title: "Trip cancelled",
+        message:
+          s.status === "pending"
+            ? `${user.name} cancelled the trip${tripLabel}. Your seat request has been cancelled.`
+            : `${user.name} cancelled the trip${tripLabel} you had a confirmed seat on.`,
+        relatedId: s.conversationId,
       }),
     ),
   );

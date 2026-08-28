@@ -126,6 +126,34 @@ enum NotificationType {
   // deep-link to yet, and the parent's own /profile "Linked Students"
   // section already shows current status for every link they have.
   parent_link_approved
+  // Sent to a SeatOffer's recipient when a trip owner sends one from within
+  // an existing Conversation about that trip -- see the Seat Offers section
+  // of CLAUDE.md and POST /api/seat-offers. relatedId is the Conversation's
+  // own id, since that's where the recipient responds.
+  seat_offer_received
+  // Sent to the trip owner when the recipient accepts a SeatOffer --
+  // relatedId is the Trip's own id, since the owner's own Participants
+  // list is the natural place to see the result.
+  seat_offer_accepted
+  // Sent to the trip owner when the recipient declines a SeatOffer --
+  // relatedId is the Conversation's own id, so the owner can follow up in
+  // that same thread if they want to.
+  seat_offer_declined
+  // Sent to a SeatOffer's recipient (pending or accepted) when the trip
+  // owner cancels the trip out from under it -- the SeatOffer-side analogue
+  // of trip_cancelled/request_trip_cancelled. Kept distinct rather than
+  // reusing trip_cancelled for the same reason request_trip_cancelled was:
+  // that type's relatedId is always a ConnectionRequest.id, hardcoded to
+  // link to /connections, which is wrong for this kind. relatedId is the
+  // Conversation's own id, so the recipient lands back in that thread.
+  seat_offer_trip_cancelled
+}
+
+enum SeatOfferStatus {
+  pending
+  accepted
+  declined
+  cancelled
 }
 
 model User {
@@ -212,6 +240,7 @@ model User {
   messagesSent             Message[]                 @relation("MessageSender")
   connectionRequestsSent     ConnectionRequest[]     @relation("ConnectionRequestRequester")
   connectionRequestsReceived ConnectionRequest[]     @relation("ConnectionRequestRecipient")
+  seatOffersReceived        SeatOffer[]              @relation("SeatOfferRecipient")
   reviewsGiven             Review[]                  @relation("ReviewReviewer")
   reviewsReceived          Review[]                  @relation("ReviewReviewee")
   reportsFiled             Report[]                  @relation("ReportReporter")
@@ -476,6 +505,7 @@ model Trip {
   requests            Request[]
   conversations       Conversation[]
   connectionRequests  ConnectionRequest[]
+  seatOffers          SeatOffer[]
 
   @@index([originCityId, destinationCityId, departureDate])
   @@index([travelerId])
@@ -548,6 +578,45 @@ model ConnectionRequest {
   @@index([recipientId])
 }
 
+// The owner-initiated counterpart to ConnectionRequest -- lets a trip owner
+// offer a specific seat to someone they're already messaging (e.g. via
+// RegisterInterestForm's ungated "Register for a seat" DM), not just people
+// who've gone through the requester-initiated Request to Connect flow.
+// Kept as its own model rather than reusing ConnectionRequest: that model's
+// recipientId = trip owner invariant is load-bearing across many existing
+// routes (ownership checks on accept/decline/confirm-seat/release-seat, the
+// /connections Sent/Received tabs) -- inverting direction for an
+// owner-initiated case would corrupt that rather than simplify anything.
+// Always created from within an existing Conversation (see
+// POST /api/seat-offers) -- there's no other UI surface to reach this
+// action from, per product decision.
+model SeatOffer {
+  id             String          @id @default(uuid())
+  tripId         String
+  trip           Trip            @relation(fields: [tripId], references: [id])
+  recipientId    String
+  recipient      User            @relation("SeatOfferRecipient", fields: [recipientId], references: [id])
+  conversationId String
+  conversation   Conversation    @relation(fields: [conversationId], references: [id])
+  status         SeatOfferStatus @default(pending)
+  // Set only on accept, together with the Trip.seatsRemaining decrement, in
+  // the same transaction -- kept separate from `status` (rather than
+  // folding into it) so an owner's later "Remove" doesn't erase the
+  // historical fact that the recipient did accept, same convention as
+  // ConnectionRequest.seatConfirmedAt.
+  seatConfirmedAt DateTime?
+  createdAt      DateTime        @default(now())
+  respondedAt    DateTime?
+
+  // No DB-level uniqueness on (tripId, recipientId) -- same "only a PENDING
+  // duplicate is disallowed, checked in application code" tradeoff as
+  // ConnectionRequest above, for the same reason (a fresh offer must be
+  // sendable again after a decline/cancel).
+  @@index([tripId])
+  @@index([recipientId])
+  @@index([conversationId])
+}
+
 // Unified ride + package request. type discriminates the two; tripId is
 // nullable so a "requester posts first" flow (need a ride before any
 // matching trip exists) is representable without a second model.
@@ -615,6 +684,7 @@ model Conversation {
 
   participants ConversationParticipant[]
   messages     Message[]
+  seatOffers   SeatOffer[]
 
   @@index([tripId])
 }

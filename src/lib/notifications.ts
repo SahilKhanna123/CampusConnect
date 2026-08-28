@@ -79,6 +79,24 @@ export function notificationLink(notification: {
     // current status for every link they have.
     case "parent_link_approved":
       return "/profile";
+    // relatedId is the Conversation's own id -- the recipient responds
+    // (accept/decline) right there in the same thread the offer came from.
+    case "seat_offer_received":
+      return `/messages/${notification.relatedId}`;
+    // relatedId is the Trip's own id here -- the owner's Participants list
+    // is the natural place to see the result of an accept.
+    case "seat_offer_accepted":
+      return `/trips/${notification.relatedId}`;
+    // relatedId is the Conversation's own id, so the owner can follow up.
+    case "seat_offer_declined":
+      return `/messages/${notification.relatedId}`;
+    // Same destination as seat_offer_received/declined above (relatedId is
+    // the Conversation's own id) -- kept distinct rather than reusing
+    // trip_cancelled for the same disambiguation reason as
+    // request_trip_cancelled: that type's relatedId is always a
+    // ConnectionRequest.id, hardcoded to /connections, wrong here.
+    case "seat_offer_trip_cancelled":
+      return `/messages/${notification.relatedId}`;
     default:
       return "/notifications";
   }

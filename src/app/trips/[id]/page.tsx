@@ -100,6 +100,52 @@ export default async function TripDetailPage({
       })
     : [];
 
+  // Owner-only: every accepted SeatOffer for this trip -- the
+  // owner-initiated counterpart to the ConnectionRequest roster above (see
+  // the Seat Offers section of CLAUDE.md). Only ever confirmed rows are
+  // fetched here: unlike ConnectionRequest, accepting a SeatOffer already
+  // confirms the seat in the same step, so there's no "accepted but not
+  // yet added" intermediate state for this kind to show.
+  const acceptedSeatOffers = isOwner
+    ? await prisma.seatOffer.findMany({
+        where: { tripId: trip.id, seatConfirmedAt: { not: null } },
+        include: {
+          recipient: {
+            select: {
+              id: true,
+              name: true,
+              photoUrl: true,
+              signedUpAsParent: true,
+              verifications: {
+                where: { status: "verified" },
+                select: { type: true, status: true },
+              },
+            },
+          },
+        },
+        orderBy: { seatConfirmedAt: "asc" },
+      })
+    : [];
+
+  // One unified roster for the Participants section -- from the owner's
+  // point of view it's just "who's riding," regardless of which mechanism
+  // (Request to Connect -> Accept -> Add as Participant, or an
+  // owner-initiated seat offer) got them there.
+  const participantRows = [
+    ...acceptedConnections.map((c) => ({
+      id: c.id,
+      kind: "connection" as const,
+      poster: c.requester,
+      seatConfirmedAt: c.seatConfirmedAt,
+    })),
+    ...acceptedSeatOffers.map((s) => ({
+      id: s.id,
+      kind: "seatOffer" as const,
+      poster: s.recipient,
+      seatConfirmedAt: s.seatConfirmedAt,
+    })),
+  ];
+
   // Owner-only: standalone Requests this trip has been matched to via POST
   // /api/requests/[id]/accept -- a separate mechanism from ConnectionRequest
   // (the Participants section above), but drawing from the same
@@ -187,7 +233,7 @@ export default async function TripDetailPage({
           and correctable -- release-seat has no upcoming-only restriction
           for exactly this reason. Only "Add as Participant" itself is
           upcoming-gated, since confirm-seat requires it server-side. */}
-      {isOwner && acceptedConnections.length > 0 && (
+      {isOwner && participantRows.length > 0 && (
         <div>
           <h2>Participants</h2>
           <p>
@@ -195,13 +241,14 @@ export default async function TripDetailPage({
             {trip.seatsTotal === 1 ? "" : "s"} still open
           </p>
           <div className="trip-participant-list">
-            {acceptedConnections.map((c) => (
-              <div key={c.id} className="trip-participant-row">
-                <PosterBadge poster={c.requester} />
-                {isUpcoming || c.seatConfirmedAt ? (
+            {participantRows.map((row) => (
+              <div key={`${row.kind}-${row.id}`} className="trip-participant-row">
+                <PosterBadge poster={row.poster} />
+                {isUpcoming || row.seatConfirmedAt ? (
                   <ConfirmSeatButton
-                    connectionRequestId={c.id}
-                    seatConfirmed={!!c.seatConfirmedAt}
+                    id={row.id}
+                    kind={row.kind}
+                    seatConfirmed={!!row.seatConfirmedAt}
                     seatsAvailable={trip.seatsRemaining > 0}
                   />
                 ) : (

@@ -8,6 +8,65 @@ items off as you verify them; leave unchecked ones for the next pass.
 No automated test suite exists in this project (see CLAUDE.md) — this file
 is the actual test coverage.
 
+## Seat Offers (2026-08-28)
+
+- [ ] As User B (not the trip owner), message User A's (the trip owner's)
+      upcoming trip via "Register for a seat" — a `Conversation` now
+      exists. As A, open that same thread — a "Send Seat Request" button
+      appears just above the compose box (only because A owns this trip)
+- [ ] As A, click it — a new 💺 bubble appears **inline in the message
+      list itself**, positioned chronologically (not above/outside the
+      thread), showing "Seat request sent" + a "Cancel" option, and a
+      timestamp underneath it in the same style real message bubbles use
+- [ ] As B, **without reloading the page**, wait up to ~4s (the poll
+      interval) — the same bubble appears in B's view of the thread with
+      "Accept seat" / "Decline" buttons live, no manual refresh needed
+- [ ] Send a real text message from either side interleaved with the seat
+      offer — confirm the bubble and the messages sort correctly by time
+      relative to each other in the thread, not grouped separately
+- [ ] As B, check `/notifications` — a 💺 `seat_offer_received` row,
+      clicking it lands on this same `/messages/[id]` thread
+- [ ] B clicks "Accept seat" — the bubble updates in place to "Seat
+      request accepted ✓"; `Trip.seatsRemaining` drops by 1. **As A,
+      without reloading**, confirm the bubble also updates to the accepted
+      state within ~4s (live sync via the same poll that fetches messages)
+- [ ] As A, check `/trips/[id]` — B now appears in the "Participants"
+      section, in the same unified list as any `ConnectionRequest`-sourced
+      riders, with the same Remove control
+- [ ] As A, check `/notifications` — a 🎫 `seat_offer_accepted` row
+      linking to `/trips/[id]`
+- [ ] Repeat with a fresh offer to a different user who instead clicks
+      "Decline" — bubble updates to "declined", no capacity change, A gets
+      a ✖️ `seat_offer_declined` notification linking back to that thread
+- [ ] Send an offer, then as A click "Cancel" on the bubble while it's
+      still pending — bubble updates to "cancelled", no notification sent,
+      and the "Send Seat Request" button reappears above the compose box
+      for a fresh attempt
+- [ ] As A, click "Remove" on an accepted bubble — `seatsRemaining`
+      increments back, the bubble updates to reflect the seat was removed,
+      B disappears from the `/trips/[id]` Participants roster, but the
+      historical fact that B once accepted isn't deleted (status stays
+      `accepted` under the hood — verify via Prisma Studio if needed)
+- [ ] Attempting to send a seat request when `seatsRemaining` is 0, or the
+      trip is no longer upcoming — the "Send Seat Request" button is
+      hidden/disabled with a "No seats remaining" note, or a clean 400
+      from the API if hit directly
+- [ ] A non-owner attempting `POST /api/seat-offers` for someone else's
+      trip returns 403; a non-recipient attempting to accept/decline
+      someone else's seat offer returns 403
+- [ ] With a confirmed `SeatOffer` rider (1 seat) plus a separately
+      confirmed `ConnectionRequest` rider (1 seat) on the same trip, try
+      `PATCH /api/trips/[id]` reducing `seatsTotal` below 2 — expect a 400
+      citing seats "spoken for by confirmed riders, accepted requests, and
+      accepted seat offers"
+- [ ] Cancel the trip while one `SeatOffer` is still pending and another is
+      accepted — the pending one's bubble flips to cancelled, the accepted
+      one's is untouched, and both recipients get a 🚫
+      `seat_offer_trip_cancelled` notification linking back to their thread
+- [ ] Blocking the recipient before sending a seat request makes
+      `POST /api/seat-offers` return 403, same as it already does for
+      `POST /api/connection-requests`/`POST /api/conversations`
+
 ## Parent Link Approval (2026-08-28)
 
 - [ ] As a student who's been OTP-linked by a parent (`/family/connect-student`

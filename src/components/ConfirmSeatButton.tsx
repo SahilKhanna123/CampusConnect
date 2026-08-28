@@ -4,25 +4,36 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 // Shown to the trip owner in the Participants list on /trips/[id], one per
-// accepted ConnectionRequest. Toggles between the two owner-only actions on
-// that connection: confirm-seat (turns an accepted connection into an actual
-// rider, decrementing Trip.seatsRemaining) and release-seat (undoes that).
-// Same confirm-then-fetch-then-router.refresh() shape as MarkTripCompleteButton,
-// with the confirm() dialog only on the destructive-ish release path -- adding
-// a participant isn't destructive, so it fires immediately like
+// accepted ConnectionRequest or accepted SeatOffer (the two ways a rider
+// can end up here -- see the Seat Offers section of CLAUDE.md). Toggles
+// between the two owner-only actions on that row: confirm-seat (turns an
+// accepted connection into an actual rider, decrementing Trip.seatsRemaining
+// -- ConnectionRequest rows only, since a SeatOffer's own accept already
+// does this) and release-seat (undoes that, available for both kinds). Same
+// confirm-then-fetch-then-router.refresh() shape as MarkTripCompleteButton,
+// with the confirm() dialog only on the destructive-ish release path --
+// adding a participant isn't destructive, so it fires immediately like
 // ConnectionRequestButton's own "Request to Connect" does.
 export function ConfirmSeatButton({
-  connectionRequestId,
+  id,
+  kind,
   seatConfirmed,
   seatsAvailable,
 }: {
-  connectionRequestId: string;
+  id: string;
+  // ConnectionRequest rows can be in the not-yet-confirmed "accepted" state
+  // (owner still needs to click "Add as Participant"); a SeatOffer row is
+  // only ever rendered here already confirmed, since accepting the offer
+  // itself is what confirms the seat -- there's no separate "add" step for
+  // that kind, so seatConfirmed is always true when kind === "seatOffer".
+  kind: "connection" | "seatOffer";
   seatConfirmed: boolean;
   // Only consulted when !seatConfirmed -- whether the trip has a seat left
   // to give. Passed down rather than re-derived here so every button on the
   // page reflects the same seatsRemaining snapshot the page rendered with.
   seatsAvailable: boolean;
 }) {
+  const apiBase = kind === "connection" ? "/api/connection-requests" : "/api/seat-offers";
   const router = useRouter();
   const [status, setStatus] = useState<"idle" | "working">("idle");
   const [error, setError] = useState<string | null>(null);
@@ -37,7 +48,7 @@ export function ConfirmSeatButton({
     setStatus("working");
 
     const action = seatConfirmed ? "release-seat" : "confirm-seat";
-    const res = await fetch(`/api/connection-requests/${connectionRequestId}/${action}`, {
+    const res = await fetch(`${apiBase}/${id}/${action}`, {
       method: "POST",
     });
 

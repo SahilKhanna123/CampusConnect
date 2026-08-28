@@ -6,6 +6,7 @@ import { MessageThread } from "@/components/MessageThread";
 import { ReportButton } from "@/components/ReportButton";
 import { BlockButton } from "@/components/BlockButton";
 import { isBlockedBetween } from "@/lib/blocks";
+import { tripDisplayStatus } from "@/lib/postStatus";
 
 // A single conversation thread -- reached from /messages or from the
 // "Register for a seat" flow on /trips/[id]. 404s (not a permission error
@@ -31,6 +32,10 @@ export default async function ConversationPage({
         orderBy: { sentAt: "asc" },
         include: { sender: { select: { id: true, name: true, photoUrl: true } } },
       },
+      // Rendered as inline bubbles in MessageThread, see the Seat Offers
+      // section of CLAUDE.md -- the full history, not just the latest, so
+      // past declined/cancelled offers stay visible in the thread.
+      seatOffers: { orderBy: { createdAt: "asc" } },
     },
   });
   const isParticipant = conversation?.participants.some(
@@ -48,6 +53,8 @@ export default async function ConversationPage({
     conversation.trip.destinationCity?.name ??
     conversation.trip.destinationText ??
     "?";
+
+  const isOwner = conversation.trip.travelerId === user.id;
 
   return (
     <div>
@@ -79,17 +86,34 @@ export default async function ConversationPage({
           />
         </>
       )}
-      <MessageThread
-        conversationId={conversation.id}
-        currentUserId={user.id}
-        initialMessages={conversation.messages.map((m) => ({
-          id: m.id,
-          body: m.body,
-          sentAt: m.sentAt.toISOString(),
-          senderId: m.senderId,
-          sender: m.sender,
-        }))}
-      />
+
+      {counterpart && (
+        <MessageThread
+          conversationId={conversation.id}
+          currentUserId={user.id}
+          isOwner={isOwner}
+          counterpartId={counterpart.id}
+          seatsAvailable={
+            conversation.trip.seatsRemaining > 0 &&
+            tripDisplayStatus(conversation.trip) === "upcoming"
+          }
+          initialMessages={conversation.messages.map((m) => ({
+            id: m.id,
+            body: m.body,
+            sentAt: m.sentAt.toISOString(),
+            senderId: m.senderId,
+            sender: m.sender,
+          }))}
+          initialSeatOffers={conversation.seatOffers.map((o) => ({
+            id: o.id,
+            status: o.status,
+            recipientId: o.recipientId,
+            createdAt: o.createdAt.toISOString(),
+            respondedAt: o.respondedAt ? o.respondedAt.toISOString() : null,
+            seatConfirmedAt: o.seatConfirmedAt ? o.seatConfirmedAt.toISOString() : null,
+          }))}
+        />
+      )}
     </div>
   );
 }
