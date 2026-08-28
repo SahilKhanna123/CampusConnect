@@ -7,6 +7,7 @@ import { tripDisplayStatus, requestDisplayStatus } from "@/lib/postStatus";
 import { ExploreCard, type ExploreCardPost } from "@/components/ExploreCard";
 import type { ConnectionStatus } from "@/components/ConnectionRequestButton";
 import { getBlockedCounterpartIds } from "@/lib/blocks";
+import { getConfirmedRiderCounts } from "@/lib/tripParticipants";
 
 // Home -- the narrow "surfaces the featured corridor prominently" glance
 // view (plan doc: Home features the active RouteCommunity by default,
@@ -114,6 +115,10 @@ export default async function HomePage() {
     }
   }
 
+  // Same batched confirmed-rider count Explore uses (see
+  // src/lib/tripParticipants.ts) -- shown on the card itself.
+  const confirmedRiderCounts = await getConfirmedRiderCounts(trips.map((t) => t.id));
+
   const offerPosts: { sortDate: Date | null; post: ExploreCardPost }[] = trips
     .filter((trip) => tripDisplayStatus(trip) === "upcoming")
     .map((trip) => ({
@@ -131,6 +136,7 @@ export default async function HomePage() {
         seatsRemaining: trip.seatsRemaining,
         poster: trip.traveler,
         connectionRequestStatus: connectionStatusByTripId.get(trip.id) ?? "none",
+        confirmedRiderCount: confirmedRiderCounts.get(trip.id) ?? 0,
       },
     }));
 

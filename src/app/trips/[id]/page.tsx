@@ -73,59 +73,57 @@ export default async function TripDetailPage({
         })
       : null;
 
-  // Owner-only: every accepted connection for this trip, confirmed-seat or
-  // not, is the roster the owner picks participants from -- see the Trip
-  // Participants section of CLAUDE.md for why this reuses ConnectionRequest
-  // rather than a general "add any user" search (there's no user directory
-  // in this app, and everyone here has already gone through Request to
-  // Connect -> Accept for this specific trip).
-  const acceptedConnections = isOwner
-    ? await prisma.connectionRequest.findMany({
-        where: { tripId: trip.id, status: "accepted" },
-        include: {
-          requester: {
-            select: {
-              id: true,
-              name: true,
-              photoUrl: true,
-              signedUpAsParent: true,
-              verifications: {
-                where: { status: "verified" },
-                select: { type: true, status: true },
-              },
-            },
+  // Fetched for everyone, not just the owner: non-owners need the confirmed
+  // subset (see confirmedRiders below) for the public "who's riding"
+  // roster, while the owner also uses the full list (confirmed-seat or
+  // not) as their management picker -- see the Trip Participants section
+  // of CLAUDE.md for why this reuses ConnectionRequest rather than a
+  // general "add any user" search (there's no user directory in this app,
+  // and everyone here has already gone through Request to Connect ->
+  // Accept for this specific trip).
+  const acceptedConnections = await prisma.connectionRequest.findMany({
+    where: { tripId: trip.id, status: "accepted" },
+    include: {
+      requester: {
+        select: {
+          id: true,
+          name: true,
+          photoUrl: true,
+          signedUpAsParent: true,
+          verifications: {
+            where: { status: "verified" },
+            select: { type: true, status: true },
           },
         },
-        orderBy: { createdAt: "asc" },
-      })
-    : [];
+      },
+    },
+    orderBy: { createdAt: "asc" },
+  });
 
-  // Owner-only: every accepted SeatOffer for this trip -- the
-  // owner-initiated counterpart to the ConnectionRequest roster above (see
-  // the Seat Offers section of CLAUDE.md). Only ever confirmed rows are
-  // fetched here: unlike ConnectionRequest, accepting a SeatOffer already
-  // confirms the seat in the same step, so there's no "accepted but not
-  // yet added" intermediate state for this kind to show.
-  const acceptedSeatOffers = isOwner
-    ? await prisma.seatOffer.findMany({
-        where: { tripId: trip.id, seatConfirmedAt: { not: null } },
-        include: {
-          recipient: {
-            select: {
-              id: true,
-              name: true,
-              photoUrl: true,
-              signedUpAsParent: true,
-              verifications: {
-                where: { status: "verified" },
-                select: { type: true, status: true },
-              },
-            },
+  // Every accepted SeatOffer for this trip -- the owner-initiated
+  // counterpart to the ConnectionRequest roster above (see the Seat Offers
+  // section of CLAUDE.md). Only ever confirmed rows are fetched here:
+  // unlike ConnectionRequest, accepting a SeatOffer already confirms the
+  // seat in the same step, so there's no "accepted but not yet added"
+  // intermediate state for this kind to show.
+  const acceptedSeatOffers = await prisma.seatOffer.findMany({
+    where: { tripId: trip.id, seatConfirmedAt: { not: null } },
+    include: {
+      recipient: {
+        select: {
+          id: true,
+          name: true,
+          photoUrl: true,
+          signedUpAsParent: true,
+          verifications: {
+            where: { status: "verified" },
+            select: { type: true, status: true },
           },
         },
-        orderBy: { seatConfirmedAt: "asc" },
-      })
-    : [];
+      },
+    },
+    orderBy: { seatConfirmedAt: "asc" },
+  });
 
   // One unified roster for the Participants section -- from the owner's
   // point of view it's just "who's riding," regardless of which mechanism
@@ -145,6 +143,12 @@ export default async function TripDetailPage({
       seatConfirmedAt: s.seatConfirmedAt,
     })),
   ];
+  // Public subset of the roster above: anyone viewing the trip (not just
+  // the owner) can see who's actually confirmed to ride -- deliberately
+  // narrower than the owner's own participantRows, which also includes
+  // accepted-but-not-yet-confirmed ConnectionRequest candidates (a private
+  // in-progress management detail, not a public fact about the trip).
+  const confirmedRiders = participantRows.filter((row) => row.seatConfirmedAt);
 
   // Owner-only: standalone Requests this trip has been matched to via POST
   // /api/requests/[id]/accept -- a separate mechanism from ConnectionRequest
@@ -254,6 +258,25 @@ export default async function TripDetailPage({
                 ) : (
                   <span className="seat-confirmed-badge-none">Not confirmed</span>
                 )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Public roster: anyone viewing the trip can see who's confirmed to
+          ride, not just the owner (per product decision) -- read-only, no
+          management buttons, and deliberately excludes accepted-but-not-
+          yet-confirmed ConnectionRequest candidates (see confirmedRiders'
+          own comment above). Also surfaced compactly on /explore and Home
+          cards via ExploreCard's confirmedRiderCount. */}
+      {!isOwner && confirmedRiders.length > 0 && (
+        <div>
+          <h2>Riders</h2>
+          <div className="trip-participant-list">
+            {confirmedRiders.map((row) => (
+              <div key={`${row.kind}-${row.id}`} className="trip-participant-row">
+                <PosterBadge poster={row.poster} />
               </div>
             ))}
           </div>

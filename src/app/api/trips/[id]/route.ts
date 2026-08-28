@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { tripFieldsSchema } from "@/lib/postSchemas";
 import { createNotification } from "@/lib/notifications";
+import { getConfirmedRiderCounts } from "@/lib/tripParticipants";
 
 // GET /api/trips/:id
 export async function GET(
@@ -85,15 +86,18 @@ export async function PATCH(
     );
   }
 
-  const confirmedParticipantCount = await prisma.connectionRequest.count({
-    where: { tripId: id, seatConfirmedAt: { not: null } },
-  });
+  // Confirmed ConnectionRequest riders + accepted SeatOffers -- see
+  // getConfirmedRiderCounts (src/lib/tripParticipants.ts), the shared
+  // "who's riding" count also used by /explore, Home, and the public
+  // Participants roster on /trips/[id].
+  const confirmedRiderCount = (await getConfirmedRiderCounts([id])).get(id) ?? 0;
   // Accepted/completed standalone Requests (see POST /api/requests/[id]/accept)
-  // draw from this same seatsRemaining pool, alongside ConnectionRequest's
-  // seatConfirmedAt riders -- both must be accounted for here, or editing
-  // seatsTotal could silently desync seatsRemaining from either source. A
-  // plain JS reduce (not a Prisma _sum aggregate) is needed because a SQL
-  // sum skips NULLs, and seatsRequested defaults to 1 when null.
+  // draw from this same seatsRemaining pool too, but aren't counted by
+  // getConfirmedRiderCounts (a different mechanism, seats aren't always 1
+  // each) -- both must be accounted for here, or editing seatsTotal could
+  // silently desync seatsRemaining from either source. A plain JS reduce
+  // (not a Prisma _sum aggregate) is needed because a SQL sum skips NULLs,
+  // and seatsRequested defaults to 1 when null.
   const consumingRequests = await prisma.request.findMany({
     where: { tripId: id, type: "ride", status: { in: ["accepted", "completed"] } },
     select: { seatsRequested: true },
@@ -102,14 +106,7 @@ export async function PATCH(
     (sum, r) => sum + (r.seatsRequested ?? 1),
     0,
   );
-  // Accepted SeatOffers (see the Seat Offers section of CLAUDE.md) draw
-  // from this same pool too -- always exactly 1 seat each, same as
-  // ConnectionRequest.seatConfirmedAt.
-  const seatOfferSeatsConsumed = await prisma.seatOffer.count({
-    where: { tripId: id, seatConfirmedAt: { not: null } },
-  });
-  const totalConsumed =
-    confirmedParticipantCount + requestSeatsConsumed + seatOfferSeatsConsumed;
+  const totalConsumed = confirmedRiderCount + requestSeatsConsumed;
   if (data.seatsTotal < totalConsumed) {
     return NextResponse.json(
       {
