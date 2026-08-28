@@ -7,8 +7,6 @@ import { ReportButton } from "@/components/ReportButton";
 import { BlockButton } from "@/components/BlockButton";
 import { isBlockedBetween } from "@/lib/blocks";
 import { tripDisplayStatus } from "@/lib/postStatus";
-import { SeatOfferButton, type SeatOfferStatus } from "@/components/SeatOfferButton";
-import { RespondToSeatOfferButtons } from "@/components/RespondToSeatOfferButtons";
 
 // A single conversation thread -- reached from /messages or from the
 // "Register for a seat" flow on /trips/[id]. 404s (not a permission error
@@ -34,6 +32,10 @@ export default async function ConversationPage({
         orderBy: { sentAt: "asc" },
         include: { sender: { select: { id: true, name: true, photoUrl: true } } },
       },
+      // Rendered as inline bubbles in MessageThread, see the Seat Offers
+      // section of CLAUDE.md -- the full history, not just the latest, so
+      // past declined/cancelled offers stay visible in the thread.
+      seatOffers: { orderBy: { createdAt: "asc" } },
     },
   });
   const isParticipant = conversation?.participants.some(
@@ -53,14 +55,6 @@ export default async function ConversationPage({
     "?";
 
   const isOwner = conversation.trip.travelerId === user.id;
-  // Most recent SeatOffer for this conversation -- there can be more than
-  // one over time (a fresh offer is sendable again after a decline/cancel,
-  // same as ConnectionRequest), so the latest row is the one that matters.
-  const latestSeatOffer = await prisma.seatOffer.findFirst({
-    where: { conversationId: conversation.id },
-    orderBy: { createdAt: "desc" },
-  });
-  const seatOfferStatus: SeatOfferStatus = latestSeatOffer?.status ?? "none";
 
   return (
     <div>
@@ -93,43 +87,33 @@ export default async function ConversationPage({
         </>
       )}
 
-      {isOwner && (
-        <div>
-          <SeatOfferButton
-            conversationId={conversation.id}
-            initialStatus={seatOfferStatus}
-            initialSeatOfferId={latestSeatOffer?.id}
-            seatsAvailable={
-              conversation.trip.seatsRemaining > 0 &&
-              tripDisplayStatus(conversation.trip) === "upcoming"
-            }
-          />
-        </div>
+      {counterpart && (
+        <MessageThread
+          conversationId={conversation.id}
+          currentUserId={user.id}
+          isOwner={isOwner}
+          counterpartId={counterpart.id}
+          seatsAvailable={
+            conversation.trip.seatsRemaining > 0 &&
+            tripDisplayStatus(conversation.trip) === "upcoming"
+          }
+          initialMessages={conversation.messages.map((m) => ({
+            id: m.id,
+            body: m.body,
+            sentAt: m.sentAt.toISOString(),
+            senderId: m.senderId,
+            sender: m.sender,
+          }))}
+          initialSeatOffers={conversation.seatOffers.map((o) => ({
+            id: o.id,
+            status: o.status,
+            recipientId: o.recipientId,
+            createdAt: o.createdAt.toISOString(),
+            respondedAt: o.respondedAt ? o.respondedAt.toISOString() : null,
+            seatConfirmedAt: o.seatConfirmedAt ? o.seatConfirmedAt.toISOString() : null,
+          }))}
+        />
       )}
-
-      {!isOwner && latestSeatOffer?.recipientId === user.id && (
-        <div>
-          {seatOfferStatus === "pending" && (
-            <RespondToSeatOfferButtons seatOfferId={latestSeatOffer.id} />
-          )}
-          {seatOfferStatus === "accepted" && (
-            <p className="seat-confirmed-badge">
-              ✓ You have a confirmed seat on this trip.
-            </p>
-          )}
-        </div>
-      )}
-      <MessageThread
-        conversationId={conversation.id}
-        currentUserId={user.id}
-        initialMessages={conversation.messages.map((m) => ({
-          id: m.id,
-          body: m.body,
-          sentAt: m.sentAt.toISOString(),
-          senderId: m.senderId,
-          sender: m.sender,
-        }))}
-      />
     </div>
   );
 }

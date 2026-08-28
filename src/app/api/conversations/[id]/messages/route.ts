@@ -55,7 +55,18 @@ export async function GET(
     orderBy: { sentAt: "asc" },
   });
 
-  return NextResponse.json({ messages });
+  // SeatOffers render as bubbles inline in the thread (see MessageThread) --
+  // always the full current list, not `since`-filtered like messages, since
+  // an UPDATE (accept/decline/cancel/release-seat) doesn't change
+  // createdAt, so a since-filter would miss a status change on an
+  // already-seen offer. The list stays small (at most a handful per
+  // conversation), so this is cheap on every poll tick.
+  const seatOffers = await prisma.seatOffer.findMany({
+    where: { conversationId: id },
+    orderBy: { createdAt: "asc" },
+  });
+
+  return NextResponse.json({ messages, seatOffers });
 }
 
 const sendMessageSchema = z.object({ body: z.string().trim().min(1).max(2000) });

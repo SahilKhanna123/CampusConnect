@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { SeatOfferBubble, type SeatOfferData } from "@/components/SeatOfferBubble";
 
 type Message = {
   id: string;
@@ -19,19 +20,38 @@ const POLL_INTERVAL_MS = 4000;
 // are explicitly deferred for MVP (plan doc §14), this is the chosen
 // mechanism. initialMessages comes from the server component's first
 // render so the thread isn't empty while the first poll is in flight.
+//
+// SeatOffers (see the Seat Offers section of CLAUDE.md) render as inline
+// bubbles in this same thread, sorted chronologically alongside real
+// messages -- the trip owner's "Send Seat Request" action and both
+// parties' Accept/Decline/Cancel/Remove actions all live here rather than
+// as separate controls above the thread, and the same poll loop that
+// fetches new messages also refreshes seat offer status, so an offer
+// accepted/declined by the other party shows up live for both sides.
 export function MessageThread({
   conversationId,
   currentUserId,
+  isOwner,
+  counterpartId,
+  seatsAvailable,
   initialMessages,
+  initialSeatOffers,
 }: {
   conversationId: string;
   currentUserId: string;
+  isOwner: boolean;
+  counterpartId: string;
+  seatsAvailable: boolean;
   initialMessages: Message[];
+  initialSeatOffers: SeatOfferData[];
 }) {
   const [messages, setMessages] = useState<Message[]>(initialMessages);
+  const [seatOffers, setSeatOffers] = useState<SeatOfferData[]>(initialSeatOffers);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [sendingOffer, setSendingOffer] = useState(false);
+  const [offerError, setOfferError] = useState<string | null>(null);
   const latestSentAtRef = useRef<string | null>(
     initialMessages.length > 0
       ? initialMessages[initialMessages.length - 1].sentAt
@@ -55,6 +75,10 @@ export function MessageThread({
       const fresh = incoming.filter((m) => !seen.has(m.id));
       return fresh.length > 0 ? [...prev, ...fresh] : prev;
     });
+  }
+
+  function updateSeatOffer(patch: Partial<SeatOfferData> & { id: string }) {
+    setSeatOffers((prev) => prev.map((o) => (o.id === patch.id ? { ...o, ...patch } : o)));
   }
 
   // Marks the thread read the moment it's opened, so the unread bold/badge
@@ -86,6 +110,13 @@ export function MessageThread({
           // lastReadAt current so they don't show as unread the moment the
           // user navigates away.
           fetch(`/api/conversations/${conversationId}/read`, { method: "POST" });
+        }
+        // Always synced, independent of whether new messages arrived --
+        // the other party accepting/declining a seat offer is itself an
+        // event this thread needs to reflect live, with no new Message
+        // necessarily attached to it.
+        if (body.seatOffers) {
+          setSeatOffers(body.seatOffers);
         }
       } finally {
         pollInFlightRef.current = false;
@@ -120,26 +151,102 @@ export function MessageThread({
     setSending(false);
   }
 
+  async function handleSendSeatOffer() {
+    setOfferError(null);
+    setSendingOffer(true);
+
+    const res = await fetch("/api/seat-offers", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ conversationId }),
+    });
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      setOfferError(body.error ?? "Something went wrong. Try again.");
+      setSendingOffer(false);
+      return;
+    }
+
+    const body = await res.json();
+    setSeatOffers((prev) => [
+      ...prev,
+      {
+        id: body.seatOfferId,
+        status: "pending",
+        recipientId: counterpartId,
+        createdAt: new Date().toISOString(),
+        respondedAt: null,
+        seatConfirmedAt: null,
+      },
+    ]);
+    setSendingOffer(false);
+  }
+
+  // Only sendable when there's no currently pending/accepted offer already
+  // -- the bubble for that existing offer already carries Cancel/Remove,
+  // so a second top-level control would be redundant. Mirrors
+  // POST /api/seat-offers' own duplicate-pending rejection.
+  const latestOffer = seatOffers[seatOffers.length - 1];
+  const canSendNewOffer =
+    isOwner && (!latestOffer || latestOffer.status === "declined" || latestOffer.status === "cancelled");
+
+  type ThreadItem =
+    | { kind: "message"; sortKey: string; message: Message }
+    | { kind: "seatOffer"; sortKey: string; offer: SeatOfferData };
+
+  const items: ThreadItem[] = [
+    ...messages.map((m): ThreadItem => ({ kind: "message", sortKey: m.sentAt, message: m })),
+    ...seatOffers.map((o): ThreadItem => ({ kind: "seatOffer", sortKey: o.createdAt, offer: o })),
+  ].sort((a, b) => new Date(a.sortKey).getTime() - new Date(b.sortKey).getTime());
+
   return (
     <div>
       <ul className="message-thread">
-        {messages.map((m) => (
-          <li
-            key={m.id}
-            className={
-              m.senderId === currentUserId
-                ? "message-bubble message-bubble-self"
-                : "message-bubble"
-            }
-          >
-            <div className="message-body">{m.body}</div>
-            <div className="message-meta">
-              {m.senderId === currentUserId ? "You" : m.sender.name} ·{" "}
-              {new Date(m.sentAt).toLocaleString()}
-            </div>
-          </li>
-        ))}
+        {items.map((item) =>
+          item.kind === "message" ? (
+            <li
+              key={`message-${item.message.id}`}
+              className={
+                item.message.senderId === currentUserId
+                  ? "message-bubble message-bubble-self"
+                  : "message-bubble"
+              }
+            >
+              <div className="message-body">{item.message.body}</div>
+              <div className="message-meta">
+                {item.message.senderId === currentUserId ? "You" : item.message.sender.name} ·{" "}
+                {new Date(item.message.sentAt).toLocaleString()}
+              </div>
+            </li>
+          ) : (
+            <SeatOfferBubble
+              key={`seat-offer-${item.offer.id}`}
+              offer={item.offer}
+              currentUserId={currentUserId}
+              isOwner={isOwner}
+              onUpdate={updateSeatOffer}
+            />
+          ),
+        )}
       </ul>
+
+      {isOwner && canSendNewOffer && (
+        <div className="seat-offer-send-row">
+          <button
+            type="button"
+            onClick={handleSendSeatOffer}
+            disabled={sendingOffer || !seatsAvailable}
+          >
+            {sendingOffer ? "Sending…" : "Send Seat Request"}
+          </button>
+          {!seatsAvailable && (
+            <span className="seat-confirmed-badge-none"> No seats remaining</span>
+          )}
+          {offerError && <p role="alert">{offerError}</p>}
+        </div>
+      )}
+
       <form onSubmit={handleSend} className="message-compose">
         <textarea
           value={draft}
