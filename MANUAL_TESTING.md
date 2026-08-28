@@ -8,6 +8,29 @@ items off as you verify them; leave unchecked ones for the next pass.
 No automated test suite exists in this project (see CLAUDE.md) — this file
 is the actual test coverage.
 
+## Parent Link Approval (2026-08-28)
+
+- [ ] As a student who's been OTP-linked by a parent (`/family/connect-student`
+      flow, from the parent's side), visit `/family` — the parent appears
+      with "Connection not yet confirmed by you" and an "Approve" button
+- [ ] Clicking "Approve" shows a confirm() dialog; cancelling does nothing
+- [ ] Confirming flips the row to "Approved" with no page reload, and the
+      button disappears (no way to un-approve)
+- [ ] As the parent, check `/notifications` — a 🤝 `parent_link_approved`
+      row appears, clicking it lands on `/profile`, where the "Linked
+      Students" section already shows the student without the "connection
+      not yet confirmed" caveat
+- [ ] `POST /api/family/link/[id]/approve` as someone who isn't that link's
+      student (including the parent themselves) returns 403
+- [ ] Calling it again on an already-`approved` link, or a `revoked` one,
+      returns 400
+- [ ] As a parent account, visiting `/family` shows a message pointing to
+      `/profile` instead of duplicating the linked-students list
+- [ ] As a student with no parent links yet, `/family` shows "No parent
+      connections yet."
+- [ ] As an alumni/traveler account with no `StudentRecord` at all,
+      `/family` shows a neutral explanatory message, no error
+
 ## Home Page (2026-08-27)
 
 - [ ] Logged out, hitting `/` redirects to `/login` (previously showed the
