@@ -8,6 +8,55 @@ items off as you verify them; leave unchecked ones for the next pass.
 No automated test suite exists in this project (see CLAUDE.md) — this file
 is the actual test coverage.
 
+## Seat Offers (2026-08-28)
+
+- [ ] As User B (not the trip owner), message User A's (the trip owner's)
+      upcoming trip via "Register for a seat" — a `Conversation` now
+      exists. As A, open that same thread — a "Send Seat Request" button
+      appears (only because A owns this trip's Trip)
+- [ ] As A, click it — button flips to "Seat request sent" with a "Cancel"
+      option, no page reload needed
+- [ ] As B, reload the thread — "Accept seat" / "Decline" buttons appear
+      right in the message thread (not on `/trips/[id]` or anywhere else)
+- [ ] As B, check `/notifications` — a 💺 `seat_offer_received` row,
+      clicking it lands on this same `/messages/[id]` thread
+- [ ] B clicks "Accept seat" — `Trip.seatsRemaining` drops by 1
+      immediately; B now sees "✓ You have a confirmed seat on this trip."
+      in the thread; A sees "✓ Confirmed for a seat" with a "Remove" option
+- [ ] As A, check `/trips/[id]` — B now appears in the "Participants"
+      section, in the same unified list as any `ConnectionRequest`-sourced
+      riders, with the same Remove control
+- [ ] As A, check `/notifications` — a 🎫 `seat_offer_accepted` row
+      linking to `/trips/[id]`
+- [ ] Repeat with a fresh offer to a different user who instead clicks
+      "Decline" — no capacity change, A gets a ✖️ `seat_offer_declined`
+      notification linking back to that thread
+- [ ] Send an offer, then as A click "Cancel" while it's still pending —
+      status flips to cancelled, no notification sent, and "Send Seat
+      Request" becomes clickable again for a fresh attempt
+- [ ] As A, click "Remove" on a confirmed B — `seatsRemaining` increments
+      back, B disappears from the Participants roster, but the historical
+      fact that B once accepted isn't deleted (status stays `accepted`
+      under the hood — verify via Prisma Studio if needed)
+- [ ] Attempting to send a seat request when `seatsRemaining` is 0, or the
+      trip is no longer upcoming, fails cleanly (button disabled/shows "No
+      seats remaining", or a clean 400 from the API)
+- [ ] A non-owner attempting `POST /api/seat-offers` for someone else's
+      trip returns 403; a non-recipient attempting to accept/decline
+      someone else's seat offer returns 403
+- [ ] With a confirmed `SeatOffer` rider (1 seat) plus a separately
+      confirmed `ConnectionRequest` rider (1 seat) on the same trip, try
+      `PATCH /api/trips/[id]` reducing `seatsTotal` below 2 — expect a 400
+      citing seats "spoken for by confirmed riders, accepted requests, and
+      accepted seat offers"
+- [ ] Cancel the trip while one `SeatOffer` is still pending and another is
+      accepted — the pending one flips to cancelled, the accepted one's
+      status is untouched, and both recipients get a 🚫
+      `seat_offer_trip_cancelled` notification linking back to their thread
+- [ ] Blocking the recipient before sending a seat request makes
+      `POST /api/seat-offers` return 403, same as it already does for
+      `POST /api/connection-requests`/`POST /api/conversations`
+
 ## Home Page (2026-08-27)
 
 - [ ] Logged out, hitting `/` redirects to `/login` (previously showed the
