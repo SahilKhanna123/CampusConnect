@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { tripDisplayStatus } from "@/lib/postStatus";
 import { createNotification } from "@/lib/notifications";
+import { hasConfirmedSeatOnTrip } from "@/lib/tripParticipants";
 
 // POST /api/seat-offers/:id/accept
 // Caller must be the offer's recipientId (403 otherwise). Accepting IS the
@@ -41,6 +42,17 @@ export async function POST(
   if (tripDisplayStatus(offer.trip) !== "upcoming") {
     return NextResponse.json(
       { error: "This trip is no longer active." },
+      { status: 400 },
+    );
+  }
+  // Same duplicate-seat guard confirm-seat uses -- covers the case where
+  // this recipient already holds a confirmed seat on this trip via an
+  // accepted ConnectionRequest (or, in principle, another SeatOffer, though
+  // a duplicate pending offer to the same recipient is already blocked at
+  // creation).
+  if (await hasConfirmedSeatOnTrip(offer.tripId, offer.recipientId)) {
+    return NextResponse.json(
+      { error: "You already have a confirmed seat on this trip." },
       { status: 400 },
     );
   }
