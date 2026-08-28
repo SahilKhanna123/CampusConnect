@@ -25,7 +25,18 @@ export async function findOrCreateConversationForTrip(
       ],
     },
   });
-  if (existing) return existing;
+  if (existing) {
+    // Reusing an existing thread is itself new activity worth resurfacing
+    // -- same "a deleted conversation comes back on new activity" rule as
+    // POST /api/conversations/[id]/messages, needed here too since both
+    // callers of this function create their own first Message directly
+    // rather than going through that route.
+    await prisma.conversationParticipant.updateMany({
+      where: { conversationId: existing.id, deletedAt: { not: null } },
+      data: { deletedAt: null },
+    });
+    return existing;
+  }
 
   return prisma.conversation.create({
     data: {
@@ -60,10 +71,13 @@ export function isConversationUnread(
  * badge next to "Messages" in src/app/layout.tsx's nav. Recomputed on every
  * page load, no caching -- same tradeoff the rest of this app already makes
  * for per-request derived state (see getPrimaryRouteLabel in geo.ts).
+ * Excludes archived and deleted conversations -- the badge's whole point is
+ * prompting a check of the main inbox, so a thread the user has explicitly
+ * set aside (archived) or hidden (deleted) shouldn't keep nagging them.
  */
 export async function getUnreadConversationCount(userId: string): Promise<number> {
   const participants = await prisma.conversationParticipant.findMany({
-    where: { userId },
+    where: { userId, archivedAt: null, deletedAt: null },
     select: {
       lastReadAt: true,
       conversation: {

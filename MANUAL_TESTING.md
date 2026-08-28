@@ -8,6 +8,42 @@ items off as you verify them; leave unchecked ones for the next pass.
 No automated test suite exists in this project (see CLAUDE.md) — this file
 is the actual test coverage.
 
+## Message List: Timestamps + Archive/Delete (2026-08-28)
+
+- [ ] `/messages` — every row now shows a timestamp under the preview text
+      (the last message's time, or the conversation's creation time if
+      somehow no message exists yet)
+- [ ] Each row has "Archive" and "Delete" buttons below the clickable area
+      — clicking the row itself still opens the thread; clicking a button
+      doesn't (confirms the row was correctly split into a link + actions
+      region, not one big anchor)
+- [ ] Click "Archive" on a row — it disappears from the default Inbox tab
+      immediately (no reload)
+- [ ] Click the "Archived" tab (`/messages?tab=archived`) — the archived
+      conversation appears there with an "Unarchive" button; clicking it
+      moves it back to Inbox
+- [ ] Have the other participant send a new message to an archived
+      conversation — it stays archived (archiving is sticky, does **not**
+      auto-clear on new activity) — confirm by reloading `/messages?tab=archived`
+- [ ] Click "Delete" on a row — a confirm() dialog appears; cancelling does
+      nothing; confirming removes it from **both** Inbox and Archived tabs
+- [ ] Have the other participant send a new message to a deleted
+      conversation (or accept a `ConnectionRequest`/register interest again
+      on the same trip pair) — the conversation reappears in your Inbox
+      automatically, no manual action needed
+- [ ] The nav "Messages" unread badge count excludes archived and deleted
+      conversations — mark one row unread (have the other party message
+      you), archive it, confirm the badge count drops by one even though
+      the message itself is still technically unread
+- [ ] `DELETE /api/conversations/[id]` / `.../archive` / `.../unarchive`
+      while logged out returns 401; against a conversation you're not a
+      participant in returns 404 (not 403 — matches the existing
+      don't-leak-existence pattern on this route family)
+- [ ] Confirm a conversation you deleted or archived is completely
+      unaffected from the OTHER participant's point of view — their
+      `/messages` list, unread badge, and thread all look exactly as if
+      you'd done nothing
+
 ## Home Page (2026-08-27)
 
 - [ ] Logged out, hitting `/` redirects to `/login` (previously showed the

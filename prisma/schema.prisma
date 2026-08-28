@@ -625,6 +625,24 @@ model ConversationParticipant {
   // unread bold/badge treatment on /messages and the unread-conversation
   // count badge next to "Messages" in the nav (src/lib/messaging.ts).
   lastReadAt     DateTime?
+  // Per-user "hide from my main inbox" toggle (POST/DELETE
+  // /api/conversations/[id]/archive) -- a view preference, not a mute:
+  // notifications and unread status behave the same either way. Sticky --
+  // unlike deletedAt below, a new incoming message does NOT clear this;
+  // the user has to explicitly unarchive. Only ever meaningful to the one
+  // participant who set it -- the other side's view is untouched.
+  archivedAt     DateTime?
+  // Per-user "remove from my conversation list entirely" (DELETE
+  // /api/conversations/[id]) -- unlike a Trip/Request soft-cancel, this
+  // never affects the shared Conversation/Message rows or the other
+  // participant's own view at all, since a Conversation is jointly owned
+  // by both participants and one person hiding it shouldn't destroy the
+  // other's history. Automatically cleared the next time either party
+  // sends a new Message in this conversation (see POST
+  // /api/conversations/[id]/messages) -- new activity should resurface a
+  // deleted thread rather than silently going unnoticed, since there's no
+  // separate "trash" view to check for it otherwise.
+  deletedAt      DateTime?
 
   @@unique([conversationId, userId])
 }

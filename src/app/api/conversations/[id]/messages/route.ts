@@ -88,6 +88,17 @@ export async function POST(
     include: { sender: { select: { id: true, name: true, photoUrl: true } } },
   });
 
+  // New activity resurfaces a conversation either party had deleted from
+  // their own /messages list (see DELETE /api/conversations/[id]) --
+  // there's no separate "trash" view to check for it otherwise, so a
+  // deleted thread would otherwise silently miss a new message forever.
+  // Deliberately does NOT clear archivedAt -- archiving is a sticky,
+  // explicit preference the user has to undo themselves.
+  await prisma.conversationParticipant.updateMany({
+    where: { conversationId: id, deletedAt: { not: null } },
+    data: { deletedAt: null },
+  });
+
   const recipients = conversation.participants.filter((p) => p.userId !== user.id);
   await Promise.all(
     recipients.map((p) =>
