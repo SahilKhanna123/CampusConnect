@@ -79,6 +79,32 @@ export async function sendParentConnectionOtpEmail(params: {
 // email security scanners are known to pre-fetch links (confirmed
 // firsthand in this project), and an auto-revoking GET would let a scanner
 // falsely reject a legitimate connection.
+// Sent to the PARENT's own inbox -- the reverse direction from
+// sendParentConnectionOtpEmail above: here the student already has a
+// CampusConnect account and is the one initiating, so this goes straight
+// to the parent's own email rather than needing to prove access to
+// anything. Accepting requires signing in/up with this exact address (see
+// POST /api/family/invite/accept), so the copy doesn't need to warn about
+// unrecognized requests the way the parent-initiated OTP email does.
+export async function sendParentInviteEmail(params: {
+  to: string;
+  studentName: string;
+  acceptUrl: string;
+}) {
+  const { to, studentName, acceptUrl } = params;
+  await send({
+    to,
+    subject: `${studentName} invited you to connect on CampusConnect`,
+    html: `
+      <p><strong>${studentName}</strong> invited you to connect as their parent/guardian on CampusConnect.</p>
+      <p>Accepting lets you see rides and package requests related to them and post on their behalf, clearly labeled as posted by you, for them.</p>
+      <p><a href="${acceptUrl}">Accept the invitation</a></p>
+      <p>You'll need to log in or sign up using this email address (${to}) to accept. This invitation expires in 7 days.</p>
+    `,
+    devLogLabel: "Parent invite",
+  });
+}
+
 export async function sendParentConnectionNoticeEmail(params: {
   to: string;
   parentName: string;

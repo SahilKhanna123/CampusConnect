@@ -97,6 +97,10 @@ export function notificationLink(notification: {
     // ConnectionRequest.id, hardcoded to /connections, wrong here.
     case "seat_offer_trip_cancelled":
       return `/messages/${notification.relatedId}`;
+    // No deep link needed -- /family already shows the accepted link
+    // (and every other family connection) in one place.
+    case "family_invite_accepted":
+      return "/family";
     default:
       return "/notifications";
   }

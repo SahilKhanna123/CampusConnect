@@ -14,6 +14,10 @@ import { createNotification } from "@/lib/notifications";
 // side -- the stub's own TODO only hedged ("consider"), and there's no
 // existing student-side badge concept/UI anywhere to display one; the
 // parent already got their parent_relationship badge at otp_verified time.
+// Only meaningful for links created via the parent-initiated OTP flow --
+// the student-initiated invite direction already creates links at approved
+// directly (see POST /api/family/invite/accept), so there's nothing to
+// approve there.
 export async function POST(
   _request: Request,
   { params }: { params: Promise<{ id: string }> },
@@ -36,7 +40,7 @@ export async function POST(
   }
   if (link.status !== "otp_verified") {
     return NextResponse.json(
-      { error: "This link can't be approved right now." },
+      { error: "This connection can't be approved right now." },
       { status: 400 },
     );
   }
@@ -47,7 +51,7 @@ export async function POST(
   });
   if (resolved.count === 0) {
     return NextResponse.json(
-      { error: "This link can't be approved right now." },
+      { error: "This connection can't be approved right now." },
       { status: 400 },
     );
   }

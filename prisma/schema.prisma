@@ -100,6 +100,13 @@ enum NotificationType {
   // on release-seat (an owner-side correction of their own mistake, not an
   // event worth notifying the rider about).
   trip_seat_confirmed
+  // Sent to the inviting student when the parent they invited (via
+  // ParentStudentInvite, the student-initiated direction) accepts --
+  // ParentStudentLink is created at status=approved directly in this
+  // direction, so there's no separate "confirm" step to notify about
+  // later, unlike the parent-initiated OTP flow. See the Family Linking
+  // section of CLAUDE.md and POST /api/family/invite/accept.
+  family_invite_accepted
   // Sent to a standalone Request's postedById when a Trip owner accepts it
   // via POST /api/requests/[id]/accept -- see the Request/Trip Matching
   // Lifecycle section of CLAUDE.md.
@@ -351,7 +358,13 @@ model ParentStudentOtpRequest {
   @@index([parentId])
 }
 
-// The only path to a parent account existing: a student-initiated invite.
+// A student-initiated invite -- the reverse direction from the
+// parent-initiated OTP flow (ParentStudentOtpRequest above). Predates
+// parent self-signup (see src/app/api/auth/parent-signup); a parent
+// account no longer has to be created via this path, but accepting one
+// still requires being authenticated as the exact invited email (see POST
+// /api/family/invite/accept) -- it just no longer assumes it's the one
+// creating that account. See the Family Page section of CLAUDE.md.
 model ParentStudentInvite {
   id          String                    @id @default(uuid())
   studentId   String

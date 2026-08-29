@@ -20,6 +20,7 @@ const NOTIFICATION_ICONS: Record<NotificationType, string> = {
   seat_offer_accepted: "🎫",
   seat_offer_declined: "✖️",
   seat_offer_trip_cancelled: "🚫",
+  family_invite_accepted: "👪",
 };
 
 export type NotificationForDisplay = {

@@ -33,7 +33,13 @@ import { NextResponse, type NextRequest } from "next/server";
 // in src/lib/auth.ts remains the real source of truth for every other
 // check (including the layout.tsx backstop); this is only a fast,
 // edge-readable copy for this one gate.
-const PARENT_LINK_GATE_EXEMPT_PATH = "/family/connect-student";
+// Kept in sync with src/app/layout.tsx's PARENT_LINK_GATE_EXEMPT_PATHS --
+// see that file's comment for why /family/invite/accept is exempt too, not
+// just /family/connect-student.
+const PARENT_LINK_GATE_EXEMPT_PATHS = [
+  "/family/connect-student",
+  "/family/invite/accept",
+];
 
 // Refreshes the Supabase session cookie on every request. Required by the
 // @supabase/ssr cookie-based auth pattern — without this, sessions expire
@@ -103,10 +109,10 @@ export async function updateSession(request: NextRequest) {
     isSignedUpAsParent &&
     !hasLinkedStudentFlag &&
     !isApiRoute &&
-    pathname !== PARENT_LINK_GATE_EXEMPT_PATH
+    !PARENT_LINK_GATE_EXEMPT_PATHS.includes(pathname)
   ) {
     const redirectResponse = NextResponse.redirect(
-      new URL(PARENT_LINK_GATE_EXEMPT_PATH, request.url),
+      new URL(PARENT_LINK_GATE_EXEMPT_PATHS[0], request.url),
     );
     // Carry over any refreshed session cookies set on `response` above --
     // otherwise a token refresh that happened on this same request would

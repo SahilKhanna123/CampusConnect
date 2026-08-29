@@ -296,6 +296,51 @@ is the actual test coverage.
       report count anywhere (profile, trip/request cards, nav), no
       notification to anyone, no moderation queue page exists to check
 
+## Family Page — student-invites-parent + approve (2026-08-21)
+
+- [ ] A university-verified student sees "Invite a Parent/Guardian" and
+      "Sent Invites" on `/family`; a non-verified account (or one with no
+      `StudentRecord`, e.g. a pure parent-signup account) sees a "Verify
+      your university email" prompt instead of the invite form
+- [ ] Sending an invite shows it immediately in "Sent Invites" (unconfirmed)
+      without a page reload, and the parent's inbox gets the email (or the
+      dev console log, without `RESEND_API_KEY`)
+- [ ] Clicking the emailed link while logged out shows a clear "log in or
+      sign up with this exact email" message, not an error
+- [ ] Clicking it while logged in as a DIFFERENT email shows a clear
+      "wrong account" message, not a silent failure or wrong acceptance
+- [ ] Clicking it while logged in as the exact invited email shows an
+      explicit "Accept the invitation" button — it does **not** auto-accept
+      on page load
+- [ ] Accepting redirects to `/family`, where the new connection now shows
+      under "Parents Connected to You" (student's own view) as "connected"
+      (not "unconfirmed") — since the invite direction skips straight to
+      `approved`, unlike the OTP flow
+- [ ] The inviting student gets a "Parent connection accepted" notification
+      linking back to `/family`
+- [ ] A **parent-signup account with zero linked students** can still reach
+      `/family/invite/accept?token=...` directly (it's exempt from the
+      mandatory parent-link gate, same as `/family/connect-student`) —
+      confirm this on both the very first page load and a client-side
+      `<Link>` navigation to it (the two separate gate enforcement points,
+      see Auth Architecture in CLAUDE.md)
+- [ ] Accepting an invite as a previously-linked-then-revoked parent
+      (via `/family/link-objection`) is rejected, not silently
+      re-established
+- [ ] An expired invite link shows "Invitation Expired" instead of
+      accepting; an already-accepted or revoked one shows the matching
+      message instead of a generic error
+- [ ] On `/family`, a parent-created `otp_verified` link (via the OTP flow,
+      `/family/connect-student`) shows under "Parents Connected to You"
+      with an "Approve" button (same confirm()-gated `ApproveLinkButton`
+      used by the parent-initiated OTP flow); clicking it (after confirming
+      the dialog) flips the status to "connected" in place (no page reload)
+      and the button disappears
+- [ ] Only the linked student themselves can approve (try `POST
+      /api/family/link/<id>/approve` as someone else — expect 403)
+- [ ] Re-inviting the same parent email after a first invite (still
+      pending) replaces it rather than creating a duplicate pending row
+
 ## Connection Request Note (2026-08-20, made mandatory 2026-08-22)
 
 - [ ] Clicking "Request to Connect" (on `/trips/[id]` or an Explore card)
