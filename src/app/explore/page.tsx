@@ -7,6 +7,7 @@ import { tripDisplayStatus, requestDisplayStatus } from "@/lib/postStatus";
 import { ExploreCard, type ExploreCardPost } from "@/components/ExploreCard";
 import type { ConnectionStatus } from "@/components/ConnectionRequestButton";
 import { getBlockedCounterpartIds } from "@/lib/blocks";
+import { getConfirmedRiderCounts } from "@/lib/tripParticipants";
 
 function parseDateFilter(date?: string) {
   if (!date) return null;
@@ -127,6 +128,15 @@ export default async function ExplorePage({
     }
   }
 
+  // Confirmed-rider counts, batched across every Trip card on this page --
+  // shown on the card itself so confirmed riders are visible even before
+  // clicking through to the trip's own public Riders roster (see
+  // src/lib/tripParticipants.ts and the Trip Participants/Seat Offers
+  // sections of CLAUDE.md).
+  const confirmedRiderCounts = showOffers
+    ? await getConfirmedRiderCounts(trips.map((t) => t.id))
+    : new Map<string, number>();
+
   const offerPosts: { sortDate: Date | null; post: ExploreCardPost }[] = showOffers
     ? trips
         .filter((trip) => tripDisplayStatus(trip) === "upcoming")
@@ -146,6 +156,7 @@ export default async function ExplorePage({
             seatsRemaining: trip.seatsRemaining,
             poster: trip.traveler,
             connectionRequestStatus: connectionStatusByTripId.get(trip.id) ?? "none",
+            confirmedRiderCount: confirmedRiderCounts.get(trip.id) ?? 0,
           },
         }))
     : [];

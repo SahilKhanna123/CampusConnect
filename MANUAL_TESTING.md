@@ -37,6 +37,45 @@ is the actual test coverage.
       `ConnectionRequest`, now send+accept a `SeatOffer` instead) — this is
       allowed, since they no longer hold any confirmed seat at that point
 
+## Public Trip Participants / Confirmed Riders (2026-08-28)
+
+- [ ] As A (trip owner), confirm a seat for B via either mechanism (accept a
+      `ConnectionRequest` then "Add as Participant", or send/accept a Seat
+      Offer) — B now has `seatConfirmedAt` set
+- [ ] As a **third user C** (not the owner, not B), open `/trips/[id]` for
+      that trip — a "Riders" section appears listing B (`PosterBadge`: name,
+      photo, Student/Parent label) with **no** buttons next to their row
+      (read-only — confirms this is the public view, not the owner's
+      management list)
+- [ ] As A (the owner) still viewing the same page, confirm the *original*
+      "Participants" section (with the seat-count line and
+      `ConfirmSeatButton` Remove controls) is completely unchanged —
+      row-for-row equivalent to before this feature
+- [ ] Accept a `ConnectionRequest` for a different user D but do **not**
+      confirm their seat (leave `seatConfirmedAt` null) — as C, reload
+      `/trips/[id]` — D does **not** appear in the Riders section (only
+      seat-confirmed riders are public; accepted-but-unconfirmed candidates
+      stay owner-only)
+- [ ] As C on a trip with zero confirmed riders — the "Riders" heading
+      doesn't render at all (no empty section)
+- [ ] Go to `/explore` — the offer card for A's trip shows "🎫 N confirmed
+      riders" (N matching the Riders section count) under the seats line;
+      a trip with zero confirmed riders shows no such line on its card
+- [ ] Confirm the count on the card matches even for a rider added via a
+      Seat Offer (not just a `ConnectionRequest`) — both mechanisms count
+      toward the same total
+- [ ] Go to Home (`/`) for a user whose featured route includes A's trip —
+      same "🎫 N confirmed riders" line appears on the card there too
+- [ ] Edit the trip's `seatsTotal` down to below the confirmed-rider count
+      via `/trips/[id]/edit` — rejected with an error (can't go below
+      already-consumed seats); confirm this still works exactly as before
+      (this feature only added a read path, `getConfirmedRiderCounts`, that
+      the edit route now shares — no behavior change there)
+- [ ] Open the Network tab while loading `/explore` with several offer
+      cards on the page — confirm there's one batched query for rider
+      counts, not one query per card (matches the existing
+      connection-request-status batching pattern already on that page)
+
 ## Message List: Timestamps + Archive/Delete (2026-08-28)
 
 - [ ] `/messages` — every row now shows a timestamp under the preview text

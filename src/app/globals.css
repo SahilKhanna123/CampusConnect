@@ -239,6 +239,12 @@ body {
   color: #444;
 }
 
+.explore-card-riders {
+  font-size: 0.8125rem;
+  color: #1a7a3a;
+  margin-top: 0.125rem;
+}
+
 .register-interest-form {
   display: flex;
   flex-direction: column;

@@ -77,6 +77,12 @@ export type TripCardPost = {
   // ever set for offer posts -- a Request has no "trip owner" to connect
   // with in this feature's scope.
   connectionRequestStatus: ConnectionStatus;
+  // How many people have a confirmed seat on this trip (ConnectionRequest
+  // + SeatOffer, see getConfirmedRiderCounts in src/lib/tripParticipants.ts)
+  // -- surfaced compactly here so confirmed riders are visible even before
+  // clicking through to /trips/[id]'s own public Riders roster, per product
+  // decision. Optional/undefined wherever a caller hasn't computed it.
+  confirmedRiderCount?: number;
 };
 
 export type RequestCardPost = {
@@ -138,6 +144,13 @@ export function ExploreCard({ post }: { post: ExploreCardPost }) {
             ? `Seats available: ${post.seatsRemaining} / ${post.seatsTotal}`
             : `Seats needed: ${post.seatsRequested}`}
         </div>
+
+        {post.kind === "offer" && !!post.confirmedRiderCount && (
+          <div className="explore-card-riders">
+            🎫 {post.confirmedRiderCount} confirmed rider
+            {post.confirmedRiderCount === 1 ? "" : "s"}
+          </div>
+        )}
       </Link>
 
       {post.kind === "offer" && (
