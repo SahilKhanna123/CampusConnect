@@ -21,6 +21,10 @@ export const tripFieldsSchema = z
     packageSpaceAvailable: z.boolean().optional(),
     packageCapacityNote: z.string().trim().max(300).optional(),
     tripNotes: z.string().trim().max(1000).optional(),
+    // Only actually settable to true by a poster with a claimed
+    // StudentRecord -- enforced in the route handler (Zod alone can't see
+    // the caller), see the schema comment on Request.studentsOnly.
+    studentsOnly: z.boolean().optional(),
   })
   .refine((data) => !!data.destinationCityId !== !!data.destinationText, {
     message: "Choose a destination city or type one in, not both.",
@@ -45,6 +49,10 @@ export const requestFieldsSchema = z
     packageDescription: z.string().trim().max(500).optional(),
     packageSize: z.string().trim().max(100).optional(),
     notes: z.string().trim().max(1000).optional(),
+    // Only actually settable to true by a poster with a claimed
+    // StudentRecord -- enforced in the route handler, see the schema
+    // comment on Request.studentsOnly.
+    studentsOnly: z.boolean().optional(),
   })
   .refine((data) => !!data.destinationCityId !== !!data.destinationText, {
     message: "Choose a destination city or type one in, not both.",

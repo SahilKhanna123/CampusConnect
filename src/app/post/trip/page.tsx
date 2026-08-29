@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, hasStudentRecord } from "@/lib/auth";
 import { getCitiesByRegion } from "@/lib/geo";
 import { TripPostForm } from "@/components/TripPostForm";
 
@@ -22,6 +22,7 @@ export default async function CreateTripPage({
       <h1>Offer a Ride</h1>
       <TripPostForm
         citiesByRegion={citiesByRegion}
+        isStudent={hasStudentRecord(user)}
         initialValues={{
           packageSpaceAvailable: packageParam === "true",
         }}

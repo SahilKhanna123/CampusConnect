@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, hasStudentRecord } from "@/lib/auth";
 import { tripDisplayStatus } from "@/lib/postStatus";
 import { createNotification } from "@/lib/notifications";
 
@@ -55,6 +55,15 @@ export async function POST(
     return NextResponse.json(
       { error: "You can't fulfill your own request." },
       { status: 400 },
+    );
+  }
+  // A studentsOnly Request is invisible to a non-student on /requests/[id]
+  // (404, same idiom as the equivalent Trip gate) -- closes the same gap
+  // for a non-student fulfilling it directly through this endpoint.
+  if (found.studentsOnly && !hasStudentRecord(user)) {
+    return NextResponse.json(
+      { error: "This request is only visible to students." },
+      { status: 403 },
     );
   }
   if (found.status !== "pending") {

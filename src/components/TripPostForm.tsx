@@ -17,6 +17,7 @@ export type TripFormValues = {
   packageSpaceAvailable: boolean;
   packageCapacityNote: string;
   tripNotes: string;
+  studentsOnly: boolean;
 };
 
 // Sentinel <option> value that switches the "To" field from a City picker
@@ -32,10 +33,18 @@ export function TripPostForm({
   citiesByRegion,
   tripId,
   initialValues,
+  isStudent,
 }: {
   citiesByRegion: CityGroup[];
   tripId?: string;
   initialValues?: Partial<TripFormValues>;
+  // Whether the CURRENT VIEWER (not the trip, if editing) has a claimed
+  // StudentRecord -- controls whether the "Visible to students only"
+  // checkbox renders at all. Not just a UI nicety: POST/PATCH /api/trips
+  // reject studentsOnly=true server-side for a non-student caller too, so
+  // hiding the checkbox here is purely to avoid offering a control that
+  // would just 403 on submit.
+  isStudent: boolean;
 }) {
   const router = useRouter();
   const [title, setTitle] = useState(initialValues?.title ?? "");
@@ -67,6 +76,9 @@ export function TripPostForm({
     initialValues?.packageCapacityNote ?? "",
   );
   const [tripNotes, setTripNotes] = useState(initialValues?.tripNotes ?? "");
+  const [studentsOnly, setStudentsOnly] = useState(
+    initialValues?.studentsOnly ?? false,
+  );
   const [status, setStatus] = useState<"idle" | "submitting">("idle");
   const [error, setError] = useState<string | null>(null);
 
@@ -92,6 +104,7 @@ export function TripPostForm({
         packageSpaceAvailable,
         packageCapacityNote: packageCapacityNote || undefined,
         tripNotes: tripNotes || undefined,
+        studentsOnly: isStudent ? studentsOnly : false,
       }),
     });
 
@@ -257,6 +270,19 @@ export function TripPostForm({
           onChange={(e) => setTripNotes(e.target.value)}
         />
       </div>
+      {isStudent && (
+        <div>
+          <label>
+            <input
+              type="checkbox"
+              checked={studentsOnly}
+              onChange={(e) => setStudentsOnly(e.target.checked)}
+            />
+            {" "}
+            🎓 Visible to students only
+          </label>
+        </div>
+      )}
       {error && <p role="alert">{error}</p>}
       <button type="submit" disabled={status === "submitting"}>
         {status === "submitting"

@@ -512,6 +512,11 @@ model Trip {
   // Free text describing the TRIP (e.g. "driving my own car" vs. "organizing
   // a shared ride") — never a contribution/gas-money/payment field.
   tripNotes             String?
+  // Restricts this post's visibility to other students only -- see the
+  // matching comment on Request.studentsOnly below for the full rationale
+  // (definition of "a student," enforcement points, and why this is a
+  // per-post choice rather than a User-level setting).
+  studentsOnly          Boolean    @default(false)
   status                TripStatus @default(upcoming)
   createdAt             DateTime   @default(now())
 
@@ -657,6 +662,28 @@ model Request {
   // General notes, distinct from packageDescription (package-specific
   // details) -- applies to ride and package requests alike.
   notes             String?
+  // When true, this post is only discoverable/viewable by other students --
+  // "a student" here means an account with a claimed StudentRecord
+  // (hasStudentRecord() in src/lib/auth.ts), i.e. someone who signed up
+  // with (or later verified) an actual university email, not just anyone
+  // who didn't sign up as a parent. Settable only by a poster who is
+  // themselves a student (enforced server-side in POST/PATCH
+  // /api/trips and /api/requests, not just hidden in the form) -- a
+  // parent or unverified alumni/traveler account can't create or flip a
+  // post into this state. Enforced at every read/write surface that
+  // matters: Explore and Home's queries exclude studentsOnly posts for a
+  // non-student viewer, the detail pages 404 for a non-student
+  // non-owner (matches this app's existing "don't leak existence"
+  // idiom for private content, e.g. Conversation), and the interaction
+  // entry points a non-student could otherwise reach directly --
+  // POST /api/connection-requests, POST /api/conversations, and
+  // POST /api/requests/[id]/accept -- reject a non-student against a
+  // studentsOnly Trip/Request server-side too. Deliberately a per-post
+  // flag, not a User-level setting: the same account may want some posts
+  // open to everyone (e.g. a parent-adjacent package request) and others
+  // restricted, and role already lives on the action everywhere else in
+  // this schema (see the "Role lives on the action" design principle).
+  studentsOnly      Boolean   @default(false)
 
   postedById    String
   postedBy      User   @relation("RequestPostedBy", fields: [postedById], references: [id])

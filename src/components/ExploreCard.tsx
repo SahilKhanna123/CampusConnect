@@ -83,6 +83,11 @@ export type TripCardPost = {
   // clicking through to /trips/[id]'s own public Riders roster, per product
   // decision. Optional/undefined wherever a caller hasn't computed it.
   confirmedRiderCount?: number;
+  // See the schema comment on Request.studentsOnly -- this card only ever
+  // renders for a viewer who's actually allowed to see it (the query that
+  // builds this post already excludes it otherwise), so this is purely a
+  // "🎓 Students only" label, not an access check.
+  studentsOnly: boolean;
 };
 
 export type RequestCardPost = {
@@ -95,6 +100,7 @@ export type RequestCardPost = {
   flexibleTime: boolean;
   seatsRequested: number;
   poster: Poster;
+  studentsOnly: boolean;
 };
 
 export type ExploreCardPost = TripCardPost | RequestCardPost;
@@ -124,6 +130,10 @@ export function ExploreCard({ post }: { post: ExploreCardPost }) {
             {post.kind === "offer" ? "Offering a ride" : "Needs a ride"}
           </span>
         </div>
+
+        {post.studentsOnly && (
+          <div className="explore-card-students-only">🎓 Students only</div>
+        )}
 
         {post.kind === "offer" && (
           <div className="explore-card-title">{post.title || "Untitled trip"}</div>

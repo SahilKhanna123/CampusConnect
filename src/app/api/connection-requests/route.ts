@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, hasStudentRecord } from "@/lib/auth";
 import { tripDisplayStatus } from "@/lib/postStatus";
 import { createNotification, truncateForNotification } from "@/lib/notifications";
 import { isBlockedBetween } from "@/lib/blocks";
@@ -57,6 +57,15 @@ export async function POST(request: Request) {
     return NextResponse.json(
       { error: "This trip is no longer accepting connection requests." },
       { status: 400 },
+    );
+  }
+  // studentsOnly trips are also invisible to a non-student through Explore/
+  // Home and 404 on direct link (see /trips/[id]) -- this closes the same
+  // gap for someone hitting this endpoint directly instead.
+  if (trip.studentsOnly && !hasStudentRecord(user)) {
+    return NextResponse.json(
+      { error: "This trip is only visible to students." },
+      { status: 403 },
     );
   }
   // Same "neither can start a new conversation" block rule POST

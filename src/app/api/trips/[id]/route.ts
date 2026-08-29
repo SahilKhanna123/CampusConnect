@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, hasStudentRecord } from "@/lib/auth";
 import { tripFieldsSchema } from "@/lib/postSchemas";
 import { createNotification } from "@/lib/notifications";
 import { getConfirmedRiderCounts } from "@/lib/tripParticipants";
@@ -73,6 +73,13 @@ export async function PATCH(
   }
   const data = parsed.data;
 
+  if (data.studentsOnly && !hasStudentRecord(user)) {
+    return NextResponse.json(
+      { error: "Only students can mark a post students-only." },
+      { status: 403 },
+    );
+  }
+
   const [originCity, destinationCity] = await Promise.all([
     prisma.city.findUnique({ where: { id: data.originCityId } }),
     data.destinationCityId
@@ -131,6 +138,7 @@ export async function PATCH(
       packageSpaceAvailable: data.packageSpaceAvailable ?? false,
       packageCapacityNote: data.packageCapacityNote || null,
       tripNotes: data.tripNotes || null,
+      studentsOnly: data.studentsOnly ?? false,
     },
   });
 

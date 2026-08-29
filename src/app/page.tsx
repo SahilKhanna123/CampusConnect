@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, hasStudentRecord } from "@/lib/auth";
 import { getFeaturedRoutePairs } from "@/lib/geo";
 import { tripDisplayStatus, requestDisplayStatus } from "@/lib/postStatus";
 import { ExploreCard, type ExploreCardPost } from "@/components/ExploreCard";
@@ -37,6 +37,10 @@ export default async function HomePage() {
   }
 
   const blockedUserIds = await getBlockedCounterpartIds(user.id);
+  // Same studentsOnly visibility rule Explore enforces -- see the schema
+  // comment on Request.studentsOnly.
+  const isStudent = hasStudentRecord(user);
+  const studentsOnlyFilter = isStudent ? {} : { studentsOnly: false };
 
   const regionPairFilter = {
     OR: pairs.flatMap(({ regionAId, regionBId }) => [
@@ -50,6 +54,7 @@ export default async function HomePage() {
       where: {
         status: "upcoming",
         travelerId: { not: user.id, notIn: blockedUserIds },
+        ...studentsOnlyFilter,
         ...regionPairFilter,
       },
       include: {
@@ -76,6 +81,7 @@ export default async function HomePage() {
         tripId: null,
         status: "pending",
         postedById: { not: user.id, notIn: blockedUserIds },
+        ...studentsOnlyFilter,
         ...regionPairFilter,
       },
       include: {
@@ -137,6 +143,7 @@ export default async function HomePage() {
         poster: trip.traveler,
         connectionRequestStatus: connectionStatusByTripId.get(trip.id) ?? "none",
         confirmedRiderCount: confirmedRiderCounts.get(trip.id) ?? 0,
+        studentsOnly: trip.studentsOnly,
       },
     }));
 
@@ -154,6 +161,7 @@ export default async function HomePage() {
         flexibleTime: r.flexibleTime,
         seatsRequested: r.seatsRequested ?? 1,
         poster: r.postedBy,
+        studentsOnly: r.studentsOnly,
       },
     }));
 

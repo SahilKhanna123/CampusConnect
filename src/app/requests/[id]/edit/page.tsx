@@ -1,5 +1,5 @@
 import { notFound, redirect } from "next/navigation";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, hasStudentRecord } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getCitiesByRegion } from "@/lib/geo";
 import { RequestPostForm } from "@/components/RequestPostForm";
@@ -27,6 +27,7 @@ export default async function EditRequestPage({
       <RequestPostForm
         citiesByRegion={citiesByRegion}
         requestId={found.id}
+        isStudent={hasStudentRecord(user)}
         initialValues={{
           type: found.type,
           originCityId: found.originCityId ?? "",
@@ -41,6 +42,7 @@ export default async function EditRequestPage({
           packageDescription: found.packageDescription ?? "",
           packageSize: found.packageSize ?? "",
           notes: found.notes ?? "",
+          studentsOnly: found.studentsOnly,
         }}
       />
     </div>

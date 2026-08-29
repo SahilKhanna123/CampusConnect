@@ -95,6 +95,7 @@ export default async function MyPostsPage({
   function tripLabel(trip: (typeof trips)[number]) {
     return (
       <Link href={`/trips/${trip.id}`}>
+        {trip.studentsOnly && "🎓 "}
         {trip.title || "Untitled trip"}: {trip.originCity.name} →{" "}
         {trip.destinationCity?.name ?? trip.destinationText} —{" "}
         {trip.departureDate.toLocaleDateString()}
@@ -239,6 +240,7 @@ export default async function MyPostsPage({
           {shownRequests.map((r) => (
             <li key={r.id}>
               <Link href={`/requests/${r.id}`}>
+                {r.studentsOnly && "🎓 "}
                 {r.type === "ride" ? "Ride" : "Delivery"}:{" "}
                 {r.originCity?.name ?? "?"} →{" "}
                 {r.destinationCity?.name ?? r.destinationText ?? "?"}

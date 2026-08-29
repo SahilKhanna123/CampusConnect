@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, hasStudentRecord } from "@/lib/auth";
 import { getCitiesByRegion } from "@/lib/geo";
 import { tripDisplayStatus, requestDisplayStatus } from "@/lib/postStatus";
 import { ExploreCard, type ExploreCardPost } from "@/components/ExploreCard";
@@ -49,6 +49,11 @@ export default async function ExplorePage({
   // of who initiated the block (plan doc §7) -- fetched once up front and
   // applied to both the Trip and Request queries below.
   const blockedUserIds = await getBlockedCounterpartIds(user.id);
+  // A non-student viewer never sees a studentsOnly post at all -- see the
+  // schema comment on Request.studentsOnly. A student viewer sees both, so
+  // no extra filter is added for them.
+  const isStudent = hasStudentRecord(user);
+  const studentsOnlyFilter = isStudent ? {} : { studentsOnly: false };
 
   const [citiesByRegion, trips, requests] = await Promise.all([
     getCitiesByRegion(),
@@ -56,6 +61,7 @@ export default async function ExplorePage({
       where: {
         status: "upcoming",
         travelerId: { not: user.id, notIn: blockedUserIds },
+        ...studentsOnlyFilter,
         ...(originCityId ? { originCityId } : {}),
         ...(destinationCityId ? { destinationCityId } : {}),
         ...(dateFilter ? { departureDate: dateFilter } : {}),
@@ -84,6 +90,7 @@ export default async function ExplorePage({
         tripId: null,
         status: "pending",
         postedById: { not: user.id, notIn: blockedUserIds },
+        ...studentsOnlyFilter,
         ...(originCityId ? { originCityId } : {}),
         ...(destinationCityId ? { destinationCityId } : {}),
         ...(dateFilter ? { neededDate: dateFilter } : {}),
@@ -157,6 +164,7 @@ export default async function ExplorePage({
             poster: trip.traveler,
             connectionRequestStatus: connectionStatusByTripId.get(trip.id) ?? "none",
             confirmedRiderCount: confirmedRiderCounts.get(trip.id) ?? 0,
+            studentsOnly: trip.studentsOnly,
           },
         }))
     : [];
@@ -176,6 +184,7 @@ export default async function ExplorePage({
             flexibleTime: r.flexibleTime,
             seatsRequested: r.seatsRequested ?? 1,
             poster: r.postedBy,
+            studentsOnly: r.studentsOnly,
           },
         }))
     : [];
