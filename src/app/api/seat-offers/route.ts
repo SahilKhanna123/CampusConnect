@@ -5,6 +5,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { tripDisplayStatus } from "@/lib/postStatus";
 import { isBlockedBetween } from "@/lib/blocks";
 import { createNotification } from "@/lib/notifications";
+import { hasConfirmedSeatOnTrip } from "@/lib/tripParticipants";
 
 const createSchema = z.object({ conversationId: z.string().min(1) });
 
@@ -76,6 +77,17 @@ export async function POST(request: Request) {
     return NextResponse.json(
       { error: "You already have a pending seat request for this rider." },
       { status: 409 },
+    );
+  }
+  // Early feedback so the owner doesn't send a redundant offer to someone
+  // already confirmed via the other mechanism (an accepted+confirmed
+  // ConnectionRequest) -- the real enforcement is the matching check at
+  // accept time (POST .../seat-offers/[id]/accept), since this recipient
+  // could still become confirmed elsewhere between now and then.
+  if (await hasConfirmedSeatOnTrip(conversation.trip.id, recipientId)) {
+    return NextResponse.json(
+      { error: "This rider already has a confirmed seat on this trip." },
+      { status: 400 },
     );
   }
 

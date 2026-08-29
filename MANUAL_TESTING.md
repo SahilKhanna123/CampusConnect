@@ -8,6 +8,35 @@ items off as you verify them; leave unchecked ones for the next pass.
 No automated test suite exists in this project (see CLAUDE.md) — this file
 is the actual test coverage.
 
+## Fix: Prevent the Same Rider From Holding Multiple Confirmed Seats (2026-08-28)
+
+- [ ] As A (trip owner), get two separate `ConnectionRequest`s from the same
+      user B accepted on the same trip (e.g. B sends a request, A accepts;
+      B sends a second request later, A accepts that too). Confirm the seat
+      ("Add as Participant") on the first — succeeds normally. Try
+      confirming the seat on the **second** — rejected with "This person
+      already has a confirmed seat on this trip.", `seatsRemaining`
+      unchanged
+- [ ] As A, with B already seat-confirmed via a `ConnectionRequest`, open a
+      conversation with B and click "Send Seat Request" — rejected
+      immediately with "This rider already has a confirmed seat on this
+      trip.", no `SeatOffer` row created
+- [ ] As A, send a `SeatOffer` to B *before* B has any confirmed seat, then
+      separately get B's `ConnectionRequest` accepted-and-confirmed first
+      (race the two) — when B goes to accept the pending `SeatOffer`,
+      rejected with "You already have a confirmed seat on this trip.", and
+      `seatsRemaining` is not double-decremented
+- [ ] Confirm the normal single-seat paths are completely unaffected: a
+      rider with no prior confirmed seat can still be confirmed via either
+      mechanism exactly once, without any new friction
+- [ ] Confirm `/trips/[id]`'s Participants list only ever shows one
+      confirmed row per rider after these fixes (never two rows for the
+      same person both marked "✓ Confirmed")
+- [ ] Release a rider's confirmed seat (`Remove`), then re-confirm them via
+      the *other* mechanism (e.g. they were originally confirmed via
+      `ConnectionRequest`, now send+accept a `SeatOffer` instead) — this is
+      allowed, since they no longer hold any confirmed seat at that point
+
 ## Message List: Timestamps + Archive/Delete (2026-08-28)
 
 - [ ] `/messages` — every row now shows a timestamp under the preview text

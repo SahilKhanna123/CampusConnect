@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { createNotification } from "@/lib/notifications";
 import { tripDisplayStatus } from "@/lib/postStatus";
+import { hasConfirmedSeatOnTrip } from "@/lib/tripParticipants";
 
 // POST /api/connection-requests/:id/confirm-seat
 // Caller must be the request's recipientId (the trip owner). Only an
@@ -53,6 +54,18 @@ export async function POST(
   if (tripDisplayStatus(connectionRequest.trip) !== "upcoming") {
     return NextResponse.json(
       { error: "This trip is no longer active." },
+      { status: 400 },
+    );
+  }
+  // Guards against the same rider ending up with two seats on one trip --
+  // e.g. a second accepted ConnectionRequest from someone already confirmed
+  // via an earlier one, or already confirmed via a SeatOffer instead. See
+  // hasConfirmedSeatOnTrip's own comment for the race-tolerance tradeoff.
+  if (
+    await hasConfirmedSeatOnTrip(connectionRequest.tripId, connectionRequest.requesterId)
+  ) {
+    return NextResponse.json(
+      { error: "This person already has a confirmed seat on this trip." },
       { status: 400 },
     );
   }
