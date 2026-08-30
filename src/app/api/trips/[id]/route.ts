@@ -6,10 +6,21 @@ import { createNotification } from "@/lib/notifications";
 import { getConfirmedRiderCounts } from "@/lib/tripParticipants";
 
 // GET /api/trips/:id
+// Requires auth (401 otherwise) and applies the same studentsOnly gate the
+// page route (/trips/[id]) already enforces -- this endpoint previously had
+// no auth check at all and leaked full trip data, including studentsOnly
+// posts, to unauthenticated callers who knew or guessed an id. See the
+// "One rider, at most one confirmed seat" precedent for reusing
+// hasStudentRecord() rather than inventing a new check here.
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const user = await getCurrentUser();
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const { id } = await params;
   const trip = await prisma.trip.findUnique({
     where: { id },
@@ -20,6 +31,9 @@ export async function GET(
     },
   });
   if (!trip) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+  if (trip.studentsOnly && trip.travelerId !== user.id && !hasStudentRecord(user)) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
   return NextResponse.json({ trip });

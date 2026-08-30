@@ -6,17 +6,28 @@ import { requestFieldsSchema } from "@/lib/postSchemas";
 
 // GET /api/requests?originCityId=&destinationCityId=&type=
 // Filtered browse of standalone (tripId=null), still-pending Requests -- no
-// matching/discovery UI consumes this yet (deliberately deferred).
+// matching/discovery UI consumes this yet (deliberately deferred). Requires
+// auth (401 otherwise) and applies the same studentsOnly filter Explore/Home
+// use -- this endpoint previously had no auth check and no studentsOnly
+// filter at all, letting an unauthenticated caller bulk-enumerate every
+// pending request in the database, students-only ones included.
 export async function GET(request: Request) {
+  const user = await getCurrentUser();
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const { searchParams } = new URL(request.url);
   const originCityId = searchParams.get("originCityId") ?? undefined;
   const destinationCityId = searchParams.get("destinationCityId") ?? undefined;
   const type = searchParams.get("type");
+  const studentsOnlyFilter = hasStudentRecord(user) ? {} : { studentsOnly: false };
 
   const requests = await prisma.request.findMany({
     where: {
       tripId: null,
       status: "pending",
+      ...studentsOnlyFilter,
       ...(originCityId ? { originCityId } : {}),
       ...(destinationCityId ? { destinationCityId } : {}),
       ...(type === "ride" || type === "package" ? { type } : {}),

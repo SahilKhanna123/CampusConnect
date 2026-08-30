@@ -4,10 +4,19 @@ import { getCurrentUser, hasStudentRecord } from "@/lib/auth";
 import { requestFieldsSchema } from "@/lib/postSchemas";
 
 // GET /api/requests/:id
+// Requires auth (401 otherwise) and applies the same studentsOnly gate the
+// page route (/requests/[id]) already enforces -- this endpoint previously
+// had no auth check at all and leaked full request data, including
+// studentsOnly posts, to unauthenticated callers who knew or guessed an id.
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const user = await getCurrentUser();
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const { id } = await params;
   const found = await prisma.request.findUnique({
     where: { id },
@@ -18,6 +27,9 @@ export async function GET(
     },
   });
   if (!found) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+  if (found.studentsOnly && found.postedById !== user.id && !hasStudentRecord(user)) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
   return NextResponse.json({ request: found });
