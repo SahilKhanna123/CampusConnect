@@ -5,8 +5,11 @@ each feature is added, so it can be walked through by hand. Newest features
 are at the top since they're the least likely to have been tested yet. Check
 items off as you verify them; leave unchecked ones for the next pass.
 
-No automated test suite exists in this project (see CLAUDE.md) — this file
-is the actual test coverage.
+An automated test suite (Vitest, `npm test`) covers pure business-logic
+functions — see the Automated Tests section of CLAUDE.md. Everything else
+(anything touching a browser, the database, or an auth session) has no
+automated coverage yet, so this file remains the actual test coverage for
+those.
 
 ## Fix: Prevent the Same Rider From Holding Multiple Confirmed Seats (2026-08-28)
 
