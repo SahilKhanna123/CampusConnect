@@ -8,6 +8,39 @@ items off as you verify them; leave unchecked ones for the next pass.
 No automated test suite exists in this project (see CLAUDE.md) — this file
 is the actual test coverage.
 
+## Fix: Unauthenticated Trip/Request Data Leak + Email Secret Logging (2026-08-30)
+
+Found by a security audit (three parallel code-reading passes over authorization, data-exposure, and auth/session posture) — see CLAUDE.md's Students-Only Visibility and Environment Variables sections for the full writeup.
+
+- [ ] `curl http://localhost:3000/api/trips` (no auth header/cookie) — 401
+      `{"error":"Unauthorized"}`, not a list of trips
+- [ ] `curl http://localhost:3000/api/requests` (no auth header/cookie) — 401,
+      not a list of requests
+- [ ] `curl http://localhost:3000/api/trips/<any-real-trip-id>` (no auth) —
+      401, not the trip's data
+- [ ] `curl http://localhost:3000/api/requests/<any-real-request-id>` (no
+      auth) — 401, not the request's data
+- [ ] Logged in as a normal (authenticated) user, `GET /api/trips` and
+      `GET /api/requests` now succeed and return data as before — confirm
+      the fix didn't break any legitimate caller (even though no UI
+      currently calls these two list endpoints)
+- [ ] Logged in as a **non-student**, `GET /api/trips/<id>` for a trip
+      someone marked `studentsOnly` — 404, matching what `/trips/[id]`
+      (the page route) already does for the same viewer
+- [ ] Logged in as a **student**, or as the trip's own owner, same request
+      — 200 with the trip's data, confirming the fix only blocks
+      non-entitled viewers, not everyone
+- [ ] Same two checks (non-student → 404, student/owner → 200) for
+      `GET /api/requests/<id>` against a `studentsOnly` request
+- [ ] With `RESEND_API_KEY` unset locally (the normal dev setup) — signing
+      up, requesting a parent OTP, etc. still works exactly as before,
+      logging the email content to the console (unchanged dev behavior)
+- [ ] Confirm (by reading `src/lib/email.ts`, not by actually running a
+      production deploy) that `send()` throws instead of logging when
+      `RESEND_API_KEY` is unset AND `NODE_ENV === "production"` — this
+      can't be triggered through `next dev`, which always sets
+      `NODE_ENV=development`
+
 ## Fix: Prevent the Same Rider From Holding Multiple Confirmed Seats (2026-08-28)
 
 - [ ] As A (trip owner), get two separate `ConnectionRequest`s from the same

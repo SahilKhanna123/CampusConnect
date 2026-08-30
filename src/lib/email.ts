@@ -15,6 +15,17 @@ async function send(params: {
   if (!resend) {
     // Local dev without RESEND_API_KEY configured — don't block the flow,
     // just log so the content can still be inspected/acted on manually.
+    // NEVER do this in production: the logged HTML can contain a plaintext
+    // OTP code or a single-use verification/objection/invite token, and a
+    // misconfigured deploy with RESEND_API_KEY accidentally unset would
+    // otherwise leak those into whatever log storage that deploy retains.
+    // Fail loudly instead so a missing key in production is caught, not
+    // silently routed to the console.
+    if (process.env.NODE_ENV === "production") {
+      throw new Error(
+        `RESEND_API_KEY is not configured -- refusing to log "${devLogLabel}" (which may contain a sensitive code/token) to the console in production.`,
+      );
+    }
     console.log(`[email:dev] ${devLogLabel} for ${to}:\n${html}`);
     return;
   }

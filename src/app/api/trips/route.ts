@@ -7,16 +7,27 @@ import { tripFieldsSchema } from "@/lib/postSchemas";
 // GET /api/trips?originCityId=&destinationCityId=&date=
 // Filtered browse of active Trips -- no matching/discovery UI consumes this
 // yet (deliberately deferred), but the endpoint itself is trivial and
-// matches the shape the original TODO comment described.
+// matches the shape the original TODO comment described. Requires auth
+// (401 otherwise) and applies the same studentsOnly filter Explore/Home
+// use -- this endpoint previously had no auth check and no studentsOnly
+// filter at all, letting an unauthenticated caller bulk-enumerate every
+// upcoming trip in the database, students-only ones included.
 export async function GET(request: Request) {
+  const user = await getCurrentUser();
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const { searchParams } = new URL(request.url);
   const originCityId = searchParams.get("originCityId") ?? undefined;
   const destinationCityId = searchParams.get("destinationCityId") ?? undefined;
   const date = searchParams.get("date");
+  const studentsOnlyFilter = hasStudentRecord(user) ? {} : { studentsOnly: false };
 
   const trips = await prisma.trip.findMany({
     where: {
       status: "upcoming",
+      ...studentsOnlyFilter,
       ...(originCityId ? { originCityId } : {}),
       ...(destinationCityId ? { destinationCityId } : {}),
       ...(date ? { departureDate: new Date(date) } : {}),
