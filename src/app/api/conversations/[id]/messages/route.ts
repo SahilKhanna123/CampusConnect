@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { createNotification, truncateForNotification } from "@/lib/notifications";
+import { canSendMessage } from "@/lib/rate-limit";
 
 // Shared by GET and POST below -- not exported (Next's route export
 // validation rejects any named export from a route.ts that isn't a
@@ -92,6 +93,13 @@ export async function POST(
   const parsed = sendMessageSchema.safeParse(await request.json());
   if (!parsed.success) {
     return NextResponse.json({ error: "Message can't be empty." }, { status: 400 });
+  }
+
+  if (!(await canSendMessage(user.id))) {
+    return NextResponse.json(
+      { error: "You're sending messages too quickly. Try again in a few minutes." },
+      { status: 429 },
+    );
   }
 
   const message = await prisma.message.create({

@@ -11,6 +11,36 @@ functions — see the Automated Tests section of CLAUDE.md. Everything else
 automated coverage yet, so this file remains the actual test coverage for
 those.
 
+## Fix: Email XSS + Messaging/Invite Rate Limits (2026-08-31)
+
+Found by a follow-up security audit (severity-ranked, focused on injection risks and a full rate-limiting sweep) — see CLAUDE.md's Family Page and Messaging sections for the full writeup.
+
+- [ ] Set your display name (via `/profile`) to something like
+      `<a href="http://example.com">click</a>` — trigger any of the three
+      parent-connection emails (the OTP email via `/family/connect-student`,
+      the invite email via `/family`'s "Invite a Parent/Guardian", or the
+      connection notice email) and check the actual content (Resend's own
+      dashboard, or the `[email:dev]` console log if `RESEND_API_KEY` is
+      unset locally) — the name shows as literal text
+      (`&lt;a href="..."&gt;click&lt;/a&gt;`), not a real clickable link or
+      any rendered HTML
+- [ ] Send 30 messages in a row in one conversation (or across several) as
+      one user — all succeed normally
+- [ ] Send a 31st message within the same ~10 minutes — rejected with 429
+      "You're sending messages too quickly. Try again in a few minutes."
+- [ ] Wait ~10 minutes (or check back later) — sending resumes normally
+      once the oldest counted message ages out of the window
+- [ ] Same check via `POST /api/conversations` (the "Register for a seat"
+      first-message flow, not just replying in an existing thread) — also
+      throttled by the same limiter
+- [ ] As a university-verified student, send 5 parent/guardian invites via
+      `/family` — all succeed, each shows up in "Sent Invites"
+- [ ] Send a 6th invite within the same 24 hours — rejected with 429
+      "You've sent too many invites recently. Try again later."
+- [ ] Confirm a normal user's day-to-day usage (a handful of messages, at
+      most one or two family invites) never comes close to either
+      threshold — no false-positive friction for legitimate use
+
 ## Fix: Unauthenticated Trip/Request Data Leak + Email Secret Logging (2026-08-30)
 
 Found by a security audit (three parallel code-reading passes over authorization, data-exposure, and auth/session posture) — see CLAUDE.md's Students-Only Visibility and Environment Variables sections for the full writeup.

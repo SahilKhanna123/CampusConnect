@@ -4,6 +4,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser, isUniversityVerified } from "@/lib/auth";
 import { sendParentInviteEmail } from "@/lib/email";
+import { canSendFamilyInvite } from "@/lib/rate-limit";
 
 const bodySchema = z.object({ parentEmail: z.string().email() });
 const INVITE_TTL_DAYS = 7;
@@ -30,6 +31,12 @@ export async function POST(request: Request) {
           "Verify your university email before inviting a parent/guardian.",
       },
       { status: 403 },
+    );
+  }
+  if (!(await canSendFamilyInvite(user.id))) {
+    return NextResponse.json(
+      { error: "You've sent too many invites recently. Try again later." },
+      { status: 429 },
     );
   }
 
