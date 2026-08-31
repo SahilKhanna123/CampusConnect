@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: campusconnect_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/campusconnect_test
+      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/campusconnect_test
+      # Inert placeholders, not real credentials -- the Postgres service
+      # container above is disposable, and nothing in this job talks to a
+      # real Supabase project or sends a real email. Only needed so
+      # `npm run build` doesn't fail on missing env vars.
+      NEXT_PUBLIC_SUPABASE_URL: http://localhost:54321
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: dummy
+      SUPABASE_SERVICE_ROLE_KEY: dummy
+      RESEND_API_KEY: dummy
+      EMAIL_FROM: test@example.com
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - run: npm ci
+
+      - run: npx prisma generate
+
+      # Fast, infra-free suite first -- pure functions only, no DB.
+      - run: npm run test
+
+      # DB-backed suite: npm's pretest:db hook migrates the service-container
+      # Postgres first, then the *.db.test.ts files run against it. The
+      # job's own DATABASE_URL/DIRECT_URL above take precedence over
+      # .env.test's local-Docker values (dotenv-cli does not override
+      # already-set env vars), so `npm run test:db` works unmodified here
+      # and locally.
+      - run: npm run test:db
+
+      - run: npm run build

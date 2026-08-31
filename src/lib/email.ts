@@ -13,7 +13,7 @@ const resend = process.env.RESEND_API_KEY
 // HTML-body interpolation of a user-controlled value below; system-
 // generated values (tokens, URLs, the OTP code, an admin-seeded
 // university name) don't need it.
-function escapeHtml(value: string): string {
+export function escapeHtml(value: string): string {
   return value
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
