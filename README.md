@@ -32,7 +32,7 @@ Other useful commands:
 
 ```bash
 npm run build            # production build
-npm run lint               # lint
+npm run lint               # lint -- not actually configured yet, see CLAUDE.md's Development Commands gotchas
 npm test                    # run the automated test suite
 npm run prisma:studio       # open Prisma Studio (DB browser)
 ```
@@ -44,4 +44,4 @@ npm run prisma:studio       # open Prisma Studio (DB browser)
 
 ## Status
 
-All core features described in `CLAUDE.md` are implemented — posting, messaging, connection requests, seat confirmation/offers, the request/trip matching lifecycle, reviews, reports, blocking, notifications, and both directions of parent/student linking. A few things are deliberately deferred as product decisions rather than left unbuilt by oversight (university-verification-gated posting, on-behalf-of-student posting, rate limiting beyond post creation, admin/moderation tooling) — see `CLAUDE.md`'s "Explicitly Not MVP" section and the "deferred"/"open" call-outs throughout for the full list and reasoning.
+All core features described in `CLAUDE.md` are implemented — posting, messaging, connection requests, seat confirmation/offers, the request/trip matching lifecycle, reviews, reports, blocking, notifications, and both directions of parent/student linking. A follow-up security audit closed a stored-XSS gap in outgoing emails and added rate limiting to messages and parent/guardian invites; a few other things remain deliberately deferred as product decisions or lower-priority hardening rather than left unbuilt by oversight (university-verification-gated posting, on-behalf-of-student posting, rate limiting on a few lower-traffic routes, admin/moderation tooling) — see `CLAUDE.md`'s "Explicitly Not MVP" section and the "deferred"/"open" call-outs throughout for the full list and reasoning.
