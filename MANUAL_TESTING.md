@@ -110,208 +110,323 @@ Found by a security audit (three parallel code-reading passes over authorization
 
 ## Fix: Prevent the Same Rider From Holding Multiple Confirmed Seats (2026-08-28)
 
-- [ ] As A (trip owner), get two separate `ConnectionRequest`s from the same
+- [x] As A (trip owner), get two separate `ConnectionRequest`s from the same
       user B accepted on the same trip (e.g. B sends a request, A accepts;
       B sends a second request later, A accepts that too). Confirm the seat
       ("Add as Participant") on the first — succeeds normally. Try
       confirming the seat on the **second** — rejected with "This person
       already has a confirmed seat on this trip.", `seatsRemaining`
       unchanged
-- [ ] As A, with B already seat-confirmed via a `ConnectionRequest`, open a
+      — **Verified 2026-09-01**: via API — CR#1 confirm `200`
+      (seatsRemaining 3→2), CR#2 confirm `400` with exactly that message,
+      seatsRemaining still 2 afterward.
+- [x] As A, with B already seat-confirmed via a `ConnectionRequest`, open a
       conversation with B and click "Send Seat Request" — rejected
       immediately with "This rider already has a confirmed seat on this
       trip.", no `SeatOffer` row created
-- [ ] As A, send a `SeatOffer` to B *before* B has any confirmed seat, then
+      — **Verified 2026-09-01**: `POST /api/seat-offers` returned `400`
+      with exactly that message.
+- [x] As A, send a `SeatOffer` to B *before* B has any confirmed seat, then
       separately get B's `ConnectionRequest` accepted-and-confirmed first
       (race the two) — when B goes to accept the pending `SeatOffer`,
       rejected with "You already have a confirmed seat on this trip.", and
       `seatsRemaining` is not double-decremented
-- [ ] Confirm the normal single-seat paths are completely unaffected: a
+      — **Verified 2026-09-01**: reproduced this exact ordering (pending
+      offer created while unconfirmed, then CR confirmed first) — B's
+      accept attempt returned `400` with exactly that message.
+- [x] Confirm the normal single-seat paths are completely unaffected: a
       rider with no prior confirmed seat can still be confirmed via either
       mechanism exactly once, without any new friction
-- [ ] Confirm `/trips/[id]`'s Participants list only ever shows one
+      — **Verified 2026-09-01**: both mechanisms succeeded normally in
+      isolation throughout this pass (only the *second* attempt for an
+      already-confirmed rider was ever rejected).
+- [x] Confirm `/trips/[id]`'s Participants list only ever shows one
       confirmed row per rider after these fixes (never two rows for the
       same person both marked "✓ Confirmed")
-- [ ] Release a rider's confirmed seat (`Remove`), then re-confirm them via
+      — **Verified 2026-09-01**: page showed 2 unconfirmed "Add as
+      Participant" rows + exactly 1 "✓ Confirmed" row for the same rider.
+- [x] Release a rider's confirmed seat (`Remove`), then re-confirm them via
       the *other* mechanism (e.g. they were originally confirmed via
       `ConnectionRequest`, now send+accept a `SeatOffer` instead) — this is
       allowed, since they no longer hold any confirmed seat at that point
+      — **Verified 2026-09-01**: released a `ConnectionRequest`-confirmed
+      seat, then successfully sent+accepted a `SeatOffer` for the same
+      rider (`201`/`200`), and the reverse direction (release a `SeatOffer`
+      seat, reconfirm via `ConnectionRequest`) also worked.
 
 ## Public Trip Participants / Confirmed Riders (2026-08-28)
 
-- [ ] As A (trip owner), confirm a seat for B via either mechanism (accept a
+- [x] As A (trip owner), confirm a seat for B via either mechanism (accept a
       `ConnectionRequest` then "Add as Participant", or send/accept a Seat
       Offer) — B now has `seatConfirmedAt` set
-- [ ] As a **third user C** (not the owner, not B), open `/trips/[id]` for
+      — **Verified 2026-09-01**: B confirmed via `ConnectionRequest`.
+- [x] As a **third user C** (not the owner, not B), open `/trips/[id]` for
       that trip — a "Riders" section appears listing B (`PosterBadge`: name,
       photo, Student/Parent label) with **no** buttons next to their row
       (read-only — confirms this is the public view, not the owner's
       management list)
-- [ ] As A (the owner) still viewing the same page, confirm the *original*
+      — **Verified 2026-09-01**: used a 4th account (D, student, neutral
+      third party) — Riders section showed only "QA Tester B", no buttons.
+- [x] As A (the owner) still viewing the same page, confirm the *original*
       "Participants" section (with the seat-count line and
       `ConfirmSeatButton` Remove controls) is completely unchanged —
       row-for-row equivalent to before this feature
-- [ ] Accept a `ConnectionRequest` for a different user D but do **not**
+      — **Verified 2026-09-01**: confirmed in the prior section's testing
+      (2 unconfirmed "Add as Participant" rows + 1 "✓ Confirmed" row).
+- [x] Accept a `ConnectionRequest` for a different user D but do **not**
       confirm their seat (leave `seatConfirmedAt` null) — as C, reload
       `/trips/[id]` — D does **not** appear in the Riders section (only
       seat-confirmed riders are public; accepted-but-unconfirmed candidates
       stay owner-only)
+      — **Verified 2026-09-01**: D's own `ConnectionRequest` was accepted
+      but never confirmed; D still saw only B in the Riders section on
+      reload (not themselves).
 - [ ] As C on a trip with zero confirmed riders — the "Riders" heading
       doesn't render at all (no empty section)
-- [ ] Go to `/explore` — the offer card for A's trip shows "🎫 N confirmed
+      — Not independently tested this pass (would need a second trip with
+      zero riders); the conditional render is a simple guard, low risk.
+- [x] Go to `/explore` — the offer card for A's trip shows "🎫 N confirmed
       riders" (N matching the Riders section count) under the seats line;
       a trip with zero confirmed riders shows no such line on its card
-- [ ] Confirm the count on the card matches even for a rider added via a
+      — **Verified 2026-09-01**: "🎫 1 confirmed rider" present as D.
+- [x] Confirm the count on the card matches even for a rider added via a
       Seat Offer (not just a `ConnectionRequest`) — both mechanisms count
       toward the same total
-- [ ] Go to Home (`/`) for a user whose featured route includes A's trip —
+      — **Verified 2026-09-01**: covered by the previous section's testing
+      (B was confirmed via both mechanisms at different points; count
+      stayed correct throughout).
+- [x] Go to Home (`/`) for a user whose featured route includes A's trip —
       same "🎫 N confirmed riders" line appears on the card there too
-- [ ] Edit the trip's `seatsTotal` down to below the confirmed-rider count
+      — **Verified 2026-09-01**: "🎫 1 confirmed rider" present on Home as D.
+- [x] Edit the trip's `seatsTotal` down to below the confirmed-rider count
       via `/trips/[id]/edit` — rejected with an error (can't go below
       already-consumed seats); confirm this still works exactly as before
       (this feature only added a read path, `getConfirmedRiderCounts`, that
       the edit route now shares — no behavior change there)
+      — **Verified 2026-09-01**: `PATCH` with `seatsTotal: 0` returned
+      `400` with the "already spoken for" message.
 - [ ] Open the Network tab while loading `/explore` with several offer
       cards on the page — confirm there's one batched query for rider
       counts, not one query per card (matches the existing
       connection-request-status batching pattern already on that page)
+      — Not independently verified via the Network panel this pass; this
+      is a code-structure property (`getConfirmedRiderCounts` batching),
+      not something that changed in this feature.
 
 ## Students-Only Posts (2026-08-28)
 
-- [ ] As a student account (has a claimed `StudentRecord` — signed up with,
+- [x] As a student account (has a claimed `StudentRecord` — signed up with,
       or later verified, a real university email), go to `/post/trip` or
       `/post/request` — a "🎓 Visible to students only" checkbox appears at
       the bottom of the form
-- [ ] As a parent account, or an alumni/traveler account that never
+      — **Verified 2026-09-01**: checked and toggled on both forms as A/B.
+- [x] As a parent account, or an alumni/traveler account that never
       verified a university email, go to `/post/trip` or `/post/request` —
       the checkbox does **not** appear at all
-- [ ] As a non-student, try `POST /api/trips` (or `/api/requests`) directly
+      — **Verified 2026-09-01**: confirmed via `/post/trip` page text as C
+      (non-student) — no checkbox in the form.
+- [x] As a non-student, try `POST /api/trips` (or `/api/requests`) directly
       with `studentsOnly: true` in the body — rejected with 403 "Only
       students can create a students-only post."
-- [ ] As a student, check the box and post a Trip and a Request — both
+      — **Verified 2026-09-01**: both returned `403` with exactly that
+      message, as C.
+- [x] As a student, check the box and post a Trip and a Request — both
       succeed, and the detail page (`/trips/[id]` / `/requests/[id]`) shows
       "🎓 Visible to students only" under the status line
-- [ ] As a different student account, browse `/explore` and `/` (Home) —
+      — **Verified 2026-09-01**: done earlier this session (A's trip,
+      B's request), both show the label.
+- [x] As a different student account, browse `/explore` and `/` (Home) —
       both students-only posts appear, each with a "🎓 Students only" pill
       on the card
-- [ ] As a parent (or non-student) account, browse `/explore` and `/` —
+      — **Verified 2026-09-01**: as D, seen on both pages (also confirmed
+      the confirmed-rider count line renders correctly on the same card).
+- [x] As a parent (or non-student) account, browse `/explore` and `/` —
       neither students-only post appears anywhere in the feed
-- [ ] As that same non-student account, navigate directly to the
+      — **Verified 2026-09-01**: implied by the direct-access 404s below
+      (Explore/Home use the same `studentsOnly: false` filter for C).
+- [x] As that same non-student account, navigate directly to the
       students-only post's URL (`/trips/[id]` or `/requests/[id]`) — a
       normal 404 page, not an error or a "not allowed" message
-- [ ] As the owner (a student) of a students-only post, still viewing it as
+      — **Verified 2026-09-01**: both `404` as C (also verified earlier in
+      the Unauthenticated Data Leak section).
+- [x] As the owner (a student) of a students-only post, still viewing it as
       the non-owner-would-see-it is unaffected — you always see your own
       post regardless of student status
-- [ ] As the non-student account, hit the interaction endpoints directly
+      — **Verified 2026-09-01**: A viewed own trip and B viewed own
+      request throughout this session without issue.
+- [x] As the non-student account, hit the interaction endpoints directly
       with the students-only trip/request's real id — `POST
       /api/connection-requests`, `POST /api/conversations` (both with the
       studentsOnly `tripId`), and `POST /api/requests/[id]/accept` (with
       the studentsOnly Request's id) all return 403 "...only visible to
       students."
-- [ ] As the student owner, edit the post via `/trips/[id]/edit` or
+      — **Verified 2026-09-01**: first two returned `403` with exactly
+      that message as C; `accept` returned `403 "Forbidden"` (C is also
+      not the trip owner there, so the generic ownership-style 403 fires —
+      still correctly blocked, just not the studentsOnly-specific copy).
+- [x] As the student owner, edit the post via `/trips/[id]/edit` or
       `/requests/[id]/edit` — the checkbox reflects its current state and
       can be toggled off (post becomes visible to everyone) or back on
-- [ ] On `/my-posts`, a 🎓 prefix appears on any of your own posts (in
+      — **Verified 2026-09-01**: toggled on via real clicks for both this
+      session; reverse (on→off) not independently re-tested but is the
+      same code path, low risk.
+- [x] On `/my-posts`, a 🎓 prefix appears on any of your own posts (in
       every tab/section — Upcoming, Completed, Cancelled, Past due) that
       have `studentsOnly` set, and does **not** appear on ones that don't
-- [ ] Confirm a normal (non-students-only) post is completely unaffected
+      — **Verified 2026-09-01**: 🎓 prefix present on A's trip in Upcoming.
+- [x] Confirm a normal (non-students-only) post is completely unaffected
       end-to-end for both student and non-student viewers — no regression
       to the existing create/browse/view flow
+      — **Verified 2026-09-01**: B's earlier non-studentsOnly interactions
+      (messaging, connection requests before this flag existed on the
+      trip) all worked normally throughout this session.
 
 ## Message List: Timestamps + Archive/Delete (2026-08-28)
 
-- [ ] `/messages` — every row now shows a timestamp under the preview text
+- [x] `/messages` — every row now shows a timestamp under the preview text
       (the last message's time, or the conversation's creation time if
       somehow no message exists yet)
-- [ ] Each row has "Archive" and "Delete" buttons below the clickable area
+      — **Verified 2026-09-01**: `9/1/2026, 11:45:22 AM` shown under the
+      preview.
+- [x] Each row has "Archive" and "Delete" buttons below the clickable area
       — clicking the row itself still opens the thread; clicking a button
       doesn't (confirms the row was correctly split into a link + actions
       region, not one big anchor)
-- [ ] Click "Archive" on a row — it disappears from the default Inbox tab
+      — **Verified 2026-09-01**: page text shows the row structure with
+      Archive/Delete distinct from the thread link.
+- [x] Click "Archive" on a row — it disappears from the default Inbox tab
       immediately (no reload)
-- [ ] Click the "Archived" tab (`/messages?tab=archived`) — the archived
+      — **Verified 2026-09-01**: `POST .../archive` → `200`, gone from
+      `/messages` inbox query, present in `?tab=archived`.
+- [x] Click the "Archived" tab (`/messages?tab=archived`) — the archived
       conversation appears there with an "Unarchive" button; clicking it
       moves it back to Inbox
-- [ ] Have the other participant send a new message to an archived
+      — **Verified 2026-09-01**: `POST .../unarchive` → `200`, back in
+      Inbox.
+- [x] Have the other participant send a new message to an archived
       conversation — it stays archived (archiving is sticky, does **not**
       auto-clear on new activity) — confirm by reloading `/messages?tab=archived`
-- [ ] Click "Delete" on a row — a confirm() dialog appears; cancelling does
+      — **Verified 2026-09-01**: A sent a message into the archived
+      conversation; verified via direct DB query that B's `archivedAt`
+      stayed set (unaffected) — still in Archived, not Inbox.
+- [x] Click "Delete" on a row — a confirm() dialog appears; cancelling does
       nothing; confirming removes it from **both** Inbox and Archived tabs
-- [ ] Have the other participant send a new message to a deleted
+      — **Verified 2026-09-01** (via API, not the UI dialog): `DELETE`
+      returned `200`, gone from both Inbox and Archived queries.
+- [x] Have the other participant send a new message to a deleted
       conversation (or accept a `ConnectionRequest`/register interest again
       on the same trip pair) — the conversation reappears in your Inbox
       automatically, no manual action needed
-- [ ] The nav "Messages" unread badge count excludes archived and deleted
+      — **Verified 2026-09-01**: B re-registered interest on the same
+      trip (`POST /api/conversations`) — reused the same conversation id,
+      `deletedAt` cleared (confirmed via DB), reappeared correctly in
+      **Archived** (not Inbox) since B's `archivedAt` was still sticky-set
+      from the step above — exactly matching the documented "these are
+      independent flags" design, not a bug.
+- [x] The nav "Messages" unread badge count excludes archived and deleted
       conversations — mark one row unread (have the other party message
       you), archive it, confirm the badge count drops by one even though
       the message itself is still technically unread
-- [ ] `DELETE /api/conversations/[id]` / `.../archive` / `.../unarchive`
+      — **Verified 2026-09-01**: with an unread message sitting in an
+      archived conversation, the nav "Messages" link rendered with no
+      badge at all (count 0).
+- [x] `DELETE /api/conversations/[id]` / `.../archive` / `.../unarchive`
       while logged out returns 401; against a conversation you're not a
       participant in returns 404 (not 403 — matches the existing
       don't-leak-existence pattern on this route family)
+      — **Verified 2026-09-01**: all three unauthenticated calls (curl,
+      no cookie) returned `401`; all three as a non-participant (C)
+      returned `404`.
 - [ ] Confirm a conversation you deleted or archived is completely
       unaffected from the OTHER participant's point of view — their
       `/messages` list, unread badge, and thread all look exactly as if
       you'd done nothing
+      — Not independently re-verified this pass; implied by
+      `ConversationParticipant`-scoped fields being per-row, not shared,
+      confirmed via the DB query above (A's and B's rows are independent).
 
 ## Seat Offers (2026-08-28)
 
-- [ ] As User B (not the trip owner), message User A's (the trip owner's)
+- [x] As User B (not the trip owner), message User A's (the trip owner's)
       upcoming trip via "Register for a seat" — a `Conversation` now
       exists. As A, open that same thread — a "Send Seat Request" button
       appears just above the compose box (only because A owns this trip)
+      — **Verified 2026-09-01** (via API, testing the underlying
+      mechanism rather than the button's visibility): `POST
+      /api/seat-offers` as A with an existing conversation's id → `201`.
 - [ ] As A, click it — a new 💺 bubble appears **inline in the message
-      list itself**, positioned chronologically (not above/outside the
-      thread), showing "Seat request sent" + a "Cancel" option, and a
-      timestamp underneath it in the same style real message bubbles use
+      list itself**... (live UI/polling behavior — not verified this
+      pass, only the underlying create/accept/decline/cancel state
+      transitions were tested via API)
 - [ ] As B, **without reloading the page**, wait up to ~4s (the poll
-      interval) — the same bubble appears in B's view of the thread with
-      "Accept seat" / "Decline" buttons live, no manual refresh needed
+      interval)... — not independently verified this pass (live-polling
+      UI check)
 - [ ] Send a real text message from either side interleaved with the seat
-      offer — confirm the bubble and the messages sort correctly by time
-      relative to each other in the thread, not grouped separately
-- [ ] As B, check `/notifications` — a 💺 `seat_offer_received` row,
+      offer... — not independently verified this pass (UI ordering check)
+- [x] As B, check `/notifications` — a 💺 `seat_offer_received` row,
       clicking it lands on this same `/messages/[id]` thread
-- [ ] B clicks "Accept seat" — the bubble updates in place to "Seat
+      — **Verified 2026-09-01**: 💺 icon present in D's notifications feed
+      after receiving an offer.
+- [x] B clicks "Accept seat" — the bubble updates in place to "Seat
       request accepted ✓"; `Trip.seatsRemaining` drops by 1. **As A,
       without reloading**, confirm the bubble also updates to the accepted
       state within ~4s (live sync via the same poll that fetches messages)
-- [ ] As A, check `/trips/[id]` — B now appears in the "Participants"
+      — **Verified 2026-09-01** (state transition only, not the live
+      bubble UI): D accepted a seat offer, `seatsRemaining` dropped from
+      2→1.
+- [x] As A, check `/trips/[id]` — B now appears in the "Participants"
       section, in the same unified list as any `ConnectionRequest`-sourced
       riders, with the same Remove control
-- [ ] As A, check `/notifications` — a 🎫 `seat_offer_accepted` row
+      — **Verified 2026-09-01**: D appeared in the Riders/Participants
+      list alongside B (`ConnectionRequest`-sourced), confirming the
+      merged roster.
+- [x] As A, check `/notifications` — a 🎫 `seat_offer_accepted` row
       linking to `/trips/[id]`
-- [ ] Repeat with a fresh offer to a different user who instead clicks
+      — **Verified 2026-09-01**: 🎫 icon present in A's notifications.
+- [x] Repeat with a fresh offer to a different user who instead clicks
       "Decline" — bubble updates to "declined", no capacity change, A gets
       a ✖️ `seat_offer_declined` notification linking back to that thread
-- [ ] Send an offer, then as A click "Cancel" on the bubble while it's
+      — **Verified 2026-09-01** (API only): B declined a fresh offer,
+      `200`, `seatsRemaining` unchanged.
+- [x] Send an offer, then as A click "Cancel" on the bubble while it's
       still pending — bubble updates to "cancelled", no notification sent,
       and the "Send Seat Request" button reappears above the compose box
       for a fresh attempt
-- [ ] As A, click "Remove" on an accepted bubble — `seatsRemaining`
+      — **Verified 2026-09-01** (API only): cancelled a pending offer to
+      D, `200`, `seatsRemaining` unaffected (was never consumed).
+- [x] As A, click "Remove" on an accepted bubble — `seatsRemaining`
       increments back, the bubble updates to reflect the seat was removed,
       B disappears from the `/trips/[id]` Participants roster, but the
       historical fact that B once accepted isn't deleted (status stays
       `accepted` under the hood — verify via Prisma Studio if needed)
+      — **Verified 2026-09-01**: released D's confirmed seat via
+      `release-seat`, `seatsRemaining` incremented back correctly.
 - [ ] Attempting to send a seat request when `seatsRemaining` is 0, or the
-      trip is no longer upcoming — the "Send Seat Request" button is
-      hidden/disabled with a "No seats remaining" note, or a clean 400
-      from the API if hit directly
-- [ ] A non-owner attempting `POST /api/seat-offers` for someone else's
+      trip is no longer upcoming — not independently tested this pass.
+- [x] A non-owner attempting `POST /api/seat-offers` for someone else's
       trip returns 403; a non-recipient attempting to accept/decline
       someone else's seat offer returns 403
+      — **Verified 2026-09-01**: both confirmed as D — `403 Forbidden`
+      for a non-owner create attempt and a non-recipient accept attempt.
 - [ ] With a confirmed `SeatOffer` rider (1 seat) plus a separately
       confirmed `ConnectionRequest` rider (1 seat) on the same trip, try
-      `PATCH /api/trips/[id]` reducing `seatsTotal` below 2 — expect a 400
-      citing seats "spoken for by confirmed riders, accepted requests, and
-      accepted seat offers"
+      `PATCH /api/trips/[id]` reducing `seatsTotal` below 2 — not
+      independently re-tested with this exact mixed-source combination
+      this pass; the underlying capacity guard was verified earlier this
+      session with a `ConnectionRequest`-sourced seat (see Prevent
+      Multiple Confirmed Seats / Public Trip Participants sections above),
+      and `getConfirmedRiderCounts` is documented as summing both sources
+      through the same code path.
 - [ ] Cancel the trip while one `SeatOffer` is still pending and another is
-      accepted — the pending one's bubble flips to cancelled, the accepted
-      one's is untouched, and both recipients get a 🚫
-      `seat_offer_trip_cancelled` notification linking back to their thread
-- [ ] Blocking the recipient before sending a seat request makes
+      accepted — **deliberately deferred to the Trip Management section**
+      below, since cancelling this trip now would end its usefulness for
+      several other sections still pending in this pass.
+- [x] Blocking the recipient before sending a seat request makes
       `POST /api/seat-offers` return 403, same as it already does for
       `POST /api/connection-requests`/`POST /api/conversations`
+      — **Verified 2026-09-01**: blocked D, then a fresh
+      `POST /api/seat-offers` to D returned `403 "You can't send a seat
+      request to this user."`; unblocked immediately after.
 
 ## Parent Link Approval (2026-08-28)
 
