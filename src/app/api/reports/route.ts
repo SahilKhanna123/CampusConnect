@@ -24,9 +24,15 @@ const createSchema = z
     contextType: z.enum(["trip", "request", "message", "profile"]).optional(),
     contextId: z.string().min(1).optional(),
   })
-  .refine((v) => !!v.contextType === !!v.contextId, {
-    message: "contextType and contextId must be provided together.",
-  });
+  .refine(
+    (v) =>
+      v.contextType === "profile"
+        ? true
+        : !!v.contextType === !!v.contextId,
+    {
+      message: "contextType and contextId must be provided together.",
+    },
+  );
 
 // POST /api/reports
 // Body: { reportedUserId, reason, detail?, contextType?, contextId? }
