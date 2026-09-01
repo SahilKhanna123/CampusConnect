@@ -15,7 +15,7 @@ those.
 
 Found by a follow-up security audit (severity-ranked, focused on injection risks and a full rate-limiting sweep) — see CLAUDE.md's Family Page and Messaging sections for the full writeup.
 
-- [ ] Set your display name (via `/profile`) to something like
+- [x] Set your display name (via `/profile`) to something like
       `<a href="http://example.com">click</a>` — trigger any of the three
       parent-connection emails (the OTP email via `/family/connect-student`,
       the invite email via `/family`'s "Invite a Parent/Guardian", or the
@@ -24,55 +24,89 @@ Found by a follow-up security audit (severity-ranked, focused on injection risks
       unset locally) — the name shows as literal text
       (`&lt;a href="..."&gt;click&lt;/a&gt;`), not a real clickable link or
       any rendered HTML
-- [ ] Send 30 messages in a row in one conversation (or across several) as
+      — **Verified 2026-09-01**: invite email logged
+      `&lt;a href=&quot;http://example.com&quot;&gt;click&lt;/a&gt;` as
+      literal escaped text; the system-generated "Accept the invitation"
+      link rendered as a real `<a>` as expected.
+- [x] Send 30 messages in a row in one conversation (or across several) as
       one user — all succeed normally
-- [ ] Send a 31st message within the same ~10 minutes — rejected with 429
+      — **Verified 2026-09-01**: 1 via `POST /api/conversations` (first
+      message) + 29 via `POST /api/conversations/[id]/messages`, all `201`.
+- [x] Send a 31st message within the same ~10 minutes — rejected with 429
       "You're sending messages too quickly. Try again in a few minutes."
+      — **Verified 2026-09-01**: 31st attempt returned `429` with exactly
+      that message.
 - [ ] Wait ~10 minutes (or check back later) — sending resumes normally
       once the oldest counted message ages out of the window
-- [ ] Same check via `POST /api/conversations` (the "Register for a seat"
+      — Not tested live (impractical to wait out mid-session); the window
+      logic itself has DB-backed automated coverage in `rate-limit.db.test.ts`
+      per CLAUDE.md, including window-boundary exclusion.
+- [x] Same check via `POST /api/conversations` (the "Register for a seat"
       first-message flow, not just replying in an existing thread) — also
       throttled by the same limiter
-- [ ] As a university-verified student, send 5 parent/guardian invites via
+      — **Verified 2026-09-01**: called directly while already at cap,
+      returned `429` with the same message — confirms it's one shared
+      global counter, not per-endpoint.
+- [x] As a university-verified student, send 5 parent/guardian invites via
       `/family` — all succeed, each shows up in "Sent Invites"
-- [ ] Send a 6th invite within the same 24 hours — rejected with 429
+      — **Verified 2026-09-01**: 5 invites to different addresses, all `200`.
+- [x] Send a 6th invite within the same 24 hours — rejected with 429
       "You've sent too many invites recently. Try again later."
-- [ ] Confirm a normal user's day-to-day usage (a handful of messages, at
+      — **Verified 2026-09-01**: 6th invite returned `429` with exactly
+      that message.
+- [x] Confirm a normal user's day-to-day usage (a handful of messages, at
       most one or two family invites) never comes close to either
       threshold — no false-positive friction for legitimate use
+      — **Verified 2026-09-01**: messages 1-30 and invites 1-5 all succeeded
+      with zero friction; only the 31st message / 6th invite tripped the
+      limiter, confirming the caps sit well above normal usage.
 
 ## Fix: Unauthenticated Trip/Request Data Leak + Email Secret Logging (2026-08-30)
 
 Found by a security audit (three parallel code-reading passes over authorization, data-exposure, and auth/session posture) — see CLAUDE.md's Students-Only Visibility and Environment Variables sections for the full writeup.
 
-- [ ] `curl http://localhost:3000/api/trips` (no auth header/cookie) — 401
+- [x] `curl http://localhost:3000/api/trips` (no auth header/cookie) — 401
       `{"error":"Unauthorized"}`, not a list of trips
-- [ ] `curl http://localhost:3000/api/requests` (no auth header/cookie) — 401,
+      — **Verified 2026-09-01**.
+- [x] `curl http://localhost:3000/api/requests` (no auth header/cookie) — 401,
       not a list of requests
-- [ ] `curl http://localhost:3000/api/trips/<any-real-trip-id>` (no auth) —
+      — **Verified 2026-09-01**.
+- [x] `curl http://localhost:3000/api/trips/<any-real-trip-id>` (no auth) —
       401, not the trip's data
-- [ ] `curl http://localhost:3000/api/requests/<any-real-request-id>` (no
+      — **Verified 2026-09-01**.
+- [x] `curl http://localhost:3000/api/requests/<any-real-request-id>` (no
       auth) — 401, not the request's data
-- [ ] Logged in as a normal (authenticated) user, `GET /api/trips` and
+      — **Verified 2026-09-01**.
+- [x] Logged in as a normal (authenticated) user, `GET /api/trips` and
       `GET /api/requests` now succeed and return data as before — confirm
       the fix didn't break any legitimate caller (even though no UI
       currently calls these two list endpoints)
-- [ ] Logged in as a **non-student**, `GET /api/trips/<id>` for a trip
+      — **Verified 2026-09-01**: both `200` for a logged-in student.
+- [x] Logged in as a **non-student**, `GET /api/trips/<id>` for a trip
       someone marked `studentsOnly` — 404, matching what `/trips/[id]`
       (the page route) already does for the same viewer
-- [ ] Logged in as a **student**, or as the trip's own owner, same request
+      — **Verified 2026-09-01**.
+- [x] Logged in as a **student**, or as the trip's own owner, same request
       — 200 with the trip's data, confirming the fix only blocks
       non-entitled viewers, not everyone
-- [ ] Same two checks (non-student → 404, student/owner → 200) for
+      — **Verified 2026-09-01**: student non-owner viewer got `200`.
+- [x] Same two checks (non-student → 404, student/owner → 200) for
       `GET /api/requests/<id>` against a `studentsOnly` request
-- [ ] With `RESEND_API_KEY` unset locally (the normal dev setup) — signing
+      — **Verified 2026-09-01**: non-student `404`, student-owner `200`.
+- [x] With `RESEND_API_KEY` unset locally (the normal dev setup) — signing
       up, requesting a parent OTP, etc. still works exactly as before,
       logging the email content to the console (unchanged dev behavior)
-- [ ] Confirm (by reading `src/lib/email.ts`, not by actually running a
+      — **Verified 2026-09-01**: confirmed `.env` has `RESEND_API_KEY`
+      commented out, and observed real `[email:dev]` console logging
+      throughout this session's invite-email tests.
+- [x] Confirm (by reading `src/lib/email.ts`, not by actually running a
       production deploy) that `send()` throws instead of logging when
       `RESEND_API_KEY` is unset AND `NODE_ENV === "production"` — this
       can't be triggered through `next dev`, which always sets
       `NODE_ENV=development`
+      — **Verified 2026-09-01**: `src/lib/email.ts:33-48` — `if (!resend)`
+      branch throws when `NODE_ENV === "production"` before ever reaching
+      the `console.log` line; the dev log path is only reached otherwise.
 
 ## Fix: Prevent the Same Rider From Holding Multiple Confirmed Seats (2026-08-28)
 
