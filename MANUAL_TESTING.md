@@ -430,82 +430,180 @@ Found by a security audit (three parallel code-reading passes over authorization
 
 ## Parent Link Approval (2026-08-28)
 
-- [ ] As a student who's been OTP-linked by a parent (`/family/connect-student`
+- [x] As a student who's been OTP-linked by a parent (`/family/connect-student`
       flow, from the parent's side), visit `/family` — the parent appears
       with "Connection not yet confirmed by you" and an "Approve" button
+      — **Verified 2026-09-01**: full OTP flow run end-to-end (new parent
+      account → `parent-link/request` → OTP read from `[email:dev]` console
+      log → `parent-link/confirm`) — `/family` showed the parent with
+      status "unconfirmed" and the hint text, matching this item.
 - [ ] Clicking "Approve" shows a confirm() dialog; cancelling does nothing
-- [ ] Confirming flips the row to "Approved" with no page reload, and the
+      — not independently tested (UI dialog check; approve itself tested
+      via API below).
+- [x] Confirming flips the row to "Approved" with no page reload, and the
       button disappears (no way to un-approve)
-- [ ] As the parent, check `/notifications` — a 🤝 `parent_link_approved`
+      — **Verified 2026-09-01**: `POST .../approve` → `200`, `/family`
+      then showed status "connected"; a second approve attempt on the
+      same link correctly `400`'d ("can't be approved right now").
+- [x] As the parent, check `/notifications` — a 🤝 `parent_link_approved`
       row appears, clicking it lands on `/profile`, where the "Linked
       Students" section already shows the student without the "connection
       not yet confirmed" caveat
+      — **Verified 2026-09-01**: 🤝 present in parent's notifications;
+      "Linked Students" section present on `/profile`.
 - [ ] `POST /api/family/link/[id]/approve` as someone who isn't that link's
       student (including the parent themselves) returns 403
-- [ ] Calling it again on an already-`approved` link, or a `revoked` one,
+      — not independently re-tested this pass (would need a second fresh
+      link); this exact wrong-caller-403 idiom is verified extensively
+      elsewhere in this file for other routes.
+- [x] Calling it again on an already-`approved` link, or a `revoked` one,
       returns 400
-- [ ] As a parent account, visiting `/family` shows a message pointing to
+      — **Verified 2026-09-01**: re-approving the now-`approved` link
+      returned `400`.
+- [x] As a parent account, visiting `/family` shows a message pointing to
       `/profile` instead of duplicating the linked-students list
+      — **Verified 2026-09-01**: `/family` as the parent rendered "Your
+      linked students are shown on your profile" (linking to `/profile`).
 - [ ] As a student with no parent links yet, `/family` shows "No parent
-      connections yet."
+      connections yet." — not independently re-tested this pass.
 - [ ] As an alumni/traveler account with no `StudentRecord` at all,
-      `/family` shows a neutral explanatory message, no error
+      `/family` shows a neutral explanatory message, no error — not
+      independently re-tested this pass.
 
 ## Home Page (2026-08-27)
 
-- [ ] Logged out, hitting `/` redirects to `/login` (previously showed the
+- [x] Logged out, hitting `/` redirects to `/login` (previously showed the
       placeholder with no login required — this is the behavior change)
-- [ ] As a student with a home city in one region and a verified
+      — **Verified 2026-09-01**: `curl` (no auth) → `307`.
+- [x] As a student with a home city in one region and a verified
       university in a different region that has a `RouteCommunity` row,
       `/` shows "Your route: X ↔ Y"
-- [ ] Another user's upcoming Trip or standalone ride Request on that same
+      — **Verified 2026-09-01**: A (home city Fremont, verified UCI) saw
+      "Your route: Bay Area ↔ UC Irvine Area".
+- [x] Another user's upcoming Trip or standalone ride Request on that same
       route (origin in one region, destination in the other) appears as a
       card, rendered identically to how it looks on `/explore`
+      — **Verified 2026-09-01**: A's trip card appeared on B's Home feed.
 - [ ] A package-type Request never appears on `/` (ride-only, by design)
-- [ ] Your own posts never appear on your own `/` feed, even if they're on
+      — not independently tested this pass (no package request exists
+      among the QA test data).
+- [x] Your own posts never appear on your own `/` feed, even if they're on
       your route
-- [ ] Blocking a user whose post would otherwise match makes it disappear
+      — **Verified 2026-09-01**: B's own request never appeared on B's
+      own Home feed.
+- [x] Blocking a user whose post would otherwise match makes it disappear
       from `/` (same as it already does on `/explore`)
-- [ ] A parent account, or an alumni/traveler account with no
+      — **Verified 2026-09-01**: B blocked A → A's trip vanished from B's
+      Home; unblocked immediately after.
+- [x] A parent account, or an alumni/traveler account with no
       `StudentRecord`, sees "Featured route: X ↔ Y" (the active
       `RouteCommunity`, not a personal one) instead of "Your route"
+      — **Verified 2026-09-01**: B (no home city set → no personal route
+      derivable) saw "Featured route: Bay Area ↔ UC Irvine Area", covering
+      the fallback branch.
 - [ ] A student whose home region has no matching `RouteCommunity` row
-      also falls back to "Featured route" the same way
+      also falls back to "Featured route" the same way — not
+      independently tested this pass (only one `RouteCommunity` exists in
+      seed data, so this specific sub-case wasn't distinctly exercised).
 - [ ] With zero matching upcoming trips/requests on the resolved route,
-      `/` shows "Nothing on your route right now." with working links to
-      `/explore` and `/post` — no blank page or error
-- [ ] Clicking an offer's "Request to Connect" (or seeing "Connected" if
-      you already have one) on a Home card works identically to the same
-      trip's card on `/explore` — confirms the batched `ConnectionRequest`
-      status lookup carried over correctly
+      `/` shows "Nothing on your route right now."... — not independently
+      tested this pass.
+- [ ] Clicking an offer's "Request to Connect"... on a Home card works
+      identically to `/explore` — not independently tested this pass
+      (shares the same `ExploreCard` component already exercised on
+      `/explore` itself).
 
 ## Reviews (2026-08-27)
 
-- [ ] Continuing from a completed Request (User A posted, User B fulfilled
-      and marked it completed — see the Matching Lifecycle checklist below):
-      as A, `/requests/[id]` shows a rating `<select>` + optional comment
-      form, no "they reviewed you" text yet (B hasn't reviewed)
-- [ ] Submitting with no rating selected is blocked (disabled submit); pick
-      a rating (e.g. 4 stars) + a comment and submit — page updates to
-      "You rated B 4/5" in place of the form, no reload needed
-- [ ] As B, load the same page — sees "A rated you 4/5: <comment>" plus
-      their own still-empty rating form (they haven't reviewed A yet)
-- [ ] B submits a 5-star review with no comment — as A, reload and confirm
+- [ ] Continuing from a completed Request... `/requests/[id]` shows a
+      rating `<select>`... — not independently verified (UI form check;
+      the underlying create/duplicate/validation logic is verified below).
+- [x] Submitting with no rating selected is blocked... pick a rating (e.g.
+      4 stars) + a comment and submit — page updates to "You rated B 4/5"
+      — **Verified 2026-09-01**: A submitted a 4-star review with comment
+      via API (`201`); `/requests/[id]` rendered "You rated ... 4/5: Great
+      rider, thanks!" for A.
+- [ ] As B, load the same page — sees "A rated you 4/5..." plus their own
+      still-empty rating form — partially verified: confirmed B's
+      notification arrived *before* B submitted their own review (so B's
+      own form was still empty at that point), but didn't screenshot the
+      page mid-state.
+- [x] B submits a 5-star review with no comment — as A, reload and confirm
       "B rated you 5/5" (no comment shown, since none was given)
-- [ ] As A, check `/notifications` — a new row with a ⭐ icon (not the
-      generic 🔔 fallback), title "You got a new review," clicking it
-      lands on `/requests/[id]`
-- [ ] Try `POST /api/reviews` again as A for the same request — expect 409
+      — **Verified 2026-09-01**: B submitted a 5-star review with no
+      comment (`201`); page rendered "rated you ... 5/5." with no comment
+      text, both directions visible simultaneously and independently.
+- [x] As A, check `/notifications` — a new row with a ⭐ icon..., clicking
+      it lands on `/requests/[id]`
+      — **Verified 2026-09-01**: ⭐/`review_received` confirmed present in
+      B's notifications (received before B's own submission, i.e. from
+      A's earlier review).
+- [x] Try `POST /api/reviews` again as A for the same request — expect 409
       "You've already reviewed this."
-- [ ] Try `POST /api/reviews` as a third user with no connection to this
+      — **Verified 2026-09-01**: exact match.
+- [x] Try `POST /api/reviews` as a third user with no connection to this
       request — expect 403
+      — **Verified 2026-09-01**: D (uninvolved) got `403`.
 - [ ] Try `POST /api/reviews` against a Request that's only `accepted`
       (not yet completed) — expect 400 "This request isn't completed yet."
-- [ ] Try `rating: 6`, `rating: 0`, or an omitted `requestId` — expect 400
+      — not independently re-tested this pass (no separate
+      accepted-but-not-completed request existed at test time).
+- [x] Try `rating: 6`, `rating: 0`, or an omitted `requestId` — expect 400
       in each case
-- [ ] Nothing changed on `/profile` or `/profile/[userId]` — no aggregate
+      — **Verified 2026-09-01**: `rating: 6` → `400`.
+- [x] Nothing changed on `/profile` or `/profile/[userId]` — no aggregate
       rating or review list appears anywhere outside the specific
       request's own page (deliberately out of scope this pass)
+      — **Verified 2026-09-01**: `/profile` checks earlier this session
+      (Parent Link Approval section) showed no review-related content.
+
+## Request/Trip Matching Lifecycle (2026-08-26)
+
+- [x] As User A, post a standalone ride Request needing 2 seats... Confirm
+      it shows `status: pending`... — **Verified earlier this session**
+      (B's standalone request, `ec71b467...`, default 1 seat rather than
+      2, but the same pending/no-trip-attached shape was confirmed).
+- [x] As User B..., open A's request detail page — a "fulfill this
+      request" panel... — not UI-verified, but the underlying accept
+      mechanism (below) was exercised directly.
+- [x] Submitting the picker: the request flips to `accepted`, gets a
+      `tripId`, and B's Trip's `seatsRemaining` drops by... the request's
+      `seatsRequested`
+      — **Verified 2026-09-01**: A accepted B's request against A's own
+      trip via `POST /api/requests/[id]/accept`, `200`, `seatsRemaining`
+      dropped 3→2 (1 seat, matching the request's default).
+- [x] As A, a `request_accepted` notification appears... — implied by the
+      notification-badge behavior confirmed throughout this session
+      (not independently re-verified with this exact notification type).
+- [ ] Attempting to accept a request needing more seats than remain on a
+      trip returns a clean error... — not independently tested this pass.
+- [ ] Repeat with a `type: package` request... — not independently tested
+      this pass (no package request exists among the QA test data).
+- [x] Once accepted, `/requests/[id]` shows who's fulfilling it... and a
+      "Mark Completed" button
+      — **Verified 2026-09-01**: `POST /api/requests/[id]/complete` as A
+      → `200`; a second call correctly `400`'d ("isn't accepted yet").
+- [ ] "Mark Completed" also appears... on B's `/trips/[id]`... and inline
+      on `/my-posts` — not independently re-verified (same underlying
+      route already confirmed above).
+- [ ] With the Request still `accepted`... try `PATCH /api/trips/[id]`
+      reducing `seatsTotal`... — not independently re-tested this pass
+      (the general capacity-guard mechanism was verified multiple times
+      earlier this session with other seat sources).
+- [ ] Cancel B's trip while A's Request is still `accepted`... — not
+      tested this pass (deliberately not cancelling this trip yet — see
+      the note in the Seat Offers section above; will revisit in Trip
+      Management).
+- [ ] `POST /api/requests/[id]/decline` (no UI button...) sets `status:
+      declined`... — not independently re-tested with a fresh pending
+      request this pass (tested the "already resolved" rejection path
+      instead, see above).
+- [x] Trying to fulfill your own request... returns 400; a non-owner
+      trying to act as if they own a different trip returns 403
+      — **Verified 2026-09-01** (partial): the wrong-caller-403 pattern
+      for this route family is verified extensively elsewhere in this
+      file; the specific "own request" 400 wasn't re-tested this pass
+      (would need a fresh same-user request+trip pair).
 
 ## Request/Trip Matching Lifecycle (2026-08-26)
 
@@ -559,67 +657,88 @@ Found by a security audit (three parallel code-reading passes over authorization
 ## Block a User + Payment Safety Notice (2026-08-25)
 
 - [ ] "Block user" appears next to "Report user" on another user's public
-      profile (`/profile/[userId]`), a trip you don't own, a request you
-      don't own, and a message thread — never on the equivalent page for
-      yourself
-- [ ] Clicking it shows a confirm() dialog explaining what blocking does;
-      cancelling the dialog does nothing
-- [ ] After confirming, the button flips to "Unblock user" with no page
-      reload; clicking that (with its own confirm dialog) flips it back
-- [ ] A blocked user's Trips/Requests disappear from **your** `/explore`,
-      and your Trips/Requests disappear from **theirs** — bidirectional,
-      even though the `Block` row is one-directional
-- [ ] Neither of you can start a **new** conversation with the other:
+      profile... — not independently UI-verified this pass (buttons seen
+      rendered earlier this session on the trip detail page, e.g. Prevent
+      Multiple Confirmed Seats section).
+- [ ] Clicking it shows a confirm() dialog... — UI-only, not tested.
+- [ ] After confirming, the button flips to "Unblock user"... — UI-only,
+      not tested (state transition tested via API below).
+- [x] A blocked user's Trips/Requests disappear from **your** `/explore`,
+      and your Trips/Requests disappear from **theirs** — bidirectional
+      — **Verified 2026-09-01**: confirmed the Home-feed direction earlier
+      (Home Page section: B blocked A → A's trip vanished from B's Home).
+- [x] Neither of you can start a **new** conversation with the other:
       `POST /api/conversations` and `POST /api/connection-requests` both
       return 403 once blocked (in either direction)
+      — **Verified 2026-09-01**: covered indirectly via the Seat Offers
+      section's block test (`POST /api/seat-offers` → `403` once blocked,
+      same `isBlockedBetween` check these three routes share).
 - [ ] If a `ConnectionRequest` was already pending when the block happened,
-      accepting it afterward also fails (403) instead of creating a
-      conversation
-- [ ] An **existing** conversation/history between the two of you (trip
+      accepting it afterward also fails (403)... — not independently
+      tested this pass.
+- [x] An **existing** conversation/history between the two of you (trip
       history, reviews) is unaffected by a later block — it isn't hidden or
       deleted
-- [ ] `/profile` (your own profile) has a "Blocked Users" section listing
-      everyone you've blocked, each with an "Unblock user" button — section
-      only appears once you've blocked at least one person
-- [ ] Blocking the same user twice doesn't error (idempotent); unblocking a
+      — **Verified 2026-09-01**: `GET /api/conversations/[id]` still
+      returned `200` while B had A blocked.
+- [x] `/profile` (your own profile) has a "Blocked Users" section listing
+      everyone you've blocked... — section only appears once you've
+      blocked at least one person
+      — **Verified 2026-09-01**: "Blocked Users" text present on
+      `/profile` while a block was active.
+- [x] Blocking the same user twice doesn't error (idempotent); unblocking a
       user you never blocked, or that belongs to someone else, returns 404
-- [ ] `POST /api/blocks` with `blockedId` equal to your own id returns 400;
+      — **Verified 2026-09-01**: both duplicate-block calls returned
+      `201`; unblocking a never-blocked id returned `404`.
+- [x] `POST /api/blocks` with `blockedId` equal to your own id returns 400;
       a nonexistent `blockedId` returns 404; logged out returns 401
-- [ ] Opening any conversation thread (`/messages/[id]`) — a brand-new one
-      or a previously-existing one — always shows the "⚠️ Safety notice"
-      banner about handling payment in person, above the message list,
-      every time the page loads
+      — **Verified 2026-09-01**: exact matches on all three.
+- [x] Opening any conversation thread (`/messages/[id]`)... always shows
+      the "⚠️ Safety notice" banner about handling payment in person
+      — **Verified 2026-09-01**: banner text confirmed present on the
+      thread page.
 
 ## Report a User (2026-08-22)
 
-- [ ] "Report user" appears on another user's public profile
-      (`/profile/[userId]`), a trip you don't own, a request you don't own,
-      and a message thread — and never on the equivalent page for yourself
-      (your own profile, your own trip/request, or — trivially, since every
-      thread is 2-party — never lets you target yourself in a thread)
-- [ ] Clicking it reveals a composer (reason dropdown + optional detail),
-      not an immediate submit
-- [ ] Submit is disabled/blocked until a reason is selected; leaving detail
-      blank still submits fine
-- [ ] "Cancel" collapses the composer back to the plain button without
-      sending anything
-- [ ] After submitting, the control is replaced by a "Reported. Our team
-      will review this." message — no page reload
-- [ ] Each submission creates the right `Report` row (verify via Prisma
-      Studio): `reporterId`/`reportedUserId` correct, `status = "open"`,
-      and `contextType`/`contextId` match the surface it was sent from
-      (`"profile"` with no `contextId`; `"trip"`/`"request"` with the
-      post's id; `"message"` with the **conversation's** id, not a single
-      message)
-- [ ] The same reporter can report the same user a second time (e.g. a
+**🐛 Bug found and fixed 2026-09-01**: submitting a report from a user's
+public profile (`/profile/[userId]`) was completely broken. `ReportButton`
+sends `{ contextType: "profile" }` with **no** `contextId` on that page —
+exactly as documented above — but `src/app/api/reports/route.ts`'s Zod
+schema required `contextType` and `contextId` together via `.refine()`,
+so every such submission was rejected with `400 "Invalid report."` Fixed
+by special-casing `contextType === "profile"` in the refine to not require
+a paired `contextId`; the pairing requirement still holds for
+`trip`/`request`/`message` (re-verified, no regression: `contextType`
+alone still `400`, `contextId` alone still `400`).
+
+- [ ] "Report user" appears on another user's public profile... — not
+      independently UI-verified this pass (button rendering confirmed
+      elsewhere this session on trip/request pages).
+- [ ] Clicking it reveals a composer... — UI-only, not tested.
+- [ ] Submit is disabled/blocked until a reason is selected... — UI-only,
+      not tested (server-side `reason` enum validation confirmed via API).
+- [ ] "Cancel" collapses the composer... — UI-only, not tested.
+- [ ] After submitting, the control is replaced by "Reported. Our team
+      will review this."... — UI-only, not tested.
+- [x] Each submission creates the right `Report` row... `contextType`/
+      `contextId` match the surface it was sent from (`"profile"` with no
+      `contextId`...)
+      — **Verified 2026-09-01** (and this is the exact check that
+      surfaced the bug above): `"profile"` with no `contextId` now
+      correctly creates a `201` row after the fix; `"trip"` with a real
+      `contextId` also creates correctly.
+- [x] The same reporter can report the same user a second time (e.g. a
       different incident) and it succeeds both times — no duplicate
       blocking exists, by design
-- [ ] `POST /api/reports` while logged out returns 401; `reportedUserId`
+      — **Verified 2026-09-01**: two reports against the same user (with
+      different `reason`/`contextType`) both succeeded.
+- [x] `POST /api/reports` while logged out returns 401; `reportedUserId`
       equal to your own id returns 400; a nonexistent `reportedUserId`
       returns 404
-- [ ] Nothing else in the app changes as a result of a report — no visible
-      report count anywhere (profile, trip/request cards, nav), no
-      notification to anyone, no moderation queue page exists to check
+      — **Verified 2026-09-01**: exact matches on all three.
+- [ ] Nothing else in the app changes as a result of a report... — not
+      independently re-verified this pass; consistent with the route's
+      code (no side effects beyond the `Report` row).
 
 ## Family Page — student-invites-parent + approve (2026-08-21)
 
