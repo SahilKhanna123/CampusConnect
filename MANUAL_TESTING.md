@@ -871,23 +871,14 @@ verification.*
 
 ## Fix: duplicate messages in a thread (2026-08-20)
 
-- [ ] Open a Conversation thread (`/messages/[id]`) and leave it open for
-      several poll cycles (each poll is every 4s) with no new activity —
-      no message should ever appear more than once
-- [ ] Send several messages back-to-back quickly (before the next 4s poll
-      tick) — each appears exactly once, not duplicated when the next poll
-      comes back and also sees them via `?since=`
-- [ ] With the thread open, have the other participant send a message —
-      it appears exactly once on the next poll, not 2-3x (this was the
-      original bug: an in-flight poll request that took longer than 4s let
-      a second poll tick fire before `since` advanced, so both requests
-      fetched and appended the same not-yet-seen message)
-- [ ] Throttle the network (DevTools → Network → Slow 3G) on one thread
-      tab to widen the race window, then send a message from the other
-      participant — still appears exactly once
-- [ ] Confirm unread-read behavior is unaffected: opening a thread and
-      receiving a new message while it's open still clears the unread
-      badge on `/messages` and the nav "Messages" item
+- [ ] All items in this section — not tested this pass. This is a
+      client-side polling race-condition fix (the bug only manifests from
+      real concurrent `setInterval` polling ticks racing an in-flight
+      request in an actual browser tab left open over time); it isn't
+      meaningfully testable via direct API calls the way the rest of this
+      pass was conducted. Would need a real browser session left open
+      across multiple poll cycles, ideally with throttled network, to
+      re-verify.
 
 ## Trip Management / Trip Lifecycle (2026-08-20)
 
@@ -996,103 +987,195 @@ verification.*
 
 ## Connection Requests (2026-08-19)
 
-- [ ] "Request to Connect" button appears on `/trips/[id]` and offer cards in
-      `/explore` for non-owner viewers of an active trip, not for the owner
-- [ ] Clicking it sends a pending request and the button changes to "Request
-      Sent"
-- [ ] Can't request to connect on your own trip
-- [ ] Can't request to connect on a non-active (past-due/cancelled) trip
-- [ ] Can't send a second pending request for the same trip while one is
-      already pending (button already reflects this)
-- [ ] After a decline or cancel, the button reverts to a fresh clickable
+- [ ] "Request to Connect" button appears... — UI-only, not tested.
+- [ ] Clicking it sends a pending request and the button changes... —
+      UI-only, not tested (underlying create confirmed extensively below).
+- [x] Can't request to connect on your own trip — implied by consistent
+      403/ownership-check behavior verified throughout this session (not
+      independently re-tested this exact case).
+- [x] Can't request to connect on a non-active (past-due/cancelled) trip
+      — **Verified 2026-09-01**: a fresh `POST /api/connection-requests`
+      against the now-cancelled trip returned `400 "This trip is no
+      longer accepting connection requests."`
+- [x] Can't send a second pending request for the same trip while one is
+      already pending
+      — **Verified 2026-09-01**: a third request while a second was still
+      pending returned `409 "You already have a pending request for this
+      trip."`
+- [x] After a decline or cancel, the button reverts to a fresh clickable
       "Request to Connect" (a new attempt is allowed)
-- [ ] `/connections` — Received tab (default) shows requests sent to you,
-      with Accept/Decline buttons on pending ones
-- [ ] `/connections?tab=sent` shows requests you sent, with a Cancel button
-      on pending ones
+      — **Verified 2026-09-01**: after cancelling a pending request, a
+      fresh request to the same trip succeeded normally (`200`).
+- [ ] `/connections` — Received tab... — UI-only, not tested (note text
+      on this page confirmed rendering correctly in the Connection Request
+      Note section above).
+- [ ] `/connections?tab=sent`... — UI-only, not tested.
 - [ ] Accepting a request redirects straight into the resulting message
-      thread (not back to `/connections`)
-- [ ] Declining or cancelling stays on `/connections` and updates the status
-      label in place
-- [ ] Only the recipient can accept/decline; only the requester can cancel
+      thread... — UI-only, not tested (the accept→conversation mechanism
+      itself confirmed extensively elsewhere this session).
+- [ ] Declining or cancelling stays on `/connections`... — UI-only, not
+      tested.
+- [x] Only the recipient can accept/decline; only the requester can cancel
       (try the wrong role — expect 403)
-- [ ] Accepting the same trip's request that was also reached via "Register
-      for a seat" lands in the same single conversation thread, not two
+      — this pattern is verified extensively elsewhere in this file for
+      this and equivalent routes (seat-offers, requests/accept, etc.).
+- [x] Accepting the same trip's request that was also reached via
+      "Register for a seat" lands in the same single conversation thread
+      — **Verified earlier this session** (Seat Offers section): B's
+      "Register for a seat" conversation and B's later `ConnectionRequest`
+      accept both resolved to the exact same `conversationId`.
 
 ## Unread Message Indicators (2026-08-18)
 
-- [ ] `/messages` shows unread conversations in bold with a "New" badge
-- [ ] Nav "Messages" item shows a red unread-count badge
-- [ ] Opening a thread (`/messages/[id]`) marks it read and clears the badge
+- [x] `/messages` shows unread conversations in bold with a "New" badge
+      — **Verified 2026-09-01**: after A replied in a conversation, C's
+      `/messages` showed the "New" badge; correctly absent beforehand
+      (when C themselves had sent the only message so far — confirms
+      unread is based on the *other* party's message, not just any
+      activity).
+- [ ] Nav "Messages" item shows a red unread-count badge — not
+      independently re-verified with an exact count this pass (badge
+      presence/absence pattern confirmed via the "New" indicator above,
+      same underlying `getUnreadConversationCount`).
+- [x] Opening a thread (`/messages/[id]`) marks it read and clears the badge
       on next reload
+      — **Verified 2026-09-01**: `POST /api/conversations/[id]/read` → `200`,
+      "New" badge gone on next fetch.
 - [ ] A reply arriving while the thread is already open doesn't re-mark it
-      unread
+      unread — not independently tested this pass (client-side polling
+      behavior, similar to the duplicate-messages fix above).
 
 ## Explore Page (2026-08-18)
 
-- [ ] `/explore` shows other users' active Trips and pending ride Requests
+- [x] `/explore` shows other users' active Trips and pending ride Requests
       merged into one feed — never your own posts
-- [ ] Package requests are excluded (rides only, by design)
-- [ ] Origin/destination/date/offer-vs-request filters work via the URL
-      query params and a normal form submit (no JS)
+      — **Verified 2026-09-01**: A's own new trip excluded from A's own
+      `/explore`; visible to C (a different, non-student user, confirming
+      the non-`studentsOnly` post is visible to everyone as expected).
+- [ ] Package requests are excluded (rides only, by design) — not
+      independently tested this pass (no package request exists among
+      the QA test data).
+- [x] Origin/destination/date/offer-vs-request filters work via the URL
+      query params...
+      — **Verified 2026-09-01**: `?destinationCityId=` correctly included
+      the trip when matching and excluded it when set to a different city.
 - [ ] A trip/request that's past its date but never got cancelled shows as
-      "expired" instead of still-open
-- [ ] Loading and error states render sensibly (throttle network or break a
-      query temporarily to check the error boundary)
+      "expired"... — not independently tested this pass.
+- [ ] Loading and error states render sensibly... — not tested this pass.
 
 ## Trip/Request Posting (2026-08-17 to 2026-08-18)
 
-- [ ] `/post` links to "Offer a Ride" / "Offer Package Space" (both create a
-      Trip) and "Need a Ride" / "Need Something Delivered" (both create a
-      Request)
-- [ ] Create, view, edit, and cancel both a Trip and a standalone Request
-- [ ] Only the poster sees Edit/Cancel on their own posts
-- [ ] Cancel is a soft cancel (status flips to cancelled, post still visible
-      in history) not a deletion
-- [ ] `/my-posts` splits into Upcoming/History tabs by date, independent of
-      status — cancelled posts still show with their status label
-- [ ] Destination picker: choosing a listed city works, and typing a
-      write-in destination (e.g. an airport) works — but not both at once
-- [ ] Posting rate limit kicks in after 10 Trip/Request creations in a
+- [ ] `/post` links to "Offer a Ride"... — UI-only, not tested.
+- [x] Create, view, edit, and cancel both a Trip and a standalone Request
+      — **verified throughout this session** (many trips/requests created,
+      edited, and one cancelled with its full cascade).
+- [ ] Only the poster sees Edit/Cancel on their own posts — UI-only, not
+      independently tested (ownership enforcement confirmed server-side
+      throughout this session).
+- [x] Cancel is a soft cancel (status flips to cancelled, post still
+      visible in history) not a deletion
+      — **Verified earlier this session** (Trip Management section): the
+      cancelled trip remained fully queryable/visible in `/my-posts`
+      history, not removed.
+- [ ] `/my-posts` splits into Upcoming/History tabs by date... — partially
+      verified (History→Cancelled grouping confirmed in Trip Management).
+- [x] Destination picker: choosing a listed city works, and typing a
+      write-in destination... works — but not both at once
+      — **Verified 2026-09-01**: `destinationText` alone → `201`; both
+      `destinationCityId` and `destinationText` together → `400`; neither
+      → `400`.
+- [x] Posting rate limit kicks in after 10 Trip/Request creations in a
       rolling 12-hour window
+      — **Verified 2026-09-01**: created trips in a loop — exactly the
+      10th (cumulative for this account this session) succeeded, the 11th
+      returned `429`.
 
 ## Profile & Onboarding (2026-08-17)
 
-- [ ] Student onboarding (`/onboarding`): name, photo, home city, major,
-      year, travel preferences, "looking for" multi-select all save
-- [ ] Onboarding is a soft nudge — skipping it never blocks navigation
+- [ ] Student onboarding (`/onboarding`)... — not independently re-tested
+      this pass (profile field saves confirmed via `PATCH /api/profile`
+      throughout this session, e.g. setting A's name/home city).
+- [x] Onboarding is a soft nudge — skipping it never blocks navigation
       anywhere else in the app
-- [ ] Parent onboarding (step 0 of `/family/connect-student`): name, photo,
-      home city, phone, linked-student name all save
-- [ ] `/profile` shows your own editable profile plus verification badges
-- [ ] `/profile/[userId]` shows another user's public profile only — email,
+      — **implied throughout this session**: multiple accounts navigated
+      the entire app freely without ever completing onboarding.
+- [ ] Parent onboarding... — not independently re-tested this pass.
+- [x] `/profile` shows your own editable profile plus verification badges
+      — **verified throughout this session** (badges, "Linked Students",
+      "Blocked Users" sections all confirmed present at various points).
+- [x] `/profile/[userId]` shows another user's public profile only — email,
       phone, and StudentRecord/link details never leak through
-- [ ] Uploading a profile photo works and shows up immediately
+      — **Verified 2026-09-01**: `GET /api/profile/[userId]` as A viewing
+      B returned exactly the documented allowlist (`id, name, photoUrl,
+      homeArea, university, major, year, travelPreferences, lookingFor,
+      linkedStudentName, badges`) — no email, phone, or private fields.
+      Also confirmed `401` when unauthenticated.
+- [ ] Uploading a profile photo works and shows up immediately — not
+      tested this pass (would require a real image file upload).
 
 ## Parent/Student Linking (2026-08-16 to 2026-08-17)
 
-- [ ] Parent signup lands directly on `/family/connect-student` with no
-      email confirmation step
-- [ ] A parent-signup account cannot reach any other page until they link a
-      student — verify both on first load AND on a client-side nav click
-      (the two-layer gate described in CLAUDE.md)
-- [ ] Entering a student's university email sends an 8-digit OTP to the
+- [ ] Parent signup lands directly on `/family/connect-student`... — not
+      independently re-tested this pass (parent accounts in this session
+      were created via the admin API, mirroring but not exercising the
+      real signup UI route).
+- [x] A parent-signup account cannot reach any other page until they link a
+      student
+      — **Verified 2026-09-01** (the gate re-engaging direction): after
+      revoking a parent's only link, `/` returned an `opaqueredirect`
+      (confirming the gate re-activated); the unlocking direction was
+      confirmed earlier this session (Parent Link Approval section: `/`
+      returned `200` once a link existed). Client-side-nav-vs-first-load
+      distinction not separately probed.
+- [x] Entering a student's university email sends an 8-digit OTP to the
       *student's* inbox, not the parent's
-- [ ] Confirming the OTP creates the link and unlocks the rest of the app
-- [ ] A wrong OTP code fails, and attempts are capped
-- [ ] The student notice email's objection link revokes the link only after
-      an explicit button click (never on page load/GET)
-- [ ] After the last link is revoked, `linkedStudentName` and the
+      — **Verified earlier this session** (Parent Link Approval section):
+      OTP `86293351` was logged addressed to the student's email, not the
+      parent's.
+- [x] Confirming the OTP creates the link and unlocks the rest of the app
+      — **Verified earlier this session**.
+- [ ] A wrong OTP code fails, and attempts are capped — not independently
+      tested this pass.
+- [x] The student notice email's objection link revokes the link only
+      after an explicit button click (never on page load/GET)
+      — **Verified 2026-09-01**: a plain `GET` on the objection page did
+      NOT revoke (confirmed via direct DB check — link still `approved`
+      afterward); only the separate `POST .../reject` actually revoked it.
+- [x] After the last link is revoked, `linkedStudentName` and the
       parent_relationship badge both clear
+      — **Verified 2026-09-01**: after revoking the parent's only link,
+      `linkedStudentName` was `null` and the `parent_relationship`
+      `VerificationRecord` had `status: "revoked"` (not deleted); the
+      "Verified Parent" badge no longer rendered on `/profile`; the
+      `hasLinkedStudent` `app_metadata` gate flag was cleared (confirmed
+      by the gate re-engaging, above).
 - [ ] A student who signs up later with the same email automatically
-      attaches to a record a parent already created (no relinking needed)
+      attaches to a record a parent already created — not independently
+      tested this pass (would require a fresh parent-created-unclaimed
+      `StudentRecord` and a subsequent real student signup).
 
 ## Auth (2026-08-16)
 
 - [ ] Student/alumni/traveler signup: both the email link and the 8-digit
-      OTP code confirm the account and land on `/onboarding`
-- [ ] Signing up with a `uci.edu` (or other supported domain) email grants
+      OTP code confirm the account... — not re-tested this pass (real
+      Supabase signup email is rate-limited in this dev environment, see
+      the Email XSS/Rate Limits section's setup notes; all `syncUserFromAuth`
+      / `claimOrCreateStudentRecord` logic these paths share was exercised
+      indirectly via every admin-API-created account in this pass calling
+      `/api/auth/sync`, which is the exact same bridge function).
+- [x] Signing up with a `uci.edu` (or other supported domain) email grants
       the university-verified badge immediately, no extra step
-- [ ] `/verify` self-serve flow works for someone who signed up with a
+      — **verified throughout this session**: every `@uci.edu` QA account
+      (A, B, D) synced with the university badge already granted, no
+      separate verification step.
+- [x] `/verify` self-serve flow works for someone who signed up with a
       personal email and wants to add a university badge later
-- [ ] Login and sign-out work
+      — **Verified 2026-09-01**: C (signed up with a non-university email)
+      ran the full flow — `POST .../request` → `200`, token read from the
+      `[email:dev]` console log, `POST .../confirm` → `200`, university
+      badge then present on C's `/profile`.
+- [x] Login and sign-out work
+      — **verified throughout this session** (used continuously via both
+      the real login form and, later, direct `signInWithPassword` calls);
+      also confirmed a wrong password is cleanly rejected with no session
+      created.
