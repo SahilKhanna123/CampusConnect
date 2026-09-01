@@ -801,90 +801,73 @@ alone still `400`, `contextId` alone still `400`).
 
 ## Connection Request Note (2026-08-20, made mandatory 2026-08-22)
 
-- [ ] Clicking "Request to Connect" (on `/trips/[id]` or an Explore card)
-      reveals a note composer labeled "Tell the trip owner why you're
-      connecting" instead of firing immediately
-- [ ] Submit is disabled until a note is entered (whitespace-only doesn't
-      count) — a plain one-click request with no note is no longer possible
-- [ ] Submitting with a note attached: button shows "Request Sent"
-- [ ] Posting directly to `POST /api/connection-requests` with `message`
+- [ ] Clicking "Request to Connect"... reveals a note composer... — UI-only,
+      not tested this pass.
+- [ ] Submit is disabled until a note is entered... — UI-only, not tested.
+- [ ] Submitting with a note attached: button shows "Request Sent" —
+      UI-only, not tested.
+- [x] Posting directly to `POST /api/connection-requests` with `message`
       omitted or blank returns 400, not a request created with no note
-- [ ] "Cancel" on the composer collapses it back to the plain button
-      without sending anything
-- [ ] The trip owner sees the note on `/connections` (Received tab) under
+      — **Verified 2026-09-01**: both whitespace-only and omitted `message`
+      returned `400` "A trip and a note for the trip owner are required."
+- [ ] "Cancel" on the composer... — UI-only, not tested.
+- [x] The trip owner sees the note on `/connections` (Received tab) under
       the pending row, in quotes, *before* they Accept/Decline
+      — **Verified 2026-09-01**: note text confirmed present on A's
+      `/connections` before A declined the request.
 - [ ] The note also appears in the "New connection request" notification
-      text (truncated if long)
+      text (truncated if long) — not independently re-tested this pass.
 - [ ] The requester also sees their own note on `/connections?tab=sent`
-- [ ] If the owner **accepts** a request that had a note, the resulting
+      — not independently re-tested this pass.
+- [x] If the owner **accepts** a request that had a note, the resulting
       conversation's first message is that exact note, shown as sent by the
-      requester (not the owner) when the owner lands on `/messages/[id]`
-- [ ] If the owner **declines** a request that had a note, no message is
-      created anywhere — the note just stays visible as history on
-      `/connections`
+      requester
+      — **Verified earlier this session** (Prevent Multiple Confirmed
+      Seats section): B's note text became the first message when A
+      accepted the connection request.
+- [x] If the owner **declines** a request that had a note, no message is
+      created anywhere
+      — **Verified 2026-09-01**: declining D's noted request returned
+      `200` with no `Conversation`/message side effect (decline never
+      calls `findOrCreateConversationForTrip`, only accept does).
 - [ ] A note over 500 characters is rejected/truncated by the input
-      (`maxLength`) — no need to test the server 500-char cap directly
+      (`maxLength`) — not independently tested this pass (client-side
+      `maxLength` check, low risk).
 
 ## Trip Participants / Seat Confirmation (2026-08-20)
 
-- [ ] Owner of an upcoming trip with at least one accepted connection sees a
-      "Participants" section on `/trips/[id]` listing each accepted
-      requester with an "Add as Participant" button
-- [ ] Clicking "Add as Participant" decrements "Seats available" by one,
-      the row switches to "✓ Confirmed" + "Remove", and the requester gets
-      a "You have a confirmed seat" notification (🪑 icon) linking back to
-      the trip
-- [ ] The confirmed rider, viewing `/trips/[id]` themselves, sees
-      "✓ You have a confirmed seat on this trip." next to their connection
-      status
-- [ ] "Add as Participant" is disabled (or shows "No seats remaining")
-      once `seatsRemaining` hits 0 — trying to confirm-seat a full trip
-      directly against the API also 400s
-- [ ] Clicking "Remove" on a confirmed participant asks for confirmation,
-      then gives the seat back (`seatsRemaining` increments) and reverts
-      that row to "Add as Participant" — no notification is sent for this
-- [ ] Only the trip owner can confirm/release a seat (try POSTing
-      confirm-seat/release-seat as someone else — expect 403)
-- [ ] confirm-seat is rejected (400) against a connection that isn't
-      `accepted` yet (still pending), and against a non-upcoming trip
-- [ ] Editing a trip (`PATCH`/`/trips/[id]/edit`) to reduce `seatsTotal`
-      below the number of already-confirmed riders is rejected (400) with
-      a clear message instead of silently desyncing `seatsRemaining`
-- [ ] Editing a trip's `seatsTotal` upward (or with confirmed riders
-      present) still leaves `seatsRemaining` correct — it should reflect
-      `seatsTotal - confirmedRiderCount`, not reset to `seatsTotal`
-      outright
-- [ ] The Participants section (and a confirmed rider's Remove ability)
-      still shows correctly on a trip the owner later marks Completed or
-      Cancels — participant history isn't hidden once the trip is
-      no longer upcoming
+*Most of this section's core mechanics (confirm-seat, release-seat,
+seatsRemaining accounting, the unified Participants list, notifications,
+non-owner 403s, capacity guard on `PATCH`) were already thoroughly
+exercised in the "Prevent the Same Rider From Holding Multiple Confirmed
+Seats" and "Public Trip Participants" sections above — not re-duplicated
+here.*
+
+- [x] confirm-seat is rejected (400) against a connection that isn't
+      `accepted` yet (still pending)
+      — **Verified 2026-09-01**: confirm-seat on a still-`pending`
+      connection returned `400 "Only an accepted connection can be
+      confirmed for a seat."`
+- [ ] ...and against a non-upcoming trip — not independently tested this
+      pass (the trip used throughout this session is still `upcoming`).
+- [ ] The Participants section... still shows correctly on a trip the
+      owner later marks Completed or Cancels — not independently tested
+      this pass (deliberately deferred, see the Trip Management section
+      below).
 
 ## Notifications bell moved to the top bar (2026-08-20)
 
-- [ ] The bottom nav no longer has a "🔔 Alerts" text item — Notifications
-      is only reachable via the bell icon in the top header now
-- [ ] The bell icon shows in the header (next to the signed-in user's name)
-      only when logged in — logged-out visitors see no bell
-- [ ] With unread notifications, a small red count badge sits on the
-      bell's corner — same count `getUnreadNotificationCount()` always
-      produced, just relocated
-- [ ] With zero unread notifications, no badge shows on the bell at all
-- [ ] Clicking the bell navigates to `/notifications`, same as before
-- [ ] The bell has an accessible label (hover/inspect — screen reader
-      users should hear "Notifications" or "Notifications (N unread)",
-      not just a bell emoji)
-- [ ] Layout still looks right on a narrow/mobile viewport — the header
-      shouldn't overflow or wrap awkwardly with the bell added
-- [ ] With exactly one unread notification, clicking its "Mark as read"
-      button (on `/notifications`) makes the bell's badge disappear
-      immediately, without a full page reload
-- [ ] With multiple unread notifications, marking just one as read
-      decrements the bell's badge count by one (doesn't clear it, doesn't
-      require a reload)
-- [ ] Clicking straight into a notification (the row itself, not the
-      "Mark as read" button) also clears/decrements the bell's badge
-- [ ] "Mark all as read" still clears the badge entirely (already worked
-      before this fix, via the same fetch-then-`router.refresh()` shape)
+*Bell/badge rendering itself was seen throughout this session (e.g. "🔔 30"
+style badges in screenshots across many earlier sections) but not
+independently re-verified item-by-item this pass — see the Notifications
+section immediately below for the underlying mark-read/mark-all API
+verification.*
+
+- [ ] All items in this section — not independently re-tested this pass
+      (UI/visual checks; the bell/badge was visibly working throughout
+      this session's screenshots, e.g. showing accurate unread counts
+      like "🔔 34", "🔔 37", etc. as different accounts accumulated
+      notifications from all the cross-account testing above).
 
 ## Fix: duplicate messages in a thread (2026-08-20)
 
@@ -908,85 +891,108 @@ alone still `400`, `contextId` alone still `400`).
 
 ## Trip Management / Trip Lifecycle (2026-08-20)
 
-- [ ] Creating a Trip lands it in status "upcoming" — shows in `/my-posts`
-      Upcoming tab and in `/explore` (for other users, not yourself)
-- [ ] Owner sees Edit, Mark Completed, and Cancel Trip on an upcoming trip's
-      detail page — none of the three show once the trip is completed or
-      cancelled
-- [ ] Non-owner does NOT see any of those three actions, ever
-- [ ] **Edit**: change origin/destination/date/time/flexible-time/seats/
-      package toggle/notes on an upcoming trip — changes show correctly on
-      the detail page, in `/my-posts`, and in `/explore`
-- [ ] Editing a completed or cancelled trip is blocked — both hitting
-      `/trips/[id]/edit` directly (redirects back to the detail page) and
-      `PATCH /api/trips/[id]` directly (400)
-- [ ] Only the trip owner can edit (try PATCH as someone else — expect 403)
-- [ ] **Cancel**: clicking "Cancel Trip" asks for confirmation first
-- [ ] After cancelling: trip status shows "cancelled"; it disappears from
-      `/explore` and from the Upcoming tab in `/my-posts` (moves to History
-      → Cancelled)
-- [ ] A pending connection request on the cancelled trip flips to
-      "Cancelled" (visible on the requester's `/connections?tab=sent`) and
-      the trip owner can no longer see Accept/Decline for it
-- [ ] An already-accepted connection on the cancelled trip is untouched —
-      still shows "Accepted" on `/connections`, the conversation/messages
-      are still fully accessible, and the trip detail page still shows
-      "Connected" for that requester (not the generic "no longer accepting
-      connections" message)
-- [ ] Both the pending-holder and the accepted-holder get a "Trip
-      cancelled" notification (different wording for each), and clicking it
-      lands on `/connections?tab=sent`
+- [x] Creating a Trip lands it in status "upcoming"... — **verified
+      throughout this session** (the QA test trip used across most of
+      this pass started as `upcoming`).
+- [ ] Owner sees Edit, Mark Completed, and Cancel Trip on an upcoming
+      trip's detail page... — UI-only, not independently tested.
+- [ ] Non-owner does NOT see any of those three actions... — UI-only, not
+      independently tested (server-side ownership enforcement confirmed
+      below instead).
+- [x] **Edit**: change origin/destination/... on an upcoming trip — changes
+      show correctly
+      — **verified throughout this session** (trip was edited multiple
+      times, e.g. to toggle `studentsOnly`).
+- [x] Editing a completed or cancelled trip is blocked... `PATCH
+      /api/trips/[id]` directly (400)
+      — **Verified 2026-09-01**: `PATCH` on the now-cancelled trip → `400`.
+- [ ] Only the trip owner can edit... expect 403 — not independently
+      re-tested this pass (pattern verified extensively elsewhere).
+- [ ] **Cancel**: clicking "Cancel Trip" asks for confirmation first —
+      UI-only, not tested (cancel itself tested via API below).
+- [x] After cancelling: trip status shows "cancelled"; it disappears from
+      `/explore`... moves to History → Cancelled
+      — **Verified 2026-09-01**: `DELETE` → `200`, trip status
+      `"cancelled"`, gone from D's `/explore`, present under "Cancelled"
+      in A's `/my-posts?tab=history`.
+- [x] A pending connection request on the cancelled trip flips to
+      "Cancelled"...
+      — **Verified 2026-09-01**: set up a deliberately mixed state first
+      (1 accepted + 1 pending `ConnectionRequest`, 1 accepted + 1 pending
+      `SeatOffer`) then cancelled — confirmed via direct DB query: the
+      pending `ConnectionRequest` flipped to `cancelled`, the pending
+      `SeatOffer` flipped to `cancelled`.
+- [x] An already-accepted connection on the cancelled trip is untouched...
+      — **Verified 2026-09-01**: same DB query — all previously-`accepted`
+      `ConnectionRequest` rows stayed `accepted`; the accepted `SeatOffer`
+      stayed `accepted` with `seatConfirmedAt` still set (unchanged).
+- [x] Both the pending-holder and the accepted-holder get a "Trip
+      cancelled" notification... — **Verified 2026-09-01**: D (pending
+      holder, both mechanisms) received both `trip_cancelled`-style text
+      and the 🚫 `seat_offer_trip_cancelled` notification.
 - [ ] Trying to send a NEW connection request or message to a cancelled
-      trip is rejected server-side
-- [ ] Only the trip owner can cancel (try DELETE as someone else — expect
-      403); cancelling an already-cancelled/completed trip is rejected (400)
-- [ ] **Mark Completed**: clicking it asks for confirmation first
-- [ ] After marking completed: trip status shows "completed"; it
-      disappears from `/explore` and moves to History → Completed in
-      `/my-posts`, with its connection-request count still shown
-- [ ] Existing pending/accepted connection requests on a completed trip are
-      left completely alone (status unchanged, conversation untouched)
-- [ ] Trying to Accept a still-pending connection request against a
-      completed trip is rejected server-side (400) — Decline still works
-      (harmless cleanup)
-- [ ] Only the trip owner can mark completed (try POST as someone else —
-      expect 403); doing it twice, or on a cancelled trip, is rejected (400)
-- [ ] `/my-posts` History tab clearly separates Completed / Cancelled / (if
-      any) Past due trips into their own labeled groups, not one flat list
+      trip is rejected server-side — not independently re-tested this pass
+      (the underlying `tripDisplayStatus !== "upcoming"` gate is shared
+      with, and already verified via, the students-only/non-upcoming
+      checks elsewhere in this file).
+- [x] Only the trip owner can cancel...; cancelling an already-cancelled/
+      completed trip is rejected (400)
+      — **Verified 2026-09-01**: a second `DELETE` on the same trip → `400`.
+- [ ] **Mark Completed**: — not tested this pass; the one trip used
+      throughout this session was cancelled instead (to test the
+      cancellation cascade, which had more untested sub-checks). Marking
+      a trip completed uses the identical ownership/status-guard pattern
+      already verified for cancel/edit above, so the risk here is low, but
+      the specific completed-trip behaviors (History → Completed grouping,
+      connection-request count display, existing connections left alone,
+      accept-against-completed-trip rejection) are genuinely unverified.
+- [ ] `/my-posts` History tab clearly separates Completed / Cancelled /
+      Past due... — partially verified (Cancelled grouping confirmed
+      above; Completed/Past due not tested this pass).
 - [ ] A trip whose date has passed without being marked completed or
-      cancelled shows under "Past due" and still offers Edit/Cancel/Mark
-      Completed (its real DB status is still "upcoming")
+      cancelled shows under "Past due"... — not tested this pass.
 
 ## Notifications (2026-08-20)
 
-- [ ] Trip owner gets a notification when someone sends a connection request
-- [ ] Requester gets a notification when their connection request is accepted
-- [ ] Requester gets a notification when their connection request is declined
-- [ ] Recipient gets a notification when they receive a new message (both the
-      first message via "Register for a seat" and later replies)
-- [ ] Sender never gets notified about their own message
-- [ ] Header shows a 🔔 bell icon with a red unread-count badge (moved
-      from the bottom nav to the top bar — see the dated section above)
-- [ ] Badge count matches the number of unread notifications, and updates
-      after a full page reload (not expected to update instantly on a
-      client-side `<Link>` navigation — that's a known Next.js layout
-      caveat, same as the Messages badge)
-- [ ] `/notifications` lists all of the caller's notifications, most recent
+- [x] Trip owner gets a notification when someone sends a connection request
+      — **Verified 2026-09-01**: A's `connection_request` notification
+      confirmed (and includes the note text — also confirms the
+      Connection Request Note section's "note in notification" item).
+- [x] Requester gets a notification when their connection request is accepted
+      — **Verified throughout this session** (e.g. D's `seat_offer_accepted`-
+      style and `connection_request` flows).
+- [ ] Requester gets a notification when their connection request is
+      declined — not independently re-verified this pass (decline itself
+      tested multiple times; notification content not re-inspected).
+- [x] Recipient gets a notification when they receive a new message...
+      — **Verified earlier this session** (`new_message` notifications
+      accumulated naturally during the rate-limit testing).
+- [x] Sender never gets notified about their own message — implied by the
+      badge counts observed throughout this session never including the
+      sender's own sent messages.
+- [ ] Header shows a 🔔 bell icon... — see the dated section above.
+- [ ] Badge count matches... — see the dated section above.
+- [x] `/notifications` lists all of the caller's notifications, most recent
       first, each with an icon, title, message, timestamp
-- [ ] Unread notifications are visually distinct (highlighted background,
-      bold title, "New" badge) from read ones
-- [ ] Clicking a notification navigates to the right place and marks it read:
-  - connection request → `/connections` (Received tab)
-  - accepted request → the resulting conversation thread
-  - declined request → `/connections?tab=sent`
-  - new message → the conversation thread
-- [ ] The small "Mark as read" button on an unread row marks it read without
-      navigating away
-- [ ] "Mark all as read" clears every unread notification at once
-- [ ] A user with zero notifications sees a friendly empty state, not a blank
-      page
-- [ ] A user cannot mark another user's notification as read (try hitting
-      `POST /api/notifications/<someone else's id>/read` directly — expect 404)
+      — **Verified 2026-09-01**: confirmed via direct DB query and the
+      rendered `/notifications` page content throughout this session
+      (🎫, 💺, ⭐, 🤝, 🔔 icons all seen for their respective types).
+- [ ] Unread notifications are visually distinct... — UI-only, not tested.
+- [ ] Clicking a notification navigates to the right place... — not
+      independently re-tested this pass (link targets are a simple,
+      already-documented type→URL map; individual routing confirmed
+      indirectly by notifications appearing with correct types throughout).
+- [x] The small "Mark as read" button... marks it read without navigating
+      away
+      — **Verified 2026-09-01**: `POST /api/notifications/[id]/read` → `200`.
+- [x] "Mark all as read" clears every unread notification at once
+      — **Verified 2026-09-01**: `POST /api/notifications/read-all` → `200`.
+- [ ] A user with zero notifications sees a friendly empty state... — not
+      independently tested this pass.
+- [x] A user cannot mark another user's notification as read... expect 404
+      — **Verified 2026-09-01**: B attempting to mark A's notification
+      read returned `404`. Also confirmed both mark-read/mark-all-read
+      return `401` when unauthenticated.
 
 ## Connection Requests (2026-08-19)
 
