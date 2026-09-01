@@ -6,6 +6,7 @@ import { tripDisplayStatus } from "@/lib/postStatus";
 import { findOrCreateConversationForTrip } from "@/lib/messaging";
 import { createNotification, truncateForNotification } from "@/lib/notifications";
 import { isBlockedBetween } from "@/lib/blocks";
+import { canSendMessage } from "@/lib/rate-limit";
 
 // GET /api/conversations
 // Lists the caller's conversations, most recently created first, each with
@@ -98,6 +99,12 @@ export async function POST(request: Request) {
     return NextResponse.json(
       { error: "You can't message this user." },
       { status: 403 },
+    );
+  }
+  if (!(await canSendMessage(user.id))) {
+    return NextResponse.json(
+      { error: "You're sending messages too quickly. Try again in a few minutes." },
+      { status: 429 },
     );
   }
 

@@ -4,6 +4,24 @@ const resend = process.env.RESEND_API_KEY
   ? new Resend(process.env.RESEND_API_KEY)
   : null;
 
+// User-controlled strings (e.g. User.name, only length-validated at the
+// Zod layer -- see POST /api/profile) get interpolated into these HTML
+// email bodies and sent to a DIFFERENT person than the one who set the
+// name. Without escaping, a name like `<a href="evil">Accept</a>` would
+// render as real HTML in the recipient's inbox -- a genuine cross-user
+// stored-XSS/phishing vector, not self-XSS. Apply this at every
+// HTML-body interpolation of a user-controlled value below; system-
+// generated values (tokens, URLs, the OTP code, an admin-seeded
+// university name) don't need it.
+export function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 async function send(params: {
   to: string;
   subject: string;
@@ -73,7 +91,7 @@ export async function sendParentConnectionOtpEmail(params: {
     to,
     subject: "Parent Connection Request — CampusConnect",
     html: `
-      <p><strong>${parentName}</strong> is requesting to connect with you on CampusConnect as your parent/guardian.</p>
+      <p><strong>${escapeHtml(parentName)}</strong> is requesting to connect with you on CampusConnect as your parent/guardian.</p>
       <p>If you approve this connection, give them this verification code to enter in CampusConnect:</p>
       <p style="font-size: 24px; font-weight: bold; letter-spacing: 2px;">${otpCode}</p>
       <p>This code expires in 20 minutes. If you don't recognize this request, you can safely ignore this email — no connection will be made without the code above.</p>
@@ -107,7 +125,7 @@ export async function sendParentInviteEmail(params: {
     to,
     subject: `${studentName} invited you to connect on CampusConnect`,
     html: `
-      <p><strong>${studentName}</strong> invited you to connect as their parent/guardian on CampusConnect.</p>
+      <p><strong>${escapeHtml(studentName)}</strong> invited you to connect as their parent/guardian on CampusConnect.</p>
       <p>Accepting lets you see rides and package requests related to them and post on their behalf, clearly labeled as posted by you, for them.</p>
       <p><a href="${acceptUrl}">Accept the invitation</a></p>
       <p>You'll need to log in or sign up using this email address (${to}) to accept. This invitation expires in 7 days.</p>
@@ -126,7 +144,7 @@ export async function sendParentConnectionNoticeEmail(params: {
     to,
     subject: "A parent has connected with you on CampusConnect",
     html: `
-      <p><strong>${parentName}</strong> has connected with you as a parent/guardian on CampusConnect using this email address.</p>
+      <p><strong>${escapeHtml(parentName)}</strong> has connected with you as a parent/guardian on CampusConnect using this email address.</p>
       <p>They can now post rides and package requests on your behalf, clearly labeled as posted by them, for you. They do not have access to your CampusConnect account, messages, or any account you create.</p>
       <p>If you don't recognize this or don't want this connection, you can remove it without needing to create an account:</p>
       <p><a href="${objectionUrl}">This wasn't me — remove this connection</a></p>

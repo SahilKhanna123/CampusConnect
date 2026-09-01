@@ -12,6 +12,9 @@
 .env
 .env.local
 .env.*.local
+# .env.test is intentionally NOT ignored -- it only ever points at the
+# disposable local Postgres from docker-compose.test.yml, never a real
+# database, so it's safe to commit (see .env.test itself).
 
 # misc
 .DS_Store

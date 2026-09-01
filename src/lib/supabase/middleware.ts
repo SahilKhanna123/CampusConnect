@@ -41,6 +41,34 @@ const PARENT_LINK_GATE_EXEMPT_PATHS = [
   "/family/invite/accept",
 ];
 
+// The redirect decision itself, pulled out as a pure predicate so it's
+// unit-testable without faking a NextRequest/@supabase/ssr session -- the
+// surrounding updateSession() below only has to gather these four inputs
+// and hand them here.
+export function shouldRedirectToParentLinkGate(params: {
+  isAuthenticated: boolean;
+  isSignedUpAsParent: boolean;
+  hasLinkedStudentFlag: boolean;
+  isApiRoute: boolean;
+  pathname: string;
+}): boolean {
+  const {
+    isAuthenticated,
+    isSignedUpAsParent,
+    hasLinkedStudentFlag,
+    isApiRoute,
+    pathname,
+  } = params;
+
+  return (
+    isAuthenticated &&
+    isSignedUpAsParent &&
+    !hasLinkedStudentFlag &&
+    !isApiRoute &&
+    !PARENT_LINK_GATE_EXEMPT_PATHS.includes(pathname)
+  );
+}
+
 // Refreshes the Supabase session cookie on every request. Required by the
 // @supabase/ssr cookie-based auth pattern — without this, sessions expire
 // silently in Server Components (which can't write cookies themselves).
@@ -105,11 +133,13 @@ export async function updateSession(request: NextRequest) {
   const hasLinkedStudentFlag = authUser?.app_metadata?.hasLinkedStudent === true;
 
   if (
-    authUser &&
-    isSignedUpAsParent &&
-    !hasLinkedStudentFlag &&
-    !isApiRoute &&
-    !PARENT_LINK_GATE_EXEMPT_PATHS.includes(pathname)
+    shouldRedirectToParentLinkGate({
+      isAuthenticated: !!authUser,
+      isSignedUpAsParent,
+      hasLinkedStudentFlag,
+      isApiRoute,
+      pathname,
+    })
   ) {
     const redirectResponse = NextResponse.redirect(
       new URL(PARENT_LINK_GATE_EXEMPT_PATHS[0], request.url),
