@@ -2,7 +2,7 @@
 
 A trusted community marketplace connecting students, parents, alumni, and travelers moving between a student's home area and college — launching with **Bay Area ↔ UC Irvine**.
 
-Post a ride or a package delivery, browse what others have posted, message before committing, connect, and review each other afterward. The same account can offer a ride one week and request one the next — there's no fixed "driver" or "requester" role.
+Post a ride or a package delivery, browse what others have posted, message before committing, connect, and review each other afterward. The same account can offer a ride one week and request one the next — there's no fixed "driver" or "requester" role. Browsing (`/explore` and individual listing pages) works without an account too — signing up is only required to actually connect or message.
 
 ## Tech Stack
 

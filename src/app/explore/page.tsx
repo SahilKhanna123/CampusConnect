@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser, hasStudentRecord } from "@/lib/auth";
 import { getCitiesByRegion } from "@/lib/geo";
@@ -36,8 +35,12 @@ export default async function ExplorePage({
     kind?: string;
   }>;
 }) {
+  // Deliberately not gated: an unauthenticated visitor gets a read-only
+  // preview of this page (public browse, per product decision) -- every
+  // interaction entry point below (ConnectionRequestButton) still requires
+  // signing up, and the underlying API routes already 401 with no session
+  // regardless of what this page renders.
   const user = await getCurrentUser();
-  if (!user) redirect("/login");
 
   const { originCityId, destinationCityId, date, kind } = await searchParams;
   const showOffers = kind !== "request";
@@ -47,12 +50,15 @@ export default async function ExplorePage({
 
   // A blocked pair disappears from each other's Explore results regardless
   // of who initiated the block (plan doc §7) -- fetched once up front and
-  // applied to both the Trip and Request queries below.
-  const blockedUserIds = await getBlockedCounterpartIds(user.id);
+  // applied to both the Trip and Request queries below. An anonymous
+  // visitor has no blocks of their own, so nothing to exclude on that
+  // basis.
+  const blockedUserIds = user ? await getBlockedCounterpartIds(user.id) : [];
   // A non-student viewer never sees a studentsOnly post at all -- see the
   // schema comment on Request.studentsOnly. A student viewer sees both, so
-  // no extra filter is added for them.
-  const isStudent = hasStudentRecord(user);
+  // no extra filter is added for them. An anonymous visitor is treated the
+  // same as any other non-student.
+  const isStudent = user ? hasStudentRecord(user) : false;
   const studentsOnlyFilter = isStudent ? {} : { studentsOnly: false };
 
   const [citiesByRegion, trips, requests] = await Promise.all([
@@ -60,7 +66,9 @@ export default async function ExplorePage({
     prisma.trip.findMany({
       where: {
         status: "upcoming",
-        travelerId: { not: user.id, notIn: blockedUserIds },
+        travelerId: user
+          ? { not: user.id, notIn: blockedUserIds }
+          : { notIn: blockedUserIds },
         ...studentsOnlyFilter,
         ...(originCityId ? { originCityId } : {}),
         ...(destinationCityId ? { destinationCityId } : {}),
@@ -89,7 +97,9 @@ export default async function ExplorePage({
         type: "ride",
         tripId: null,
         status: "pending",
-        postedById: { not: user.id, notIn: blockedUserIds },
+        postedById: user
+          ? { not: user.id, notIn: blockedUserIds }
+          : { notIn: blockedUserIds },
         ...studentsOnlyFilter,
         ...(originCityId ? { originCityId } : {}),
         ...(destinationCityId ? { destinationCityId } : {}),
@@ -121,7 +131,7 @@ export default async function ExplorePage({
   // after a decline/cancel, see the ConnectionRequest schema comment) --
   // ordering desc and only keeping the first-seen row per tripId picks the
   // most recent one.
-  const myConnectionRequests = showOffers
+  const myConnectionRequests = showOffers && user
     ? await prisma.connectionRequest.findMany({
         where: { requesterId: user.id, tripId: { in: trips.map((t) => t.id) } },
         orderBy: { createdAt: "desc" },
@@ -266,7 +276,11 @@ export default async function ExplorePage({
       ) : (
         <div className="explore-grid">
           {posts.map(({ post }) => (
-            <ExploreCard key={`${post.kind}-${post.id}`} post={post} />
+            <ExploreCard
+              key={`${post.kind}-${post.id}`}
+              post={post}
+              isLoggedIn={!!user}
+            />
           ))}
         </div>
       )}

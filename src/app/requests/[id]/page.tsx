@@ -1,4 +1,4 @@
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getCurrentUser, hasStudentRecord } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -16,8 +16,10 @@ export default async function RequestDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  // Deliberately not gated: an unauthenticated visitor gets a read-only
+  // preview of a request's detail page, same product decision and pattern
+  // as /trips/[id] (see that file's own comment on this).
   const user = await getCurrentUser();
-  if (!user) redirect("/login");
 
   const { id } = await params;
   const found = await prisma.request.findUnique({
@@ -42,20 +44,24 @@ export default async function RequestDetailPage({
   });
   if (!found) notFound();
 
-  const isOwner = found.postedById === user.id;
+  const isOwner = user ? found.postedById === user.id : false;
   // studentsOnly requests are invisible to a non-student, non-owner viewer
-  // -- same 404-not-403 idiom as the equivalent gate on /trips/[id].
-  if (found.studentsOnly && !isOwner && !hasStudentRecord(user)) notFound();
-  const isTripOwner = found.trip?.traveler.id === user.id;
+  // -- same 404-not-403 idiom as the equivalent gate on /trips/[id]. An
+  // anonymous visitor is treated the same as any other non-student.
+  if (found.studentsOnly && !isOwner && !(user && hasStudentRecord(user))) {
+    notFound();
+  }
+  const isTripOwner = user ? found.trip?.traveler.id === user.id : false;
   const counterpartId = isOwner ? found.trip?.traveler.id : found.postedBy.id;
   const counterpartName = isOwner ? found.trip?.traveler.name : found.postedBy.name;
-  const myReview = found.reviews.find((r) => r.reviewerId === user.id);
+  const myReview = user
+    ? found.reviews.find((r) => r.reviewerId === user.id)
+    : undefined;
   const theirReview = counterpartId
     ? found.reviews.find((r) => r.reviewerId === counterpartId)
     : undefined;
-  const initialBlocked = isOwner
-    ? false
-    : await isBlockedBetween(user.id, found.postedById);
+  const initialBlocked =
+    isOwner || !user ? false : await isBlockedBetween(user.id, found.postedById);
   const destinationLabel =
     found.destinationCity?.name ?? found.destinationText ?? "?";
 
@@ -68,7 +74,7 @@ export default async function RequestDetailPage({
   // trip whose date has already passed, same gate every other
   // actionability check in this app already uses.
   const canOffer = !isOwner && requestDisplayStatus(found) === "pending" && found.tripId === null;
-  const eligibleTrips = canOffer
+  const eligibleTrips = canOffer && user
     ? (
         await prisma.trip.findMany({
           where: {
@@ -112,7 +118,10 @@ export default async function RequestDetailPage({
           {found.postedBy.name}
         </Link>
       </p>
-      {!isOwner && (
+      {/* Reporting/blocking inherently requires an account -- see the
+          equivalent comment on /trips/[id] for why these are simply absent
+          for an anonymous viewer rather than linking to sign-up. */}
+      {!isOwner && user && (
         <>
           <ReportButton
             reportedUserId={found.postedBy.id}
@@ -139,7 +148,11 @@ export default async function RequestDetailPage({
 
       {canOffer && (
         <div>
-          {eligibleTrips.length > 0 ? (
+          {!user ? (
+            <Link href="/sign-up" className="connection-request-button">
+              Offer one of your trips
+            </Link>
+          ) : eligibleTrips.length > 0 ? (
             <FulfillRequestForm
               requestId={found.id}
               trips={eligibleTrips.map((t) => ({

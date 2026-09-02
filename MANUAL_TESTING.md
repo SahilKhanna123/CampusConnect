@@ -11,6 +11,57 @@ functions — see the Automated Tests section of CLAUDE.md. Everything else
 automated coverage yet, so this file remains the actual test coverage for
 those.
 
+## Logged-Out Public Preview on Explore + Trip/Request Detail (2026-09-02)
+
+- [x] Signed out (no session), visit `/explore` directly — the listing grid
+      renders normally (not a redirect to `/login`); filters (origin,
+      destination, date, offer-vs-request) still work via the same
+      `?...` query-param form submit
+      — **Verified 2026-09-02**: rendered the full grid signed out; the
+      `?kind=request` filter param also confirmed working (see below).
+- [x] As the same signed-out visitor, a `studentsOnly` post never appears
+      in the `/explore` list (same as any other non-student viewer)
+      — **Verified 2026-09-02**: no "🎓 Students only" pill anywhere in
+      the signed-out `/explore` response.
+- [x] Click into a listing from that signed-out `/explore` view — the
+      trip/request detail page (`/trips/[id]` / `/requests/[id]`) renders
+      fully: route, date, seats, poster name/badge...
+      — **Verified 2026-09-02**: followed a real card's link to
+      `/trips/[id]` signed out — full detail rendered, no redirect.
+- [x] On that detail page as a signed-out visitor: no "Report user" or
+      "Block user" controls anywhere..., and no owner-management controls
+      — **Verified 2026-09-02**: confirmed via screenshot — neither
+      Report/Block nor any owner section rendered.
+- [x] Still signed out, click "Request to Connect" (on an Explore card or
+      a trip detail page) — lands directly on `/sign-up`
+      — **Verified 2026-09-02**: confirmed from both the Explore card and
+      the trip detail page.
+- [x] Still signed out, click "Register for a seat" on a trip detail page
+      — same, lands directly on `/sign-up`
+      — **Verified 2026-09-02**.
+- [ ] Still signed out, on a standalone Request's detail page that's still
+      `pending` and unmatched, click "Offer one of your trips" — lands on
+      `/sign-up` — **not independently verified this pass**: no
+      non-`studentsOnly`, still-`pending`, unmatched standalone ride
+      Request existed in the test data at the time (only already-matched
+      or `studentsOnly` ones did). Implemented via the exact same
+      `user ? real-component : <Link href="/sign-up">` pattern already
+      confirmed working twice above, and `npx tsc --noEmit` passes clean.
+- [x] Navigate directly to a `studentsOnly` trip or request's URL while
+      signed out — a normal `404` page
+      — **Verified 2026-09-02**: a `studentsOnly` request's URL returned
+      the app's real 404 page, not a redirect and not any of its content.
+- [x] `/` (Home) is **unchanged** — still redirects a signed-out visitor
+      straight to `/login`
+      — **Verified 2026-09-02**: `fetch('/', {redirect:'manual'})` signed
+      out still returned `opaqueredirect` (i.e. still redirects).
+- [x] Log in as a real account afterward and re-check `/explore` and a
+      trip/request detail page — zero behavior change from before this
+      feature
+      — **Verified 2026-09-02**: checked *before* signing out for this
+      pass — real `ConnectionRequestButton` and "Connected" status
+      rendered normally for a logged-in viewer.
+
 ## Fix: Email XSS + Messaging/Invite Rate Limits (2026-08-31)
 
 Found by a follow-up security audit (severity-ranked, focused on injection risks and a full rate-limiting sweep) — see CLAUDE.md's Family Page and Messaging sections for the full writeup.
