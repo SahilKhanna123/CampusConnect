@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { getPublicProfile } from "@/lib/profile";
+import { getProfileStats } from "@/lib/reviews";
 import { lookingForLabel } from "@/lib/lookingFor";
 import { ReportButton } from "@/components/ReportButton";
 import { BlockButton } from "@/components/BlockButton";
@@ -19,7 +20,10 @@ export default async function PublicProfilePage({
   if (!viewer) redirect("/login");
 
   const { userId } = await params;
-  const profile = await getPublicProfile(userId);
+  const [profile, stats] = await Promise.all([
+    getPublicProfile(userId),
+    getProfileStats(userId),
+  ]);
   if (!profile) notFound();
 
   const initialBlocked =
@@ -55,6 +59,17 @@ export default async function PublicProfilePage({
           {profile.lookingFor.map(lookingForLabel).join(", ")}
         </p>
       )}
+      <p>
+        {stats.reviewCount > 0
+          ? `${stats.averageRating!.toFixed(1)}/5 (${stats.reviewCount} review${stats.reviewCount === 1 ? "" : "s"})`
+          : "No reviews yet"}
+      </p>
+      <p>
+        {stats.completedTripCount} completed trip
+        {stats.completedTripCount === 1 ? "" : "s"} ·{" "}
+        {stats.completedRequestCount} completed request
+        {stats.completedRequestCount === 1 ? "" : "s"}
+      </p>
       <ul>
         {profile.badges.email && <li>✓ Email Verified</li>}
         {profile.badges.university && <li>✓ University Verified</li>}

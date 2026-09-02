@@ -6,6 +6,7 @@ import {
   hasCompletedOnboarding,
 } from "@/lib/auth";
 import { getCitiesByRegion, getPrimaryRouteLabel } from "@/lib/geo";
+import { getProfileStats } from "@/lib/reviews";
 import { ProfileEditForm } from "@/components/ProfileEditForm";
 import { BlockButton } from "@/components/BlockButton";
 import { prisma } from "@/lib/prisma";
@@ -14,13 +15,11 @@ import { prisma } from "@/lib/prisma";
 // "students should eventually be able to edit non-verification
 // information"); university and verification badges are always read-only,
 // derived from VerificationRecord -- never accepted by PATCH /api/profile.
-// Rating/trip-history aggregation from Review/Request is intentionally not
-// built here yet (out of scope for this feature, tracked separately).
 export default async function ProfilePage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
-  const [citiesByRegion, primaryRoute, blockedUsers] = await Promise.all([
+  const [citiesByRegion, primaryRoute, blockedUsers, stats] = await Promise.all([
     getCitiesByRegion(),
     getPrimaryRouteLabel(user),
     prisma.block.findMany({
@@ -28,6 +27,7 @@ export default async function ProfilePage() {
       include: { blocked: { select: { id: true, name: true, photoUrl: true } } },
       orderBy: { createdAt: "desc" },
     }),
+    getProfileStats(user.id),
   ]);
   // Same fallback order as the nav header in src/app/layout.tsx: a
   // parent's own email is never expected to be university-verified, so
@@ -55,6 +55,17 @@ export default async function ProfilePage() {
 
       {badge && <p>{badge}</p>}
       {primaryRoute && <p>{primaryRoute}</p>}
+      <p>
+        {stats.reviewCount > 0
+          ? `${stats.averageRating!.toFixed(1)}/5 (${stats.reviewCount} review${stats.reviewCount === 1 ? "" : "s"})`
+          : "No reviews yet"}
+      </p>
+      <p>
+        {stats.completedTripCount} completed trip
+        {stats.completedTripCount === 1 ? "" : "s"} ·{" "}
+        {stats.completedRequestCount} completed request
+        {stats.completedRequestCount === 1 ? "" : "s"}
+      </p>
       {!hasCompletedOnboarding(user) && (
         <p>Finish setting up your profile below.</p>
       )}

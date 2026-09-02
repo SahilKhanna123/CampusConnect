@@ -11,6 +11,32 @@ functions — see the Automated Tests section of CLAUDE.md. Everything else
 automated coverage yet, so this file remains the actual test coverage for
 those.
 
+## Profile-Level Rating Aggregation (2026-09-02)
+
+- [ ] A brand-new user with no reviews and no completed trips/requests visits
+      their own `/profile` — shows "No reviews yet" (not "0/5" or "0.0/5"),
+      and "0 completed trips · 0 completed requests"
+- [ ] Same empty state renders correctly on `/profile/[userId]` when viewing
+      that user from another account
+- [ ] After two people complete a Request together (`POST
+      /api/requests/[id]/complete`) and each leaves a review on
+      `/requests/[id]`, both profiles' `/profile` and `/profile/[userId]`
+      views show the real average (`N.N/5 (1 review)`) instead of the empty
+      state
+- [ ] Leaving a second, third review on the same user computes a correct
+      average (not just the most recent rating) — verify with ratings that
+      don't average to a whole number, e.g. 5/3/4 → `4.0/5`
+- [ ] A review someone *gave* to another user does not inflate their own
+      average — only reviews where they're the reviewee count
+- [ ] Marking a Trip completed (`POST /api/trips/[id]/complete`) as its
+      owner increments that owner's "completed trips" count on both profile
+      views; a cancelled or still-upcoming trip does not
+- [ ] Completing a standalone Request increments "completed requests" for
+      both the poster and the trip owner who fulfilled it; a pending,
+      accepted (not yet completed), declined, or cancelled Request does not
+- [ ] `GET /api/profile/[userId]` response JSON includes a `stats` object
+      alongside the existing profile fields
+
 ## Logged-Out Landing Page on Home (2026-09-02)
 
 - [x] Signed out (no session), visit `/` directly — an introduction/landing

@@ -10,6 +10,7 @@ import type {
   ConnectionRequest,
   SeatOffer,
   Conversation,
+  Review,
 } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { makeUser } from "@/lib/testFixtures";
@@ -213,6 +214,33 @@ export async function createSeatOffer(
       recipientId: recipient.id,
       conversationId: conversation.id,
       status: "pending",
+      ...overrides,
+    },
+  });
+}
+
+// request defaults to a fresh completed Request+Trip pair; reviewer/reviewee
+// both default to a fresh, unrelated user -- same caveat as
+// createConnectionRequest's recipient above: this factory does NOT try to
+// infer reviewer/reviewee from the request's actual postedById/
+// trip.travelerId, so a test exercising revieweeId-keyed logic (e.g.
+// getProfileStats) must pass deps.reviewee explicitly as the real target
+// User object.
+export async function createReview(
+  overrides: Partial<Review> = {},
+  deps: { request?: Request; reviewer?: User; reviewee?: User } = {},
+): Promise<Review> {
+  const request =
+    deps.request ??
+    (await createRequest({ status: "completed" }, { trip: await createTrip() }));
+  const reviewer = deps.reviewer ?? (await createUser());
+  const reviewee = deps.reviewee ?? (await createUser());
+  return prisma.review.create({
+    data: {
+      requestId: request.id,
+      reviewerId: reviewer.id,
+      revieweeId: reviewee.id,
+      rating: 5,
       ...overrides,
     },
   });
