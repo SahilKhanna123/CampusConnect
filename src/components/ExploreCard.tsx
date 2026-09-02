@@ -112,7 +112,17 @@ export type ExploreCardPost = TripCardPost | RequestCardPost;
 // offer card's ConnectionRequestButton can sit as a sibling, not nested
 // inside the anchor -- HTML disallows interactive content (a <button>)
 // inside an <a>, and nesting them would also make clicks ambiguous.
-export function ExploreCard({ post }: { post: ExploreCardPost }) {
+export function ExploreCard({
+  post,
+  isLoggedIn = true,
+}: {
+  post: ExploreCardPost;
+  // Defaults to true so Home (/, src/app/page.tsx), which also renders this
+  // card but stays fully auth-gated (always has a real viewer), needs no
+  // change here. /explore is the one caller that ever passes false, for its
+  // logged-out public-preview visitors.
+  isLoggedIn?: boolean;
+}) {
   const href = post.kind === "offer" ? `/trips/${post.id}` : `/requests/${post.id}`;
 
   return (
@@ -165,10 +175,19 @@ export function ExploreCard({ post }: { post: ExploreCardPost }) {
 
       {post.kind === "offer" && (
         <div className="explore-card-actions">
-          <ConnectionRequestButton
-            tripId={post.id}
-            initialStatus={post.connectionRequestStatus}
-          />
+          {isLoggedIn ? (
+            <ConnectionRequestButton
+              tripId={post.id}
+              initialStatus={post.connectionRequestStatus}
+            />
+          ) : (
+            // Same label as the real button, but a plain link to sign-up --
+            // clicking it takes a logged-out visitor straight there rather
+            // than opening the note composer, per product decision.
+            <Link href="/sign-up" className="connection-request-button">
+              Request to Connect
+            </Link>
+          )}
         </div>
       )}
     </div>
