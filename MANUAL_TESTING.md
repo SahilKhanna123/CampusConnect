@@ -11,6 +11,41 @@ functions — see the Automated Tests section of CLAUDE.md. Everything else
 automated coverage yet, so this file remains the actual test coverage for
 those.
 
+## Logged-Out Landing Page on Home (2026-09-02)
+
+- [x] Signed out (no session), visit `/` directly — an introduction/landing
+      page renders (hero tagline + subheading + "Get started free"/"Browse
+      listings" CTAs), not a redirect to `/login`
+      — **Verified 2026-09-02**: rendered signed out at `http://localhost:3000/`,
+      confirmed via page text (title "CampusConnect", hero copy present, no
+      redirect).
+- [x] "Get started free" links to `/sign-up`; "Browse listings" links to
+      `/explore`
+      — **Verified 2026-09-02**: confirmed via `<a>` href inspection —
+      `Get started free -> /sign-up`, `Browse listings -> /explore`.
+- [x] A small live preview grid of real listings renders below the hero,
+      scoped to the active `RouteCommunity`, using the same `ExploreCard`
+      component (with the logged-out sign-up-link swap for the action
+      button) `/explore` already uses signed out
+      — **Verified 2026-09-02**: a real trip ("QA Test Trip 2", Fremont →
+      Irvine) rendered in the grid; its "Request to Connect" link pointed
+      to `/sign-up`, not the real button.
+- [x] Clicking a preview card navigates to the real `/trips/[id]` detail
+      page (same signed-out preview behavior already verified in the
+      Explore section below)
+      — **Verified 2026-09-02**: the card's link href resolved to
+      `/trips/<id>`, matching the existing detail-page preview.
+- [x] Signed in, visit `/` — the original personalized feed still renders
+      ("Home" / "Your route: ..." or "Featured route: ..." heading), not
+      the landing page
+      — **Verified 2026-09-02**: created a temporary confirmed test
+      account, signed in, confirmed `/` rendered "Home" / "Featured route:
+      Bay Area ↔ UC Irvine Area" — the pre-existing signed-in view,
+      unchanged. Test account deleted afterward (Supabase Auth + Prisma).
+- [ ] Visual/styling pass — deliberately deferred per product decision
+      ("don't worry about UI right now"); current page is functional/
+      unstyled beyond the existing shared stylesheet classes it reuses.
+
 ## Logged-Out Public Preview on Explore + Trip/Request Detail (2026-09-02)
 
 - [x] Signed out (no session), visit `/explore` directly — the listing grid
