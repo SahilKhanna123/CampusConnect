@@ -10,6 +10,7 @@ import type {
   ConnectionRequest,
   SeatOffer,
   Conversation,
+  Notification,
 } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { makeUser } from "@/lib/testFixtures";
@@ -213,6 +214,22 @@ export async function createSeatOffer(
       recipientId: recipient.id,
       conversationId: conversation.id,
       status: "pending",
+      ...overrides,
+    },
+  });
+}
+
+export async function createNotification(
+  overrides: Partial<Notification> = {},
+  deps: { user?: User } = {},
+): Promise<Notification> {
+  const user = deps.user ?? (await createUser());
+  return prisma.notification.create({
+    data: {
+      userId: user.id,
+      type: "new_message",
+      title: "Test Notification",
+      message: "Test notification body",
       ...overrides,
     },
   });
