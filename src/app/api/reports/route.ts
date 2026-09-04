@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
+import { canCreateReport } from "@/lib/rate-limit";
 
 // Kept intentionally small and fixed, even though Report.reason is a plain
 // String column with no DB enum -- free-form nuance belongs in the optional
@@ -52,6 +53,13 @@ export async function POST(request: Request) {
   const user = await getCurrentUser();
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  if (!(await canCreateReport(user.id))) {
+    return NextResponse.json(
+      { error: "You've submitted too many reports recently. Please try again later." },
+      { status: 429 },
+    );
   }
 
   const parsed = createSchema.safeParse(await request.json());

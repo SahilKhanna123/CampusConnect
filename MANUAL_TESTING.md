@@ -11,6 +11,20 @@ functions — see the Automated Tests section of CLAUDE.md. Everything else
 automated coverage yet, so this file remains the actual test coverage for
 those.
 
+## Report Rate Limiting (2026-09-04)
+
+- [ ] Submitting a report via `ReportButton` (on a profile, trip, request, or
+      message thread) succeeds normally under the 20-reports-per-24h cap
+- [ ] Submitting 21 reports as the same user within a rolling 24-hour window
+      gets the 21st rejected with a 429 and the message "You've submitted too
+      many reports recently. Please try again later." (fastest way to check:
+      script 21 `POST /api/reports` calls with a valid session cookie against
+      different `reportedUserId`s)
+- [ ] A report made more than 24 hours ago does not count toward the current
+      window's cap (i.e. the limit is rolling, not a fixed calendar reset)
+- [ ] The rate limit is per-reporter, not global — a different user can still
+      submit reports normally while the first user is capped
+
 ## Logged-Out Landing Page on Home (2026-09-02)
 
 - [x] Signed out (no session), visit `/` directly — an introduction/landing

@@ -62,3 +62,22 @@ export async function canSendFamilyInvite(userId: string): Promise<boolean> {
   });
   return count < MAX_FAMILY_INVITES_PER_WINDOW;
 }
+
+const REPORT_WINDOW_HOURS = 24;
+const MAX_REPORTS_PER_WINDOW = 20;
+
+/**
+ * Anti-spam cap: at most MAX_REPORTS_PER_WINDOW Report rows created by one
+ * user per rolling REPORT_WINDOW_HOURS window -- see POST /api/reports.
+ * Reports have zero automated consequence today (manual review only), but
+ * unbounded creation is still a real abuse vector: it can grief a specific
+ * target's report history and would flood any future moderation queue with
+ * noise from one actor.
+ */
+export async function canCreateReport(userId: string): Promise<boolean> {
+  const windowStart = new Date(Date.now() - REPORT_WINDOW_HOURS * 60 * 60 * 1000);
+  const count = await prisma.report.count({
+    where: { reporterId: userId, createdAt: { gte: windowStart } },
+  });
+  return count < MAX_REPORTS_PER_WINDOW;
+}
