@@ -194,12 +194,21 @@ export default async function TripDetailPage({
 
   return (
     <div>
-      <h1>{trip.title || "Untitled trip"}</h1>
-      <p>
-        {trip.originCity.name} → {destinationLabel}
-      </p>
-      <p>Status: {displayStatus}</p>
-      {trip.studentsOnly && <p>🎓 Visible to students only</p>}
+      <div className="detail-header">
+        {trip.studentsOnly && <span className="badge-students-only">🎓 Students only</span>}
+        <h1 className="heading-tight detail-route-headline">
+          {trip.title || "Untitled trip"}
+        </h1>
+        <p className="detail-route-subtitle">
+          {trip.originCity.name}
+          {trip.originCity.region ? `, ${trip.originCity.region.name}` : ""} →{" "}
+          {destinationLabel}
+          {trip.destinationCity?.region ? `, ${trip.destinationCity.region.name}` : ""}
+        </p>
+        <p className={`trip-status-label trip-status-label-${displayStatus}`}>
+          {displayStatus}
+        </p>
+      </div>
       <p>
         {trip.departureDate.toLocaleDateString()}
         {trip.departureTime && ` at ${trip.departureTime}`}
@@ -215,7 +224,7 @@ export default async function TripDetailPage({
         </p>
       )}
       {trip.tripNotes && <p>{trip.tripNotes}</p>}
-      <p>
+      <p className="detail-poster-row">
         Posted by{" "}
         <Link href={`/profile/${trip.traveler.id}`}>{trip.traveler.name}</Link>
       </p>
@@ -238,10 +247,10 @@ export default async function TripDetailPage({
 
       {isOwner && isUpcoming && (
         <div>
-          <Link href={`/trips/${trip.id}/edit`}>Edit</Link>
-          {" · "}
-          <MarkTripCompleteButton tripId={trip.id} />
-          {" · "}
+          <Link href={`/trips/${trip.id}/edit`} className="btn-secondary">
+            Edit
+          </Link>{" "}
+          <MarkTripCompleteButton tripId={trip.id} />{" "}
           <DeletePostButton
             deleteUrl={`/api/trips/${trip.id}`}
             redirectTo="/my-posts"
@@ -344,7 +353,7 @@ export default async function TripDetailPage({
             // Same label as the real button, but a plain link to sign-up --
             // clicking it takes a logged-out visitor straight there rather
             // than opening the note composer, per product decision.
-            <Link href="/sign-up" className="connection-request-button">
+            <Link href="/sign-up" className="connection-request-button btn-primary">
               Request to Connect
             </Link>
           )}
@@ -362,7 +371,7 @@ export default async function TripDetailPage({
             user ? (
               <RegisterInterestForm tripId={trip.id} />
             ) : (
-              <Link href="/sign-up" className="connection-request-button">
+              <Link href="/sign-up" className="connection-request-button btn-secondary">
                 Register for a seat
               </Link>
             )

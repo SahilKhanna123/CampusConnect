@@ -69,8 +69,8 @@ export default async function HomePage() {
         ...regionPairFilter,
       },
       include: {
-        originCity: true,
-        destinationCity: true,
+        originCity: { include: { region: true } },
+        destinationCity: { include: { region: true } },
         traveler: {
           select: {
             id: true,
@@ -96,8 +96,8 @@ export default async function HomePage() {
         ...regionPairFilter,
       },
       include: {
-        originCity: true,
-        destinationCity: true,
+        originCity: { include: { region: true } },
+        destinationCity: { include: { region: true } },
         postedBy: {
           select: {
             id: true,
@@ -146,6 +146,8 @@ export default async function HomePage() {
         title: trip.title,
         originName: trip.originCity.name,
         destinationName: trip.destinationCity?.name ?? trip.destinationText ?? "?",
+        originRegionName: trip.originCity.region.name,
+        destinationRegionName: trip.destinationCity?.region?.name ?? null,
         date: trip.departureDate,
         time: trip.departureTime,
         flexibleTime: trip.flexibleTime,
@@ -167,6 +169,8 @@ export default async function HomePage() {
         id: r.id,
         originName: r.originCity?.name ?? "?",
         destinationName: r.destinationCity?.name ?? r.destinationText ?? "?",
+        originRegionName: r.originCity?.region?.name ?? null,
+        destinationRegionName: r.destinationCity?.region?.name ?? null,
         date: r.neededDate,
         time: r.neededTime,
         flexibleTime: r.flexibleTime,
@@ -188,8 +192,8 @@ export default async function HomePage() {
 
   return (
     <div>
-      <h1>Home</h1>
-      <p>{isPersonal ? `Your route: ${routeLabel}` : `Featured route: ${routeLabel}`}</p>
+      <span className="eyebrow">{isPersonal ? "Your route" : "Featured route"}</span>
+      <h1 className="heading-tight">{routeLabel}</h1>
       <p>
         <Link href="/explore">See everything on Explore</Link> or{" "}
         <Link href="/post">post a trip or request</Link>.
@@ -248,8 +252,8 @@ async function LandingPage() {
       prisma.trip.findMany({
         where: { status: "upcoming", studentsOnly: false, ...regionPairFilter },
         include: {
-          originCity: true,
-          destinationCity: true,
+          originCity: { include: { region: true } },
+          destinationCity: { include: { region: true } },
           traveler: {
             select: {
               id: true,
@@ -275,8 +279,8 @@ async function LandingPage() {
           ...regionPairFilter,
         },
         include: {
-          originCity: true,
-          destinationCity: true,
+          originCity: { include: { region: true } },
+          destinationCity: { include: { region: true } },
           postedBy: {
             select: {
               id: true,
@@ -307,6 +311,8 @@ async function LandingPage() {
           title: trip.title,
           originName: trip.originCity.name,
           destinationName: trip.destinationCity?.name ?? trip.destinationText ?? "?",
+          originRegionName: trip.originCity.region.name,
+          destinationRegionName: trip.destinationCity?.region?.name ?? null,
           date: trip.departureDate,
           time: trip.departureTime,
           flexibleTime: trip.flexibleTime,
@@ -331,6 +337,8 @@ async function LandingPage() {
           id: r.id,
           originName: r.originCity?.name ?? "?",
           destinationName: r.destinationCity?.name ?? r.destinationText ?? "?",
+          originRegionName: r.originCity?.region?.name ?? null,
+          destinationRegionName: r.destinationCity?.region?.name ?? null,
           date: r.neededDate,
           time: r.neededTime,
           flexibleTime: r.flexibleTime,
@@ -352,27 +360,64 @@ async function LandingPage() {
 
   return (
     <div>
-      <section className="landing-hero">
-        <h1>Find your ride. Leave the driving to a friend.</h1>
-        <p>
-          CampusConnect is a trusted community marketplace connecting
-          students, parents, alumni, and travelers moving between a
-          student&apos;s home area and college. Post a ride or a package
-          delivery, browse what others have posted, and message before you
-          commit -- no account needed to look around.
-        </p>
-        <p>
-          <Link href="/sign-up" className="connection-request-button">
-            Get started free
-          </Link>{" "}
-          <Link href="/explore" className="connection-request-button">
-            Browse listings
-          </Link>
-        </p>
+      <section className="landing-hero section-shift-gray">
+        <div>
+          <span className="eyebrow">Student travel, made easy</span>
+          <h1 className="heading-tight landing-hero-title">
+            Find your ride. Leave the driving to a friend.
+          </h1>
+          <p className="landing-hero-subtitle">
+            CampusConnect is a trusted community marketplace connecting
+            students, parents, alumni, and travelers moving between a
+            student&apos;s home area and college. Post a ride or a package
+            delivery, browse what others have posted, and message before you
+            commit -- no account needed to look around.
+          </p>
+          <div className="landing-hero-ctas">
+            <Link href="/sign-up" className="btn-primary">
+              Get started free
+            </Link>
+            <Link href="/explore" className="btn-secondary">
+              Browse listings
+            </Link>
+          </div>
+          <div className="landing-trust-bar">
+            <span>
+              <span className="badge-verified">
+                <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                  <path d="M13.5 4.5 6 12 2.5 8.5l1-1L6 10l6.5-6.5z" />
+                </svg>
+                Verified
+              </span>{" "}
+              university emails
+            </span>
+            <span>No payments, no middlemen</span>
+            <span>Message before you commit</span>
+          </div>
+        </div>
+        <div className="landing-hero-art" aria-hidden="true">
+          <svg viewBox="0 0 320 240" width="100%" height="100%">
+            <circle cx="60" cy="180" r="6" fill="#000000" />
+            <circle cx="260" cy="60" r="6" fill="#1D6FFF" />
+            <path
+              d="M60,180 C140,140 180,100 260,60"
+              stroke="#1D6FFF"
+              strokeWidth="2"
+              fill="none"
+            />
+            <circle r="4" fill="#1D6FFF">
+              <animateMotion
+                dur="3s"
+                repeatCount="indefinite"
+                path="M60,180 C140,140 180,100 260,60"
+              />
+            </circle>
+          </svg>
+        </div>
       </section>
 
-      <section>
-        <h2>Browse listings</h2>
+      <section className="landing-preview-section section-shift-white">
+        <h2 className="heading-tight">Browse listings</h2>
         {previewPosts.length === 0 ? (
           <p>
             <Link href="/explore">See everything on Explore</Link> to browse

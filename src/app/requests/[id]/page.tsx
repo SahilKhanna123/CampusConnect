@@ -10,6 +10,7 @@ import { isBlockedBetween } from "@/lib/blocks";
 import { FulfillRequestForm } from "@/components/FulfillRequestForm";
 import { MarkRequestCompleteButton } from "@/components/MarkRequestCompleteButton";
 import { ReviewForm } from "@/components/ReviewForm";
+import { PosterBadge } from "@/components/ExploreCard";
 
 export default async function RequestDetailPage({
   params,
@@ -27,12 +28,34 @@ export default async function RequestDetailPage({
     include: {
       originCity: { include: { region: true } },
       destinationCity: { include: { region: true } },
-      postedBy: { select: { id: true, name: true, photoUrl: true } },
+      postedBy: {
+        select: {
+          id: true,
+          name: true,
+          photoUrl: true,
+          signedUpAsParent: true,
+          verifications: {
+            where: { status: "verified" },
+            select: { type: true, status: true },
+          },
+        },
+      },
       trip: {
         include: {
           originCity: true,
           destinationCity: true,
-          traveler: { select: { id: true, name: true, photoUrl: true } },
+          traveler: {
+            select: {
+              id: true,
+              name: true,
+              photoUrl: true,
+              signedUpAsParent: true,
+              verifications: {
+                where: { status: "verified" },
+                select: { type: true, status: true },
+              },
+            },
+          },
         },
       },
       reviews: {
@@ -89,12 +112,22 @@ export default async function RequestDetailPage({
 
   return (
     <div>
-      <h1>
-        {found.type === "ride" ? "Ride needed: " : "Delivery needed: "}
-        {found.originCity?.name ?? "?"} → {destinationLabel}
-      </h1>
-      <p>Status: {requestDisplayStatus(found)}</p>
-      {found.studentsOnly && <p>🎓 Visible to students only</p>}
+      <div className="detail-header">
+        {found.studentsOnly && <span className="badge-students-only">🎓 Students only</span>}
+        <span className="eyebrow">
+          {found.type === "ride" ? "Ride needed" : "Delivery needed"}
+        </span>
+        <h1 className="heading-tight detail-route-headline">
+          {found.originCity?.name ?? "?"} → {destinationLabel}
+        </h1>
+        <p className="detail-route-subtitle">
+          {found.originCity?.name ?? "?"}
+          {found.originCity?.region ? `, ${found.originCity.region.name}` : ""} →{" "}
+          {destinationLabel}
+          {found.destinationCity?.region ? `, ${found.destinationCity.region.name}` : ""}
+        </p>
+        <p className="trip-status-label">{requestDisplayStatus(found)}</p>
+      </div>
       {found.neededDate && (
         <p>
           {found.neededDate.toLocaleDateString()}
@@ -112,12 +145,11 @@ export default async function RequestDetailPage({
         </p>
       )}
       {found.notes && <p>{found.notes}</p>}
-      <p>
-        Posted by{" "}
+      <div className="detail-poster-row">
         <Link href={`/profile/${found.postedBy.id}`}>
-          {found.postedBy.name}
+          <PosterBadge poster={found.postedBy} />
         </Link>
-      </p>
+      </div>
       {/* Reporting/blocking inherently requires an account -- see the
           equivalent comment on /trips/[id] for why these are simply absent
           for an anonymous viewer rather than linking to sign-up. */}
@@ -137,8 +169,9 @@ export default async function RequestDetailPage({
 
       {isOwner && (
         <div>
-          <Link href={`/requests/${found.id}/edit`}>Edit</Link>
-          {" · "}
+          <Link href={`/requests/${found.id}/edit`} className="btn-secondary">
+            Edit
+          </Link>{" "}
           <DeletePostButton
             deleteUrl={`/api/requests/${found.id}`}
             redirectTo="/my-posts"
@@ -149,7 +182,7 @@ export default async function RequestDetailPage({
       {canOffer && (
         <div>
           {!user ? (
-            <Link href="/sign-up" className="connection-request-button">
+            <Link href="/sign-up" className="connection-request-button btn-primary">
               Offer one of your trips
             </Link>
           ) : eligibleTrips.length > 0 ? (
@@ -173,18 +206,19 @@ export default async function RequestDetailPage({
       )}
 
       {found.trip && (found.status === "accepted" || found.status === "completed") && (
-        <div>
-          <p>
-            Being fulfilled by{" "}
+        <div className="trip-participant-row">
+          <div>
             <Link href={`/profile/${found.trip.traveler.id}`}>
-              {found.trip.traveler.name}
+              <PosterBadge poster={found.trip.traveler} />
             </Link>
-            &apos;s{" "}
-            <Link href={`/trips/${found.trip.id}`}>
-              trip to {found.trip.destinationCity?.name ?? found.trip.destinationText ?? "?"}
-            </Link>
-            .
-          </p>
+            <p>
+              Fulfilling with{" "}
+              <Link href={`/trips/${found.trip.id}`}>
+                trip to {found.trip.destinationCity?.name ?? found.trip.destinationText ?? "?"}
+              </Link>
+              .
+            </p>
+          </div>
           {found.status === "accepted" && (isOwner || isTripOwner) && (
             <MarkRequestCompleteButton requestId={found.id} />
           )}

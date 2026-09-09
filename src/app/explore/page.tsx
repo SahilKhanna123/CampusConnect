@@ -3,7 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUser, hasStudentRecord } from "@/lib/auth";
 import { getCitiesByRegion } from "@/lib/geo";
 import { tripDisplayStatus, requestDisplayStatus } from "@/lib/postStatus";
-import { ExploreCard, type ExploreCardPost } from "@/components/ExploreCard";
+import { type ExploreCardPost } from "@/components/ExploreCard";
+import { ExploreMapView } from "@/components/ExploreMapView";
 import type { ConnectionStatus } from "@/components/ConnectionRequestButton";
 import { getBlockedCounterpartIds } from "@/lib/blocks";
 import { getConfirmedRiderCounts } from "@/lib/tripParticipants";
@@ -75,8 +76,8 @@ export default async function ExplorePage({
         ...(dateFilter ? { departureDate: dateFilter } : {}),
       },
       include: {
-        originCity: true,
-        destinationCity: true,
+        originCity: { include: { region: true } },
+        destinationCity: { include: { region: true } },
         traveler: {
           select: {
             id: true,
@@ -106,8 +107,8 @@ export default async function ExplorePage({
         ...(dateFilter ? { neededDate: dateFilter } : {}),
       },
       include: {
-        originCity: true,
-        destinationCity: true,
+        originCity: { include: { region: true } },
+        destinationCity: { include: { region: true } },
         postedBy: {
           select: {
             id: true,
@@ -166,6 +167,8 @@ export default async function ExplorePage({
             originName: trip.originCity.name,
             destinationName:
               trip.destinationCity?.name ?? trip.destinationText ?? "?",
+            originRegionName: trip.originCity.region.name,
+            destinationRegionName: trip.destinationCity?.region?.name ?? null,
             date: trip.departureDate,
             time: trip.departureTime,
             flexibleTime: trip.flexibleTime,
@@ -189,6 +192,8 @@ export default async function ExplorePage({
             id: r.id,
             originName: r.originCity?.name ?? "?",
             destinationName: r.destinationCity?.name ?? r.destinationText ?? "?",
+            originRegionName: r.originCity?.region?.name ?? null,
+            destinationRegionName: r.destinationCity?.region?.name ?? null,
             date: r.neededDate,
             time: r.neededTime,
             flexibleTime: r.flexibleTime,
@@ -207,8 +212,9 @@ export default async function ExplorePage({
 
   return (
     <div>
-      <h1>Explore</h1>
-      <p>Browse trips and ride requests from the community.</p>
+      <span className="eyebrow">Explore</span>
+      <h1 className="heading-tight">Trips &amp; ride requests</h1>
+      <p>Browse what the community has posted, or hover a card to see its route.</p>
 
       <form method="get" className="explore-filters">
         <div>
@@ -262,7 +268,9 @@ export default async function ExplorePage({
           </select>
         </div>
         <div>
-          <button type="submit">Apply filters</button>
+          <button type="submit" className="btn-primary">
+            Apply filters
+          </button>
         </div>
         {hasActiveFilter && (
           <div>
@@ -271,19 +279,7 @@ export default async function ExplorePage({
         )}
       </form>
 
-      {posts.length === 0 ? (
-        <p>No trips or ride requests match your filters right now.</p>
-      ) : (
-        <div className="explore-grid">
-          {posts.map(({ post }) => (
-            <ExploreCard
-              key={`${post.kind}-${post.id}`}
-              post={post}
-              isLoggedIn={!!user}
-            />
-          ))}
-        </div>
-      )}
+      <ExploreMapView posts={posts.map((p) => p.post)} isLoggedIn={!!user} />
     </div>
   );
 }

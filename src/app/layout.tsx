@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Inter } from "next/font/google";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import "./globals.css";
@@ -13,16 +14,24 @@ import {
 import { getUnreadConversationCount } from "@/lib/messaging";
 import { getUnreadNotificationCount } from "@/lib/notifications";
 
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-inter",
+  weight: ["400", "500", "600", "700", "800", "900"],
+});
+
 export const metadata: Metadata = {
   title: "CampusConnect",
   description:
     "A trusted community marketplace connecting students, parents, alumni, and travelers between home and college.",
 };
 
-const NAV_ITEMS = [
+// "Post" is deliberately not in this list -- it's rendered as the primary
+// "+ Post a trip" CTA button instead of a tab (see the header JSX below),
+// but /post itself is unchanged and still fully reachable.
+const PRIMARY_TABS = [
   { href: "/", label: "Home" },
   { href: "/explore", label: "Explore" },
-  { href: "/post", label: "Post" },
   { href: "/my-posts", label: "My Posts" },
   { href: "/connections", label: "Connections" },
   { href: "/messages", label: "Messages" },
@@ -48,6 +57,8 @@ export default async function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   const user = await getCurrentUser();
   const pathname = (await headers()).get("x-pathname");
+  const isActiveTab = (href: string) =>
+    href === "/" ? pathname === "/" : !!pathname?.startsWith(href);
 
   if (user?.signedUpAsParent && !hasLinkedStudent(user)) {
     if (!pathname || !PARENT_LINK_GATE_EXEMPT_PATHS.includes(pathname)) {
@@ -81,49 +92,75 @@ export default async function RootLayout({
     : 0;
 
   return (
-    <html lang="en">
+    <html lang="en" className={inter.variable}>
       <body>
         <header className="site-header">
-          <span className="site-title">CampusConnect</span>
-          <span className="site-header-right">
+          <div className="site-header-left">
+            <Link href="/" className="site-logo">
+              <span className="site-logo-mark" aria-hidden="true" />
+              <span className="site-title">CampusConnect</span>
+            </Link>
             {user && (
-              <Link
-                href="/notifications"
-                className="notification-bell"
-                aria-label={
-                  unreadNotificationCount > 0
-                    ? `Notifications (${unreadNotificationCount} unread)`
-                    : "Notifications"
-                }
-              >
-                🔔
-                {unreadNotificationCount > 0 && (
-                  <span className="notification-bell-badge">
-                    {unreadNotificationCount}
-                  </span>
-                )}
-              </Link>
+              <nav className="site-nav-tabs">
+                {PRIMARY_TABS.map((item) => (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={
+                      isActiveTab(item.href)
+                        ? "site-nav-tab site-nav-tab-active"
+                        : "site-nav-tab"
+                    }
+                  >
+                    {item.label}
+                    {item.href === "/messages" && unreadConversationCount > 0 && (
+                      <span className="nav-badge">{unreadConversationCount}</span>
+                    )}
+                  </Link>
+                ))}
+              </nav>
             )}
-            <span className="site-auth-status">
-              {user ? (
-                <>
-                  {user.photoUrl && (
+          </div>
+          <div className="site-header-right">
+            {user ? (
+              <>
+                <Link href="/post" className="btn-primary site-post-cta">
+                  + Post a trip
+                </Link>
+                <Link
+                  href="/notifications"
+                  className="notification-bell"
+                  aria-label={
+                    unreadNotificationCount > 0
+                      ? `Notifications (${unreadNotificationCount} unread)`
+                      : "Notifications"
+                  }
+                >
+                  🔔
+                  {unreadNotificationCount > 0 && (
+                    <span className="notification-bell-badge">
+                      {unreadNotificationCount}
+                    </span>
+                  )}
+                </Link>
+                <div className="site-user">
+                  {user.photoUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={user.photoUrl}
                       alt=""
-                      width={24}
-                      height={24}
-                      style={{
-                        borderRadius: "50%",
-                        verticalAlign: "middle",
-                        marginRight: "0.375rem",
-                        objectFit: "cover",
-                      }}
+                      width={32}
+                      height={32}
+                      className="avatar-circle site-user-avatar"
                     />
+                  ) : (
+                    <span className="avatar-circle site-user-avatar" aria-hidden="true">
+                      {user.name.slice(0, 1).toUpperCase()}
+                    </span>
                   )}
-                  {user.name}
-                  {" · "}
+                  <span className="site-user-name">{user.name}</span>
+                </div>
+                <span className="site-auth-status-verify">
                   {universityBadgeLabel(user) ??
                     parentRelationshipBadgeLabel(user) ??
                     // A parent account never has its own university email to
@@ -131,24 +168,23 @@ export default async function RootLayout({
                     // self-serve /verify flow is for students/alumni/travelers
                     // only, so don't nudge a parent toward it.
                     (!user.signedUpAsParent && (
-                      <Link href="/verify">Verify your university email</Link>
+                      <Link href="/verify">Verify email</Link>
                     ))}
-                  {" · "}
-                  <form action="/api/auth/signout" method="post" style={{ display: "inline" }}>
-                    <button type="submit" className="site-auth-link">
-                      Sign out
-                    </button>
-                  </form>
-                </>
-              ) : (
-                <>
-                  <Link href="/login">Log in</Link>
-                  {" · "}
-                  <Link href="/sign-up">Sign up</Link>
-                </>
-              )}
-            </span>
-          </span>
+                </span>
+                <form action="/api/auth/signout" method="post" style={{ display: "inline" }}>
+                  <button type="submit" className="site-auth-link">
+                    Sign out
+                  </button>
+                </form>
+              </>
+            ) : (
+              <span className="site-auth-status">
+                <Link href="/login">Log in</Link>
+                {" · "}
+                <Link href="/sign-up">Sign up</Link>
+              </span>
+            )}
+          </div>
         </header>
         {showOnboardingNudge && (
           <p className="onboarding-nudge">
@@ -156,16 +192,6 @@ export default async function RootLayout({
           </p>
         )}
         <main className="site-main">{children}</main>
-        <nav className="site-nav">
-          {NAV_ITEMS.map((item) => (
-            <Link key={item.href} href={item.href} className="site-nav-item">
-              {item.label}
-              {item.href === "/messages" && unreadConversationCount > 0 && (
-                <span className="nav-badge">{unreadConversationCount}</span>
-              )}
-            </Link>
-          ))}
-        </nav>
       </body>
     </html>
   );

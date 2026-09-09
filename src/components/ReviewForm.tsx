@@ -76,7 +76,7 @@ export function ReviewForm({
         placeholder="How did it go?"
       />
       {error && <p role="alert">{error}</p>}
-      <button type="submit" disabled={status === "sending" || !rating}>
+      <button type="submit" disabled={status === "sending" || !rating} className="btn-primary">
         {status === "sending" ? "Submitting…" : "Submit Review"}
       </button>
     </form>

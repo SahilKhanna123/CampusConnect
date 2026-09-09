@@ -32,7 +32,7 @@ export function MarkTripCompleteButton({ tripId }: { tripId: string }) {
 
   return (
     <span>
-      <button onClick={handleComplete} disabled={status === "completing"}>
+      <button onClick={handleComplete} disabled={status === "completing"} className="btn-secondary">
         {status === "completing" ? "Marking…" : "Mark Completed"}
       </button>
       {error && <p role="alert">{error}</p>}

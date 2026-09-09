@@ -40,19 +40,28 @@ export function PosterBadge({ poster }: { poster: Poster }) {
           alt=""
           width={36}
           height={36}
-          className="explore-card-avatar"
+          className="explore-card-avatar avatar-circle"
         />
       ) : (
-        <div
-          className="explore-card-avatar explore-card-avatar-placeholder"
+        <span
+          className="explore-card-avatar avatar-circle explore-card-avatar-placeholder"
           aria-hidden="true"
-        />
+        >
+          {poster.name.slice(0, 1).toUpperCase()}
+        </span>
       )}
       <div>
         <div className="explore-card-poster-name">{poster.name}</div>
         <div className="explore-card-poster-role">
           {posterRoleLabel(poster)}
-          {posterIsVerified(poster) && " · ✓ Verified"}
+          {posterIsVerified(poster) && (
+            <span className="badge-verified">
+              <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                <path d="M13.5 4.5 6 12 2.5 8.5l1-1L6 10l6.5-6.5z" />
+              </svg>
+              Verified
+            </span>
+          )}
         </div>
       </div>
     </div>
@@ -65,6 +74,12 @@ export type TripCardPost = {
   title: string | null;
   originName: string;
   destinationName: string;
+  // Region names for the smaller route-subtitle line under the bold city
+  // headline (e.g. "Cupertino, Bay Area -> Irvine, UC Irvine"). Optional so
+  // a caller that hasn't widened its Prisma `include` to join Region yet
+  // still type-checks -- the subtitle line is simply omitted when absent.
+  originRegionName?: string | null;
+  destinationRegionName?: string | null;
   date: Date;
   time: string | null;
   flexibleTime: boolean;
@@ -95,6 +110,8 @@ export type RequestCardPost = {
   id: string;
   originName: string;
   destinationName: string;
+  originRegionName?: string | null;
+  destinationRegionName?: string | null;
   date: Date | null;
   time: string | null;
   flexibleTime: boolean;
@@ -150,7 +167,17 @@ export function ExploreCard({
         )}
 
         <div className="explore-card-route">
-          {post.originName} → {post.destinationName}
+          <div className="explore-card-route-headline">
+            {post.originName} → {post.destinationName}
+          </div>
+          {(post.originRegionName || post.destinationRegionName) && (
+            <div className="explore-card-route-subtitle">
+              {post.originName}
+              {post.originRegionName ? `, ${post.originRegionName}` : ""} →{" "}
+              {post.destinationName}
+              {post.destinationRegionName ? `, ${post.destinationRegionName}` : ""}
+            </div>
+          )}
         </div>
 
         <div className="explore-card-meta">
@@ -184,7 +211,7 @@ export function ExploreCard({
             // Same label as the real button, but a plain link to sign-up --
             // clicking it takes a logged-out visitor straight there rather
             // than opening the note composer, per product decision.
-            <Link href="/sign-up" className="connection-request-button">
+            <Link href="/sign-up" className="connection-request-button btn-primary">
               Request to Connect
             </Link>
           )}
