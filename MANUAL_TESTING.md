@@ -11,6 +11,78 @@ functions — see the Automated Tests section of CLAUDE.md. Everything else
 automated coverage yet, so this file remains the actual test coverage for
 those.
 
+## Visual Redesign Round 1 (2026-09-09)
+
+Applies the black/white/gray + blue-accent design system (approved via a
+Claude Design canvas) to Home, Explore, Trip/Request detail, and Post —
+see CLAUDE.md's design-system notes if added, or the PR description for
+the full rationale. `npm run test`, `npx tsc --noEmit`, and `npm run
+build` all passed clean, but **none of this was walked through in a
+browser** — the coding sandbox's Supabase connection was unreachable
+(`Can't reach database server at aws-0-us-east-2.pooler.supabase.com:6543`)
+for the whole session, unrelated to these changes (raw TCP to that host
+succeeded, so this looks like the Supabase project itself being paused/
+unreachable, not a code issue). Every item below is unverified.
+
+- [ ] Nav/header: signed out, no tab row or "+ Post a trip" CTA renders,
+      just Log in / Sign up. Signed in, all 6 tabs render (Home, Explore,
+      My Posts, Connections, Messages, Profile — `/post` is intentionally
+      not a tab anymore), the active tab has a black underline that moves
+      with navigation, the black "+ Post a trip" CTA goes to `/post`, the
+      Messages tab badge and the 🔔 bell badge still show real unread
+      counts, avatar/initials + name render, sign-out still works.
+- [ ] No dead gap at the bottom of any page now that the old fixed-bottom
+      nav bar is gone (`.site-main`'s padding was changed accordingly).
+- [ ] Parent-link gate still works: a parent account with no linked
+      student is still force-redirected to `/family/connect-student` from
+      any URL; `/family/invite/accept` is still reachable directly.
+- [ ] Onboarding nudge banner still renders under the header (not
+      swallowed by the new header markup) for an account with
+      `onboardingCompletedAt: null`, links to `/onboarding`, and
+      disappears once actually on `/onboarding`.
+- [ ] `/` and `/explore` cards: hovering a card lifts it, the border turns
+      blue (`#1D6FFF`), a shadow appears. A verified poster shows a real
+      green pill with a checkmark, not "· ✓ Verified" text. A
+      students-only post shows a blue pill, not amber. A small gray
+      "City, Region → City, Region" line renders under the bold route
+      line (test a trip whose `destinationCity` is null/uses
+      `destinationText` too — the subtitle should just omit that side,
+      not crash).
+- [ ] `/explore`'s new right-column schematic map: hovering each card in
+      the results grid highlights that card's route on the map (solid
+      blue, animated traveling dot) and dims every other route to ~25%
+      opacity; un-hovering resets it. The filter form (origin/destination/
+      date/type + Clear filters) still works via normal GET navigation.
+- [ ] `/` logged out: the new hero renders (inline SVG illustration, both
+      CTAs styled primary/secondary, a trust-bar line), followed by the
+      live preview grid and its "See everything on Explore" link.
+- [ ] `/` logged in: eyebrow + heading restyled ("Your route: ..." /
+      "Featured route: ..."), card grid unchanged functionally, including
+      both empty-state paths (no featured route configured; nothing
+      posted on the route right now).
+- [ ] `/trips/[id]`: owner sees Edit/Mark Completed/Cancel Trip, all still
+      functional; Participants section still lists rows with working
+      Confirm-Seat/Remove controls. Non-owner sees the Riders section,
+      Report/Block, and Request-to-Connect/Register-for-a-seat flows, all
+      still functional. Status pill text still matches
+      `tripDisplayStatus`.
+- [ ] `/requests/[id]`: now shows a `PosterBadge` (avatar + name + role +
+      verified pill) for the poster instead of a plain name link — same
+      for "Fulfilling with ..." once matched. The three-way review branch
+      (no review yet / their review shown / your own review shown) still
+      renders correctly for a completed request. `canOffer`'s three states
+      (signed out, has eligible trips, has none) all still render.
+- [ ] `/post`: shows two grouped panels ("Offer" / "Need") with a divider;
+      all four tiles still route to the same hrefs as before
+      (`/post/trip`, `/post/trip?package=true`, `/post/request?type=ride`,
+      `/post/request?type=package`) and the downstream forms still
+      pre-fill/pre-select correctly from those query params.
+- [ ] Spillover sanity check (expected to look different, not to break):
+      `/my-posts`, `/connections`, `/messages`, `/messages/[id]`,
+      `/profile` still function — Delete/Mark-Complete buttons, Report/
+      Block buttons, and `.conversation-item` hover-border now pick up the
+      new styling through shared components.
+
 ## Logged-Out Landing Page on Home (2026-09-02)
 
 - [x] Signed out (no session), visit `/` directly — an introduction/landing
