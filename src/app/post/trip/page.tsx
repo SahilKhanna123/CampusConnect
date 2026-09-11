@@ -18,7 +18,7 @@ export default async function CreateTripPage({
   const isUberShare = category === "uber_share";
 
   return (
-    <div>
+    <div className="form-page">
       <span className="eyebrow">Post</span>
       <h1 className="heading-tight">{isUberShare ? "Split an Uber/Lyft" : "Offer a Ride"}</h1>
       <TripPostForm

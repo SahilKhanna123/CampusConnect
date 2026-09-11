@@ -18,7 +18,7 @@ export default async function CreatePackagePostPage({
   const citiesByRegion = await getCitiesByRegion();
 
   return (
-    <div>
+    <div className="form-page">
       <span className="eyebrow">Post</span>
       <h1 className="heading-tight">Package Carrying</h1>
       <PackagePostForm

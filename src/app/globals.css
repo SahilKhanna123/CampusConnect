@@ -1900,6 +1900,18 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   flex-direction: column;
   gap: 1.125rem;
   max-width: 32rem;
+  margin: 0 auto;
+}
+
+/* Wraps the eyebrow+heading+form on a single-form page (create/edit Trip,
+   Request, PackagePost, onboarding) so the heading lines up directly above
+   the centered .app-form below it, rather than staying flush against the
+   page's left edge while the form centers underneath it. Not used on
+   multi-section pages like /profile or /family, where other content
+   still wants the full page width. */
+.form-page {
+  max-width: 32rem;
+  margin: 0 auto;
 }
 
 .app-form > div {

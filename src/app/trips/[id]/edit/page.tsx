@@ -28,7 +28,7 @@ export default async function EditTripPage({
   const citiesByRegion = await getCitiesByRegion();
 
   return (
-    <div>
+    <div className="form-page">
       <span className="eyebrow">Edit</span>
       <h1 className="heading-tight">Edit Trip</h1>
       <TripPostForm

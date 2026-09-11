@@ -19,7 +19,7 @@ export default async function CreateRequestPage({
   const citiesByRegion = await getCitiesByRegion();
 
   return (
-    <div>
+    <div className="form-page">
       <span className="eyebrow">Post</span>
       <h1 className="heading-tight">Post a Request</h1>
       <RequestPostForm

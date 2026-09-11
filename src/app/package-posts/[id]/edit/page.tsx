@@ -21,7 +21,7 @@ export default async function EditPackagePostPage({
   const citiesByRegion = await getCitiesByRegion();
 
   return (
-    <div>
+    <div className="form-page">
       <span className="eyebrow">Edit</span>
       <h1 className="heading-tight">Edit Package Post</h1>
       <PackagePostForm

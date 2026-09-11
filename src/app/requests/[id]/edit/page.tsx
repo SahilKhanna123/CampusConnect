@@ -22,7 +22,7 @@ export default async function EditRequestPage({
   const citiesByRegion = await getCitiesByRegion();
 
   return (
-    <div>
+    <div className="form-page">
       <span className="eyebrow">Edit</span>
       <h1 className="heading-tight">Edit Request</h1>
       <RequestPostForm

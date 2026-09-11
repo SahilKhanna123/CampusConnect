@@ -23,7 +23,7 @@ export default async function OnboardingPage() {
   const badge = universityBadgeLabel(user);
 
   return (
-    <div>
+    <div className="form-page">
       <span className="eyebrow">Welcome</span>
       <h1 className="heading-tight">Set up your profile</h1>
       <p className="profile-meta">
