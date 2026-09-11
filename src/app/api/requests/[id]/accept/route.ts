@@ -19,10 +19,13 @@ const acceptSchema = z.object({ tripId: z.string().min(1) });
 // $transaction (0-rows-affected-as-concurrency-guard) those routes already
 // established -- this is what prevents overbooking relative to both
 // mechanisms at once. Unlike confirm-seat (always exactly 1 seat), a
-// standalone ride Request can ask for more than one (seatsRequested), so the
-// guard/decrement amount is request-specific, not a flat 1. A package-type
-// Request has no numeric capacity to decrement -- only the boolean
-// packageSpaceAvailable needs to be true.
+// standalone Request can ask for more than one (seatsRequested), so the
+// guard/decrement amount is request-specific, not a flat 1. Both remaining
+// categories (personal_car, uber_share) use this same numeric seat pool --
+// package requests moved out entirely to the standalone PackagePost model,
+// which has no "match to a trip" concept at all, so the old boolean
+// packageSpaceAvailable branch this route used to have doesn't apply
+// anymore.
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
@@ -78,15 +81,15 @@ export async function POST(
       { status: 400 },
     );
   }
-
-  const seatsNeeded = found.seatsRequested ?? 1;
-  if (found.type === "package" && !trip.packageSpaceAvailable) {
+  if (found.category !== trip.category) {
     return NextResponse.json(
-      { error: "This trip has no package space available." },
+      { error: "This trip doesn't match what you're requesting." },
       { status: 400 },
     );
   }
-  if (found.type === "ride" && trip.seatsRemaining < seatsNeeded) {
+
+  const seatsNeeded = found.seatsRequested ?? 1;
+  if (trip.seatsRemaining < seatsNeeded) {
     return NextResponse.json(
       { error: "Not enough seats remaining on this trip." },
       { status: 400 },
@@ -102,14 +105,12 @@ export async function POST(
       if (resolved.count === 0) {
         throw new Error("ALREADY_RESOLVED");
       }
-      if (found.type === "ride") {
-        const decremented = await tx.trip.updateMany({
-          where: { id: tripId, seatsRemaining: { gte: seatsNeeded } },
-          data: { seatsRemaining: { decrement: seatsNeeded } },
-        });
-        if (decremented.count === 0) {
-          throw new Error("NO_CAPACITY");
-        }
+      const decremented = await tx.trip.updateMany({
+        where: { id: tripId, seatsRemaining: { gte: seatsNeeded } },
+        data: { seatsRemaining: { decrement: seatsNeeded } },
+      });
+      if (decremented.count === 0) {
+        throw new Error("NO_CAPACITY");
       }
     });
   } catch (err) {
@@ -132,7 +133,7 @@ export async function POST(
     userId: found.postedById,
     type: "request_accepted",
     title: "Your request was accepted",
-    message: `${user.name} is fulfilling your ${found.type === "ride" ? "ride" : "delivery"} request${trip.title ? ` with "${trip.title}"` : ""}.`,
+    message: `${user.name} is fulfilling your request${trip.title ? ` with "${trip.title}"` : ""}.`,
     relatedId: found.id,
   });
 

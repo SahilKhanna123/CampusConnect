@@ -14,7 +14,13 @@ type Message = {
   sender: { id: string; name: string; photoUrl: string | null };
 };
 
-const POLL_INTERVAL_MS = 4000;
+// 8s, not 4s -- halves the request volume (and the middleware session-check
+// + DB round trip that rides along with every request) for a chat that
+// doesn't need sub-4-second latency. Combined with the visibility check
+// below (skip entirely while the tab is backgrounded), this meaningfully
+// cuts the sustained request rate an open-but-idle thread generates -- see
+// the Supabase Disk IO budget discussion this was added for.
+const POLL_INTERVAL_MS = 8000;
 
 // Polls for new messages while the thread is open -- websockets/realtime
 // are explicitly deferred for MVP (plan doc §14), this is the chosen
@@ -90,6 +96,14 @@ export function MessageThread({
 
   useEffect(() => {
     const interval = setInterval(async () => {
+      // Skip the tick entirely while the tab is backgrounded -- there's no
+      // one looking at the thread, so there's no reason to keep hitting the
+      // API (and the middleware auth check + DB round trip riding along
+      // with it) every POLL_INTERVAL_MS regardless. Resumes on its own the
+      // next tick after the tab becomes visible again -- no separate
+      // visibilitychange listener needed since this check already runs
+      // every interval tick.
+      if (document.visibilityState !== "visible") return;
       if (pollInFlightRef.current) return;
       pollInFlightRef.current = true;
       try {
@@ -237,6 +251,7 @@ export function MessageThread({
             type="button"
             onClick={handleSendSeatOffer}
             disabled={sendingOffer || !seatsAvailable}
+            className="btn-secondary"
           >
             {sendingOffer ? "Sending…" : "Send Seat Request"}
           </button>
@@ -255,7 +270,7 @@ export function MessageThread({
           maxLength={2000}
         />
         {error && <p role="alert">{error}</p>}
-        <button type="submit" disabled={sending || !draft.trim()}>
+        <button type="submit" disabled={sending || !draft.trim()} className="btn-primary">
           {sending ? "Sending…" : "Send"}
         </button>
       </form>

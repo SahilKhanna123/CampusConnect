@@ -67,7 +67,12 @@ export function ConfirmSeatButton({
     return (
       <span className="confirm-seat-control">
         <span className="seat-confirmed-badge">✓ Confirmed</span>{" "}
-        <button type="button" onClick={handleClick} disabled={status === "working"}>
+        <button
+          type="button"
+          onClick={handleClick}
+          disabled={status === "working"}
+          className="btn-secondary"
+        >
           {status === "working" ? "Removing…" : "Remove"}
         </button>
         {error && <p role="alert">{error}</p>}
@@ -81,6 +86,7 @@ export function ConfirmSeatButton({
         type="button"
         onClick={handleClick}
         disabled={status === "working" || !seatsAvailable}
+        className="btn-secondary"
       >
         {status === "working" ? "Adding…" : "Add as Participant"}
       </button>

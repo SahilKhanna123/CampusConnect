@@ -20,26 +20,34 @@ async function main() {
     create: { name: "UC Irvine Area", slug: "uc-irvine-area" },
   });
 
-  const bayAreaCities = [
-    "San Ramon",
-    "Fremont",
-    "San Jose",
-    "Oakland",
-    "San Francisco",
-    "Palo Alto",
+  // City-center coordinates -- populated so the Explore route map (see
+  // src/lib/geocode.ts) can plot these cities immediately, without a
+  // Nominatim round trip on first use.
+  const bayAreaCities: { name: string; latitude: number; longitude: number }[] = [
+    { name: "San Ramon", latitude: 37.7799, longitude: -121.978 },
+    { name: "Fremont", latitude: 37.5485, longitude: -121.9886 },
+    { name: "San Jose", latitude: 37.3382, longitude: -121.8863 },
+    { name: "Oakland", latitude: 37.8044, longitude: -122.2712 },
+    { name: "San Francisco", latitude: 37.7749, longitude: -122.4194 },
+    { name: "Palo Alto", latitude: 37.4419, longitude: -122.143 },
   ];
-  for (const name of bayAreaCities) {
+  for (const { name, latitude, longitude } of bayAreaCities) {
     await prisma.city.upsert({
       where: { name_regionId: { name, regionId: bayArea.id } },
-      update: {},
-      create: { name, regionId: bayArea.id },
+      update: { latitude, longitude },
+      create: { name, regionId: bayArea.id, latitude, longitude },
     });
   }
 
   await prisma.city.upsert({
     where: { name_regionId: { name: "Irvine", regionId: uciArea.id } },
-    update: {},
-    create: { name: "Irvine", regionId: uciArea.id },
+    update: { latitude: 33.6846, longitude: -117.8265 },
+    create: {
+      name: "Irvine",
+      regionId: uciArea.id,
+      latitude: 33.6846,
+      longitude: -117.8265,
+    },
   });
 
   await prisma.routeCommunity.upsert({

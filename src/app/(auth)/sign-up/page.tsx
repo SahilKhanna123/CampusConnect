@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
@@ -155,30 +156,35 @@ export default function SignUpPage() {
 
   if (!persona) {
     return (
-      <div>
-        <h1>How will you use CampusConnect?</h1>
-        <ul>
+      <div className="auth-card">
+        <span className="eyebrow">Get started</span>
+        <h1 className="heading-tight">How will you use CampusConnect?</h1>
+        <div className="persona-picker">
           {PERSONAS.map((p) => (
-            <li key={p.key}>
-              <button onClick={() => setPersona(p.key)}>{p.label}</button>
-            </li>
+            <button key={p.key} onClick={() => setPersona(p.key)}>
+              {p.label}
+            </button>
           ))}
-        </ul>
+        </div>
+        <p className="auth-footer">
+          Already have an account? <Link href="/login">Log in</Link>
+        </p>
       </div>
     );
   }
 
   if (status === "sent" || status === "verifying") {
     return (
-      <div>
-        <h1>Check your email</h1>
-        <p>
+      <div className="auth-card">
+        <span className="eyebrow">Almost there</span>
+        <h1 className="heading-tight">Check your email</h1>
+        <p className="profile-meta">
           We sent a confirmation link to <strong>{email}</strong> — click it,
           or enter the code from the same email below (use the code if the
           link doesn&apos;t work, which can happen with some university
           email systems).
         </p>
-        <form onSubmit={handleVerifyCode}>
+        <form onSubmit={handleVerifyCode} className="app-form">
           <div>
             <label htmlFor="code">Verification code</label>
             <input
@@ -202,14 +208,13 @@ export default function SignUpPage() {
   }
 
   return (
-    <div>
-      <h1>Sign Up</h1>
-      <p>
-        <button onClick={() => setPersona(null)}>
-          &larr; {PERSONAS.find((p) => p.key === persona)?.label}
-        </button>
-      </p>
-      <form onSubmit={handleSubmit}>
+    <div className="auth-card">
+      <button className="auth-back-button" onClick={() => setPersona(null)}>
+        &larr; {PERSONAS.find((p) => p.key === persona)?.label}
+      </button>
+      <span className="eyebrow">Sign up</span>
+      <h1 className="heading-tight">Create your account</h1>
+      <form onSubmit={handleSubmit} className="app-form">
         <div>
           <label htmlFor="name">Full name</label>
           <input
@@ -230,13 +235,13 @@ export default function SignUpPage() {
             onChange={(e) => setEmail(e.target.value)}
           />
           {persona === "student" && (
-            <p>
+            <p className="profile-meta">
               Using your university email (e.g. @uci.edu)? We&apos;ll
               auto-verify it — no separate step needed.
             </p>
           )}
           {persona === "parent" && (
-            <p>
+            <p className="profile-meta">
               This is your own email — no confirmation needed. You&apos;ll
               verify your student&apos;s university email in the next step.
             </p>

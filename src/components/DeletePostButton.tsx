@@ -42,7 +42,7 @@ export function DeletePostButton({
 
   return (
     <div>
-      <button onClick={handleDelete} disabled={status === "deleting"}>
+      <button onClick={handleDelete} disabled={status === "deleting"} className="btn-secondary">
         {status === "deleting" ? "Cancelling…" : actionLabel}
       </button>
       {error && <p role="alert">{error}</p>}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
@@ -33,9 +34,10 @@ export default function LoginPage() {
   }
 
   return (
-    <div>
-      <h1>Log In</h1>
-      <form onSubmit={handleSubmit}>
+    <div className="auth-card">
+      <span className="eyebrow">Welcome back</span>
+      <h1 className="heading-tight">Log in</h1>
+      <form onSubmit={handleSubmit} className="app-form">
         <div>
           <label htmlFor="email">Email</label>
           <input
@@ -61,6 +63,9 @@ export default function LoginPage() {
           {submitting ? "Logging in…" : "Log in"}
         </button>
       </form>
+      <p className="auth-footer">
+        Don&apos;t have an account? <Link href="/sign-up">Sign up</Link>
+      </p>
     </div>
   );
 }

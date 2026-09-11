@@ -4,9 +4,10 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 type CityGroup = { regionName: string; cities: { id: string; name: string }[] };
+type TripCategory = "personal_car" | "uber_share";
 
 export type RequestFormValues = {
-  type: "ride" | "package";
+  category: TripCategory;
   originCityId: string;
   destinationCityId: string;
   destinationText: string;
@@ -14,8 +15,7 @@ export type RequestFormValues = {
   neededTime: string;
   flexibleTime: boolean;
   seatsRequested: number;
-  packageDescription: string;
-  packageSize: string;
+  estimatedFarePerSeat: string;
   notes: string;
   studentsOnly: boolean;
 };
@@ -25,10 +25,12 @@ export type RequestFormValues = {
 // the seeded list (e.g. an airport) instead of only choosing from it.
 const WRITE_IN_DESTINATION = "__write_in__";
 
-// Create or edit a standalone Request ("need"). Edit mode is triggered by
-// passing requestId -- same form, PATCH instead of POST. tripId is always
-// left null here -- "request against a specific existing Trip" is a
-// matching concept, deliberately not built yet.
+// Create or edit a standalone ride Request ("need"). Edit mode is triggered
+// by passing requestId -- same form, PATCH instead of POST. tripId is
+// always left null here -- "request against a specific existing Trip" is a
+// matching concept, deliberately not built yet. category mirrors Trip's own
+// category (personal_car vs. uber_share) -- package needs moved out to the
+// standalone PackagePost model entirely, see PackagePostForm.tsx.
 export function RequestPostForm({
   citiesByRegion,
   requestId,
@@ -43,8 +45,8 @@ export function RequestPostForm({
   isStudent: boolean;
 }) {
   const router = useRouter();
-  const [type, setType] = useState<"ride" | "package">(
-    initialValues?.type ?? "ride",
+  const [category, setCategory] = useState<TripCategory>(
+    initialValues?.category ?? "personal_car",
   );
   const [originCityId, setOriginCityId] = useState(
     initialValues?.originCityId ?? "",
@@ -67,11 +69,8 @@ export function RequestPostForm({
   const [seatsRequested, setSeatsRequested] = useState(
     initialValues?.seatsRequested ?? 1,
   );
-  const [packageDescription, setPackageDescription] = useState(
-    initialValues?.packageDescription ?? "",
-  );
-  const [packageSize, setPackageSize] = useState(
-    initialValues?.packageSize ?? "",
+  const [estimatedFarePerSeat, setEstimatedFarePerSeat] = useState(
+    initialValues?.estimatedFarePerSeat ?? "",
   );
   const [notes, setNotes] = useState(initialValues?.notes ?? "");
   const [studentsOnly, setStudentsOnly] = useState(
@@ -79,6 +78,8 @@ export function RequestPostForm({
   );
   const [status, setStatus] = useState<"idle" | "submitting">("idle");
   const [error, setError] = useState<string | null>(null);
+
+  const isUberShare = category === "uber_share";
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -91,7 +92,7 @@ export function RequestPostForm({
         method: requestId ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          type,
+          category,
           originCityId,
           destinationCityId:
             destinationCityId === WRITE_IN_DESTINATION ? undefined : destinationCityId,
@@ -100,10 +101,9 @@ export function RequestPostForm({
           neededDate: neededDate || undefined,
           neededTime: neededTime || undefined,
           flexibleTime,
-          seatsRequested: type === "ride" ? Number(seatsRequested) : undefined,
-          packageDescription:
-            type === "package" ? packageDescription || undefined : undefined,
-          packageSize: type === "package" ? packageSize || undefined : undefined,
+          seatsRequested: Number(seatsRequested),
+          estimatedFarePerSeat:
+            isUberShare && estimatedFarePerSeat ? Number(estimatedFarePerSeat) : undefined,
           notes: notes || undefined,
           studentsOnly: isStudent ? studentsOnly : false,
         }),
@@ -127,28 +127,28 @@ export function RequestPostForm({
   }
 
   return (
-    <form onSubmit={handleSubmit}>
+    <form onSubmit={handleSubmit} className="app-form">
       <fieldset>
-        <legend>What do you need?</legend>
+        <legend>What kind of ride?</legend>
         <label>
           <input
             type="radio"
-            name="type"
-            checked={type === "ride"}
-            onChange={() => setType("ride")}
+            name="category"
+            checked={category === "personal_car"}
+            onChange={() => setCategory("personal_car")}
           />
           {" "}
-          A ride
+          Someone's own car
         </label>
         <label style={{ marginLeft: "1rem" }}>
           <input
             type="radio"
-            name="type"
-            checked={type === "package"}
-            onChange={() => setType("package")}
+            name="category"
+            checked={category === "uber_share"}
+            onChange={() => setCategory("uber_share")}
           />
           {" "}
-          Something delivered
+          Splitting an Uber/Lyft
         </label>
       </fieldset>
       <div>
@@ -236,44 +236,33 @@ export function RequestPostForm({
           My time is flexible
         </label>
       </div>
-      {type === "ride" ? (
+      <div>
+        <label htmlFor="seatsRequested">Seats needed</label>
+        <input
+          id="seatsRequested"
+          type="number"
+          min={1}
+          max={10}
+          required
+          value={seatsRequested}
+          onChange={(e) => setSeatsRequested(Number(e.target.value))}
+        />
+      </div>
+      {isUberShare && (
         <div>
-          <label htmlFor="seatsRequested">Seats needed</label>
+          <label htmlFor="estimatedFarePerSeat">
+            Estimated fare per seat, if you have one in mind ($, optional)
+          </label>
           <input
-            id="seatsRequested"
+            id="estimatedFarePerSeat"
             type="number"
-            min={1}
-            max={10}
-            required
-            value={seatsRequested}
-            onChange={(e) => setSeatsRequested(Number(e.target.value))}
+            min={0}
+            step="0.01"
+            placeholder="e.g. 12.50"
+            value={estimatedFarePerSeat}
+            onChange={(e) => setEstimatedFarePerSeat(e.target.value)}
           />
         </div>
-      ) : (
-        <>
-          <div>
-            <label htmlFor="packageDescription">
-              What are you sending? (optional)
-            </label>
-            <input
-              id="packageDescription"
-              type="text"
-              placeholder="e.g. a box of textbooks"
-              value={packageDescription}
-              onChange={(e) => setPackageDescription(e.target.value)}
-            />
-          </div>
-          <div>
-            <label htmlFor="packageSize">Size (optional)</label>
-            <input
-              id="packageSize"
-              type="text"
-              placeholder="e.g. shoebox-sized"
-              value={packageSize}
-              onChange={(e) => setPackageSize(e.target.value)}
-            />
-          </div>
-        </>
       )}
       <div>
         <label htmlFor="notes">Notes (optional)</label>

@@ -28,14 +28,16 @@ export default async function EditTripPage({
   const citiesByRegion = await getCitiesByRegion();
 
   return (
-    <div>
-      <h1>Edit Trip</h1>
+    <div className="form-page">
+      <span className="eyebrow">Edit</span>
+      <h1 className="heading-tight">Edit Trip</h1>
       <TripPostForm
         citiesByRegion={citiesByRegion}
         tripId={trip.id}
         isStudent={hasStudentRecord(user)}
         initialValues={{
           title: trip.title ?? "",
+          category: trip.category,
           originCityId: trip.originCityId,
           destinationCityId: trip.destinationCityId ?? "",
           destinationText: trip.destinationText ?? "",
@@ -43,8 +45,8 @@ export default async function EditTripPage({
           departureTime: trip.departureTime ?? "",
           flexibleTime: trip.flexibleTime,
           seatsTotal: trip.seatsTotal,
-          packageSpaceAvailable: trip.packageSpaceAvailable,
-          packageCapacityNote: trip.packageCapacityNote ?? "",
+          estimatedFarePerSeat: trip.estimatedFarePerSeat?.toString() ?? "",
+          meetingPoint: trip.meetingPoint ?? "",
           tripNotes: trip.tripNotes ?? "",
           studentsOnly: trip.studentsOnly,
         }}

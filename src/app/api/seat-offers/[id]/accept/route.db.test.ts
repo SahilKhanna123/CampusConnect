@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
+import { Prisma } from "@prisma/client";
 import { resetAndSeed } from "@/lib/testDb";
 import {
   createUser,
@@ -59,6 +60,36 @@ describe("POST /api/seat-offers/[id]/accept -- overbooking prevention", () => {
     });
     expect(updatedOffer.status).toBe("accepted");
     expect(updatedOffer.seatConfirmedAt).not.toBeNull();
+  });
+
+  it("accepting decrements seatsRemaining identically for an uber_share trip -- confirms this route is category-blind", async () => {
+    const owner = await createUser();
+    const trip = await createTrip(
+      {
+        seatsTotal: 2,
+        seatsRemaining: 2,
+        category: "uber_share",
+        estimatedFarePerSeat: new Prisma.Decimal(8),
+        meetingPoint: "Aldrich Park",
+      },
+      { traveler: owner },
+    );
+    const recipient = await createUser();
+    const conversation = await createConversationWithParticipants(
+      {},
+      { trip, userA: owner, userB: recipient },
+    );
+    const offer = await createSeatOffer({}, { trip, recipient, conversation });
+
+    vi.mocked(getCurrentUser).mockResolvedValue(makeUser({ id: recipient.id }));
+
+    const res = await POST(postRequest(), paramsFor(offer.id));
+    expect(res.status).toBe(200);
+
+    const updatedTrip = await prisma.trip.findUniqueOrThrow({
+      where: { id: trip.id },
+    });
+    expect(updatedTrip.seatsRemaining).toBe(1);
   });
 
   it("with 1 seat remaining and two pending offers to different recipients, exactly one of two concurrent accepts succeeds", async () => {

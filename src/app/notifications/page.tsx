@@ -24,8 +24,11 @@ export default async function NotificationsPage() {
 
   return (
     <div>
-      <div className="notifications-header">
-        <h1>Notifications</h1>
+      <div className="page-header">
+        <div>
+          <span className="eyebrow">Notifications</span>
+          <h1 className="heading-tight">Notifications</h1>
+        </div>
         {hasUnread && <MarkAllNotificationsReadButton />}
       </div>
 

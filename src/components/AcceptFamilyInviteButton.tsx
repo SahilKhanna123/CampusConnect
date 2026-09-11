@@ -42,7 +42,7 @@ export function AcceptFamilyInviteButton({ token }: { token: string }) {
   return (
     <div>
       {error && <p role="alert">{error}</p>}
-      <button onClick={handleAccept} disabled={status === "accepting"}>
+      <button onClick={handleAccept} disabled={status === "accepting"} className="btn-primary">
         {status === "accepting" ? "Accepting…" : "Accept the invitation"}
       </button>
     </div>

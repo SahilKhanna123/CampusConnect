@@ -37,10 +37,15 @@ export async function POST(request: Request) {
     where: { id: conversationId },
     include: { trip: true, participants: true },
   });
-  if (!conversation) {
+  if (!conversation || !conversation.trip) {
+    // A PackagePost conversation (see Conversation.packagePostId) has no
+    // seat/capacity concept at all -- SeatOffer only ever applies to a Trip
+    // conversation, so a null trip here means someone tried to send a seat
+    // offer from within a package conversation, which is just not a thing.
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
-  if (conversation.trip.travelerId !== user.id) {
+  const trip = conversation.trip;
+  if (trip.travelerId !== user.id) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -51,13 +56,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  if (tripDisplayStatus(conversation.trip) !== "upcoming") {
+  if (tripDisplayStatus(trip) !== "upcoming") {
     return NextResponse.json(
       { error: "This trip is no longer active." },
       { status: 400 },
     );
   }
-  if (conversation.trip.seatsRemaining <= 0) {
+  if (trip.seatsRemaining <= 0) {
     return NextResponse.json(
       { error: "No seats remaining on this trip." },
       { status: 400 },
@@ -71,7 +76,7 @@ export async function POST(request: Request) {
   }
 
   const existingPending = await prisma.seatOffer.findFirst({
-    where: { tripId: conversation.trip.id, recipientId, status: "pending" },
+    where: { tripId: trip.id, recipientId, status: "pending" },
   });
   if (existingPending) {
     return NextResponse.json(
@@ -84,7 +89,7 @@ export async function POST(request: Request) {
   // ConnectionRequest) -- the real enforcement is the matching check at
   // accept time (POST .../seat-offers/[id]/accept), since this recipient
   // could still become confirmed elsewhere between now and then.
-  if (await hasConfirmedSeatOnTrip(conversation.trip.id, recipientId)) {
+  if (await hasConfirmedSeatOnTrip(trip.id, recipientId)) {
     return NextResponse.json(
       { error: "This rider already has a confirmed seat on this trip." },
       { status: 400 },
@@ -93,7 +98,7 @@ export async function POST(request: Request) {
 
   const created = await prisma.seatOffer.create({
     data: {
-      tripId: conversation.trip.id,
+      tripId: trip.id,
       recipientId,
       conversationId,
       status: "pending",
@@ -104,7 +109,7 @@ export async function POST(request: Request) {
     userId: recipientId,
     type: "seat_offer_received",
     title: "You have a seat request",
-    message: `${user.name} offered you a seat${conversation.trip.title ? ` on "${conversation.trip.title}"` : " on their trip"}.`,
+    message: `${user.name} offered you a seat${trip.title ? ` on "${trip.title}"` : " on their trip"}.`,
     relatedId: conversationId,
   });
 

@@ -36,7 +36,7 @@ export function ApproveLinkButton({ linkId }: { linkId: string }) {
 
   return (
     <span>
-      <button onClick={handleApprove} disabled={status === "approving"}>
+      <button onClick={handleApprove} disabled={status === "approving"} className="btn-primary">
         {status === "approving" ? "Approving…" : "Approve"}
       </button>
       {error && <p role="alert">{error}</p>}

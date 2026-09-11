@@ -68,7 +68,7 @@ export function FulfillRequestForm({
         ))}
       </select>
       {error && <p role="alert">{error}</p>}
-      <button type="submit" disabled={status === "sending" || !tripId}>
+      <button type="submit" disabled={status === "sending" || !tripId} className="btn-primary">
         {status === "sending" ? "Offering…" : "Offer This Trip"}
       </button>
     </form>

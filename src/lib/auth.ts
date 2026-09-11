@@ -1,3 +1,4 @@
+import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 
@@ -6,17 +7,41 @@ import { prisma } from "@/lib/prisma";
  * Returns null if there's no session, or if a session exists but the
  * corresponding User row hasn't been created yet (shouldn't happen once
  * src/app/auth/callback/route.ts has run, but callers should still handle it).
+ *
+ * The user id comes from the x-supabase-user-id request header
+ * (src/lib/supabase/middleware.ts) rather than a second
+ * supabase.auth.getUser() call here -- middleware already validates the
+ * session with Supabase's Auth server on every request (required regardless,
+ * to refresh the session cookie), so re-validating again in every Server
+ * Component/Route Handler that calls this was a fully redundant Auth round
+ * trip on top of the real work each request needed to do anyway -- for
+ * something polled every few seconds (MessageThread), that redundancy is
+ * pure waste. The header is empty (not absent) when middleware ran and
+ * confirmed there's no session at all, which lets an anonymous request
+ * (a logged-out visitor on Home/Explore/a public trip page) skip the Auth
+ * call entirely too, not just halve it. Falls back to calling
+ * supabase.auth.getUser() directly only if the header is missing outright --
+ * middleware's matcher (src/middleware.ts) covers every real request, so
+ * this should be unreachable in normal operation.
  */
 export async function getCurrentUser() {
-  const supabase = await createClient();
-  const {
-    data: { user: authUser },
-  } = await supabase.auth.getUser();
+  const headerUserId = (await headers()).get("x-supabase-user-id");
+  let authUserId: string | null;
 
-  if (!authUser) return null;
+  if (headerUserId !== null) {
+    authUserId = headerUserId || null;
+  } else {
+    const supabase = await createClient();
+    const {
+      data: { user: authUser },
+    } = await supabase.auth.getUser();
+    authUserId = authUser?.id ?? null;
+  }
+
+  if (!authUserId) return null;
 
   return prisma.user.findUnique({
-    where: { id: authUser.id },
+    where: { id: authUserId },
     include: {
       verifications: true,
       parentLinksAsParent: {

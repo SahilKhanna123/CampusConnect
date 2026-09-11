@@ -91,13 +91,18 @@ export function ConnectionRequestButton({
         />
         {error && <p role="alert">{error}</p>}
         <div>
-          <button type="submit" disabled={loading || !message.trim()}>
+          <button
+            type="submit"
+            disabled={loading || !message.trim()}
+            className="btn-primary"
+          >
             {loading ? "Sending…" : "Send Request"}
           </button>{" "}
           <button
             type="button"
             onClick={() => setComposing(false)}
             disabled={loading}
+            className="btn-secondary"
           >
             Cancel
           </button>
@@ -111,7 +116,7 @@ export function ConnectionRequestButton({
       <button
         type="button"
         onClick={() => setComposing(true)}
-        className="connection-request-button"
+        className="connection-request-button btn-primary"
       >
         Request to Connect
       </button>

@@ -42,7 +42,7 @@ export function RegisterInterestForm({ tripId }: { tripId: string }) {
 
   if (!open) {
     return (
-      <button type="button" onClick={() => setOpen(true)}>
+      <button type="button" onClick={() => setOpen(true)} className="btn-secondary">
         Register for a seat
       </button>
     );
@@ -62,13 +62,14 @@ export function RegisterInterestForm({ tripId }: { tripId: string }) {
       />
       {error && <p role="alert">{error}</p>}
       <div>
-        <button type="submit" disabled={status === "sending"}>
+        <button type="submit" disabled={status === "sending"} className="btn-primary">
           {status === "sending" ? "Sending…" : "Send message"}
         </button>{" "}
         <button
           type="button"
           onClick={() => setOpen(false)}
           disabled={status === "sending"}
+          className="btn-secondary"
         >
           Cancel
         </button>

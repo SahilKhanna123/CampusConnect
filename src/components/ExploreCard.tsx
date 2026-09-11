@@ -7,7 +7,39 @@ export type Poster = {
   photoUrl: string | null;
   signedUpAsParent: boolean;
   verifications: { type: string; status: string }[];
+  // Real-data enrichment for the card's stats line (university/year,
+  // average rating, completed-trip count) -- all optional/undefined
+  // wherever a caller (e.g. /connections' own PosterBadge reuse) hasn't
+  // computed them, in which case that piece is simply omitted from the
+  // line rather than showing a placeholder. Populated by /explore's own
+  // batched queries -- see resolvePosterStats in src/app/explore/page.tsx.
+  year?: string | null;
+  universityName?: string | null;
+  averageRating?: number | null;
+  completedTripCount?: number;
 };
+
+// User.year is deliberately free text (see the schema comment), not a
+// class-year enum -- "Senior", "Junior", "2027" are all valid. A 4-digit
+// year gets the reference design's "'26" short form; anything else (a
+// class-standing word, or a year outside a sane range) is shown as-is
+// rather than mangled by a substring operation that assumes a specific
+// format.
+function formatYearLabel(year: string): string {
+  return /^(19|20)\d{2}$/.test(year) ? `'${year.slice(2)}` : year;
+}
+
+// SupportedUniversityDomain.universityName stores the full formal name
+// ("University of California, Irvine") -- too long to sit on a compact
+// card meta line alongside the role/rating/trip-count segments. Shortened
+// to the standard "UC <campus>" form only for that one common pattern;
+// any other university name (there's only ever been one in this app's
+// real data, but a future domain could add more) is shown exactly as
+// stored rather than guessed at.
+function shortenUniversityName(name: string): string {
+  const ucMatch = name.match(/^University of California,?\s+(.+)$/i);
+  return ucMatch ? `UC ${ucMatch[1]}` : name;
+}
 
 // A lightweight status label for the card -- not the same helpers as
 // universityBadgeLabel/parentRelationshipBadgeLabel in src/lib/auth.ts,
@@ -31,6 +63,16 @@ function posterIsVerified(poster: Poster): boolean {
 // picture, Student/parent status" with the exact same visual treatment as
 // Explore cards, rather than re-implementing that block a third time.
 export function PosterBadge({ poster }: { poster: Poster }) {
+  // The role label always renders (it's the one thing every caller of this
+  // component has, unlike the optional stats below), then university/year,
+  // rating, and completed-trip count each add their own "·"-separated
+  // segment only when present -- so a caller with none of that data still
+  // renders a clean single "Student" or "Parent" line, same as before this
+  // stats line existed.
+  const schoolYear =
+    poster.universityName &&
+    `${shortenUniversityName(poster.universityName)}${poster.year ? ` ${formatYearLabel(poster.year)}` : ""}`;
+
   return (
     <div className="explore-card-poster">
       {poster.photoUrl ? (
@@ -38,24 +80,115 @@ export function PosterBadge({ poster }: { poster: Poster }) {
         <img
           src={poster.photoUrl}
           alt=""
-          width={36}
-          height={36}
-          className="explore-card-avatar"
+          width={34}
+          height={34}
+          className="explore-card-avatar avatar-circle"
         />
       ) : (
-        <div
-          className="explore-card-avatar explore-card-avatar-placeholder"
+        <span
+          className="explore-card-avatar avatar-circle explore-card-avatar-placeholder"
           aria-hidden="true"
-        />
+        >
+          {poster.name.slice(0, 1).toUpperCase()}
+        </span>
       )}
-      <div>
-        <div className="explore-card-poster-name">{poster.name}</div>
+      <div className="explore-card-poster-info">
+        <div className="explore-card-poster-name-row">
+          <span className="explore-card-poster-name">{poster.name}</span>
+          {posterIsVerified(poster) && (
+            <span className="badge-verified">
+              <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                <path d="M13.5 4.5 6 12 2.5 8.5l1-1L6 10l6.5-6.5z" />
+              </svg>
+              Verified
+            </span>
+          )}
+        </div>
         <div className="explore-card-poster-role">
-          {posterRoleLabel(poster)}
-          {posterIsVerified(poster) && " · ✓ Verified"}
+          <span>{posterRoleLabel(poster)}</span>
+          {schoolYear && (
+            <>
+              <span className="explore-card-poster-role-sep" aria-hidden="true">
+                ·
+              </span>
+              <span>{schoolYear}</span>
+            </>
+          )}
+          {poster.averageRating != null && (
+            <>
+              <span className="explore-card-poster-role-sep" aria-hidden="true">
+                ·
+              </span>
+              <span className="explore-card-poster-stat">
+                <svg width="9" height="9" viewBox="0 0 9 9" fill="currentColor" opacity="0.5" aria-hidden="true">
+                  <path d="M4.5 1l1.1 2.3 2.5.4-1.8 1.7.4 2.5L4.5 6.8 2.3 7.9l.4-2.5L1 3.7l2.5-.4L4.5 1z" />
+                </svg>
+                {poster.averageRating.toFixed(1)}
+              </span>
+            </>
+          )}
+          {!!poster.completedTripCount && (
+            <>
+              <span className="explore-card-poster-role-sep" aria-hidden="true">
+                ·
+              </span>
+              <span>
+                {poster.completedTripCount} trip{poster.completedTripCount === 1 ? "" : "s"}
+              </span>
+            </>
+          )}
         </div>
       </div>
     </div>
+  );
+}
+
+// Formats a card's date the way the reference "campus routes" mockup does
+// ("Today", "Fri, Sep 5") rather than a locale-default numeric date -- a
+// pure display tweak, no new data involved.
+function formatCardDate(date: Date | null): string {
+  if (!date) return "Date flexible";
+  const now = new Date();
+  if (date.toDateString() === now.toDateString()) return "Today";
+  return date.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+}
+
+// The top-right seats badge -- always the same neutral gray, matching the
+// reference exactly: an offer with only one seat left doesn't turn the
+// badge amber, it appends " · Last seat" onto the date/time line instead
+// (see .explore-card-last-seat below), same place the reference puts that
+// urgency signal. Offer-vs-request reads through wording alone here.
+function seatsBadgeText(post: ExploreCardPost): string {
+  if (post.kind === "offer") {
+    if (post.seatsRemaining <= 0) return "Full";
+    return `${post.seatsRemaining} seat${post.seatsRemaining === 1 ? "" : "s"} left`;
+  }
+  return `${post.seatsRequested} seat${post.seatsRequested === 1 ? "" : "s"} needed`;
+}
+
+// The reference design's small chevron-arrow icon between the two city
+// names in the bold headline, in place of a plain "→" character -- kept
+// as its own component since it's used nowhere else in this card (the
+// smaller gray subtitle line below still uses a plain arrow character,
+// matching the reference exactly).
+function RouteArrow() {
+  return (
+    <svg
+      width="16"
+      height="8"
+      viewBox="0 0 16 8"
+      fill="none"
+      className="explore-card-route-arrow"
+      aria-hidden="true"
+    >
+      <path
+        d="M1 4h13M11 1.5l2.5 2.5L11 6.5"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }
 
@@ -65,6 +198,21 @@ export type TripCardPost = {
   title: string | null;
   originName: string;
   destinationName: string;
+  // Region names for the smaller route-subtitle line under the bold city
+  // headline (e.g. "Cupertino, Bay Area -> Irvine, UC Irvine"). Optional so
+  // a caller that hasn't widened its Prisma `include` to join Region yet
+  // still type-checks -- the subtitle line is simply omitted when absent.
+  originRegionName?: string | null;
+  destinationRegionName?: string | null;
+  // Real-world coordinates for the Explore route map (see RouteMap.tsx),
+  // resolved server-side via src/lib/geocode.ts. Optional/undefined
+  // wherever a caller hasn't computed them, or null when geocoding a
+  // write-in destinationText found no match -- either way, RouteMap simply
+  // omits a post it can't plot rather than guessing a position.
+  originLat?: number | null;
+  originLng?: number | null;
+  destinationLat?: number | null;
+  destinationLng?: number | null;
   date: Date;
   time: string | null;
   flexibleTime: boolean;
@@ -88,6 +236,12 @@ export type TripCardPost = {
   // builds this post already excludes it otherwise), so this is purely a
   // "🎓 Students only" label, not an access check.
   studentsOnly: boolean;
+  // Trip.tripNotes, shown as an italicized quote at the bottom of the card
+  // (per the reference mockup, e.g. "Happy to stop near South Station for
+  // pickup.") -- optional/undefined wherever a caller hasn't selected it,
+  // null/omitted the same "don't fabricate" way an unset field is handled
+  // elsewhere in this card.
+  note?: string | null;
 };
 
 export type RequestCardPost = {
@@ -95,12 +249,20 @@ export type RequestCardPost = {
   id: string;
   originName: string;
   destinationName: string;
+  originRegionName?: string | null;
+  destinationRegionName?: string | null;
+  originLat?: number | null;
+  originLng?: number | null;
+  destinationLat?: number | null;
+  destinationLng?: number | null;
   date: Date | null;
   time: string | null;
   flexibleTime: boolean;
   seatsRequested: number;
   poster: Poster;
   studentsOnly: boolean;
+  // Request.notes -- same treatment as TripCardPost.note above.
+  note?: string | null;
 };
 
 export type ExploreCardPost = TripCardPost | RequestCardPost;
@@ -124,45 +286,42 @@ export function ExploreCard({
   isLoggedIn?: boolean;
 }) {
   const href = post.kind === "offer" ? `/trips/${post.id}` : `/requests/${post.id}`;
+  const isLastSeat = post.kind === "offer" && post.seatsRemaining === 1;
 
   return (
     <div className="explore-card">
       <Link href={href} className="explore-card-link">
         <div className="explore-card-top">
-          <PosterBadge poster={post.poster} />
-          <span
-            className={
-              post.kind === "offer"
-                ? "explore-card-kind explore-card-kind-offer"
-                : "explore-card-kind explore-card-kind-request"
-            }
-          >
-            {post.kind === "offer" ? "Offering a ride" : "Needs a ride"}
-          </span>
+          <div className="explore-card-route-headline">
+            <span>{post.originName}</span>
+            <RouteArrow />
+            <span>{post.destinationName}</span>
+          </div>
+          <span className="explore-card-seats-badge">{seatsBadgeText(post)}</span>
         </div>
 
         {post.studentsOnly && (
           <div className="explore-card-students-only">🎓 Students only</div>
         )}
 
-        {post.kind === "offer" && (
-          <div className="explore-card-title">{post.title || "Untitled trip"}</div>
+        {post.kind === "offer" && post.title && (
+          <div className="explore-card-title">{post.title}</div>
         )}
 
-        <div className="explore-card-route">
-          {post.originName} → {post.destinationName}
-        </div>
+        {(post.originRegionName || post.destinationRegionName) && (
+          <div className="explore-card-route-subtitle">
+            {post.originName}
+            {post.originRegionName ? `, ${post.originRegionName}` : ""} →{" "}
+            {post.destinationName}
+            {post.destinationRegionName ? `, ${post.destinationRegionName}` : ""}
+          </div>
+        )}
 
         <div className="explore-card-meta">
-          {post.date ? post.date.toLocaleDateString() : "Date flexible"}
-          {post.time && ` at ${post.time}`}
+          {formatCardDate(post.date)}
+          {post.time && ` · ${post.time}`}
           {post.flexibleTime && " (flexible)"}
-        </div>
-
-        <div className="explore-card-seats">
-          {post.kind === "offer"
-            ? `Seats available: ${post.seatsRemaining} / ${post.seatsTotal}`
-            : `Seats needed: ${post.seatsRequested}`}
+          {isLastSeat && <span className="explore-card-last-seat"> · Last seat</span>}
         </div>
 
         {post.kind === "offer" && !!post.confirmedRiderCount && (
@@ -173,23 +332,40 @@ export function ExploreCard({
         )}
       </Link>
 
-      {post.kind === "offer" && (
+      <div className="explore-card-divider" />
+
+      <div className="explore-card-footer">
+        <PosterBadge poster={post.poster} />
         <div className="explore-card-actions">
-          {isLoggedIn ? (
-            <ConnectionRequestButton
-              tripId={post.id}
-              initialStatus={post.connectionRequestStatus}
-            />
+          {post.kind === "offer" ? (
+            isLoggedIn ? (
+              <ConnectionRequestButton
+                tripId={post.id}
+                initialStatus={post.connectionRequestStatus}
+              />
+            ) : (
+              // Same label as the real button, but a plain link to sign-up
+              // -- clicking it takes a logged-out visitor straight there
+              // rather than opening the note composer, per product
+              // decision.
+              <Link href="/sign-up" className="connection-request-button btn-primary">
+                Request to Connect
+              </Link>
+            )
           ) : (
-            // Same label as the real button, but a plain link to sign-up --
-            // clicking it takes a logged-out visitor straight there rather
-            // than opening the note composer, per product decision.
-            <Link href="/sign-up" className="connection-request-button">
-              Request to Connect
+            // A standalone Request has no trip-owner action to take from
+            // this card (fulfilling one happens via FulfillRequestForm on
+            // /requests/[id] itself) -- this plain link just fills the same
+            // footer slot the mockup's "View trip" button occupies, for
+            // visual consistency with offer cards.
+            <Link href={href} className="btn-secondary">
+              View request
             </Link>
           )}
         </div>
-      )}
+      </div>
+
+      {post.note && <p className="explore-card-note">&ldquo;{post.note}&rdquo;</p>}
     </div>
   );
 }

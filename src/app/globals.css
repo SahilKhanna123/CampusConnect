@@ -1,31 +1,138 @@
+:root {
+  --color-black: #000000;
+  --color-white: #ffffff;
+  --color-gray-section: #f3f3f3;
+  --color-gray-body: #6b6b6b;
+  --color-gray-meta: #9ca3af;
+  --color-border: #ebebeb;
+  --color-green: #06c167;
+  --color-green-bg: #ecfdf5;
+  --color-blue: #1d6fff;
+  --color-blue-bg: #eff6ff;
+  --font-sans:
+    var(--font-inter),
+    Inter,
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    sans-serif;
+  --shadow-hover: 0 8px 24px rgba(0, 0, 0, 0.09);
+}
+
 * {
   box-sizing: border-box;
 }
 
 body {
   margin: 0;
-  font-family:
-    system-ui,
-    -apple-system,
-    "Segoe UI",
-    sans-serif;
-  color: #1a1a1a;
-  background: #fafafa;
+  font-family: var(--font-sans);
+  color: var(--color-black);
+  background: var(--color-white);
+}
+
+/* Every <select>'s native OS dropdown arrow and every <input type="date">'s
+   native calendar-picker glyph are replaced app-wide with a matching custom
+   icon drawn in the same thin, flat line style as the rest of this app's
+   iconography -- the browser-default versions look visibly out of place
+   next to a custom-designed UI (they're differently weighted, differently
+   colored, and render differently per OS/browser). One global rule fixes
+   every select/date input in the app at once (post forms, profile, auth,
+   Explore's filters, etc.) rather than restyling each form's inputs
+   individually. Gray (#6b6b6b, matching --color-gray-body) is hardcoded
+   rather than var()'d -- a CSS custom property can't be resolved inside an
+   embedded SVG's own attribute string within a data: URI. */
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%236b6b6b' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='4 6 8 10 12 6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  background-size: 0.7rem;
+  padding-right: 2rem;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%236b6b6b' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='2' y='3' width='12' height='11' rx='1.5'/%3E%3Cline x1='2' y1='6.5' x2='14' y2='6.5'/%3E%3Cline x1='5.25' y1='1.25' x2='5.25' y2='4'/%3E%3Cline x1='10.75' y1='1.25' x2='10.75' y2='4'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 1rem;
+  width: 1.125rem;
+  height: 1.125rem;
+  opacity: 0.85;
+  cursor: pointer;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
 }
 
 .site-header {
-  padding: 1rem 1.5rem;
-  border-bottom: 1px solid #e5e5e5;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  padding: 0.5rem 1.5rem;
+  min-height: 60px;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-white);
   display: flex;
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
+  gap: 0.75rem 1.5rem;
+}
+
+.site-header-left {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  min-width: 0;
+}
+
+.site-logo {
+  display: flex;
+  align-items: center;
   gap: 0.5rem;
+  color: inherit;
+  text-decoration: none;
+  flex-shrink: 0;
+}
+
+.site-logo-mark {
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 6px;
+  background: var(--color-black);
+  flex-shrink: 0;
 }
 
 .site-title {
+  font-weight: 800;
+  font-size: 1rem;
+  letter-spacing: -0.02em;
+}
+
+.site-nav-tabs {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+}
+
+.site-nav-tab {
+  position: relative;
+  padding: 0.375rem 0.75rem;
+  font-size: 0.8125rem;
+  color: var(--color-gray-body);
+  text-decoration: none;
+  border-radius: 8px;
+  border: 1.5px solid transparent;
+}
+
+.site-nav-tab-active {
+  color: var(--color-black);
   font-weight: 700;
-  font-size: 1.125rem;
+  border-color: var(--color-black);
 }
 
 .site-auth-status {
@@ -33,10 +140,46 @@ body {
   color: #444;
 }
 
+.site-auth-status-verify {
+  font-size: 0.8125rem;
+  color: var(--color-gray-body);
+}
+
 .site-header-right {
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  flex-shrink: 0;
+}
+
+.site-post-cta {
+  white-space: nowrap;
+}
+
+.site-user {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.site-user-avatar {
+  width: 32px;
+  height: 32px;
+  font-size: 0.8125rem;
+}
+
+.site-user-name {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  white-space: nowrap;
+  line-height: 1.25;
+}
+
+.site-user-subtitle {
+  font-size: 0.6875rem;
+  color: var(--color-gray-body);
+  white-space: nowrap;
+  line-height: 1.25;
 }
 
 .notification-bell {
@@ -76,7 +219,7 @@ body {
   border: none;
   padding: 0;
   font: inherit;
-  color: #0060df;
+  color: var(--color-blue);
   text-decoration: underline;
   cursor: pointer;
 }
@@ -90,32 +233,13 @@ body {
 }
 
 .onboarding-nudge a {
-  color: #0060df;
+  color: var(--color-blue);
 }
 
 .site-main {
   padding: 1.5rem;
-  padding-bottom: 5rem;
-  max-width: 720px;
+  max-width: 1600px;
   margin: 0 auto;
-}
-
-.site-nav {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  display: flex;
-  justify-content: space-around;
-  padding: 0.75rem 0;
-  background: #fff;
-  border-top: 1px solid #e5e5e5;
-}
-
-.site-nav-item {
-  color: #444;
-  text-decoration: none;
-  font-size: 0.875rem;
 }
 
 .explore-filters {
@@ -141,21 +265,75 @@ body {
   font-weight: 600;
 }
 
-.explore-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 1rem;
+.explore-filters select,
+.explore-filters input[type="date"] {
+  padding: 0.625rem 0.75rem;
+  border: 1.5px solid var(--color-border);
+  border-radius: 8px;
+  font-size: 0.9375rem;
+  font-family: inherit;
+  color: var(--color-black);
+  background-color: var(--color-white);
 }
 
+.explore-filters select {
+  padding-right: 2rem;
+}
+
+.explore-filters select:focus,
+.explore-filters input[type="date"]:focus {
+  outline: 2px solid var(--color-blue);
+  outline-offset: -1px;
+  border-color: var(--color-blue);
+}
+
+/* The gray backdrop the results grid + map sit inside (per a reference
+   mockup) -- gives the white cards and the map panel visible breathing
+   room/separation instead of floating directly on the page's own white
+   background. Reuses --color-gray-section, the same tone already used
+   elsewhere in this design system (e.g. .btn-secondary), rather than
+   inventing a new gray. */
+.explore-panel {
+  background: var(--color-gray-section);
+  border: 1.5px solid var(--color-border);
+  border-radius: 16px;
+  padding: 1.5rem;
+}
+
+.explore-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 1.25rem;
+}
+
+/* Ported pixel-for-pixel from a reference implementation (a Figma Make
+   export the user pointed this project at, TripCard in its App.tsx) after
+   live feedback that the previous version's cards were too narrow -- the
+   avatar and poster name read as visibly squished, and the card's own
+   spacing/typography scale didn't match the reference. Values below (radii,
+   padding, font sizes/weights, colors) are copied from that source rather
+   than eyeballed, specifically to close that gap for good. Not ported:
+   the reference button's own "View trip" label/behavior (a plain nav
+   link in that generic demo) -- this app's real "Request to Connect"
+   composer and "View request" link keep their real labels/behavior, only
+   picking up the reference's visual sizing (see .explore-card-footer
+   .connection-request-button below). */
 .explore-card {
-  padding: 1rem;
-  border: 1px solid #e5e5e5;
-  border-radius: 8px;
-  background: #fff;
+  padding: 18px 20px;
+  border: 1.5px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-white);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    transform 0.18s ease;
 }
 
 .explore-card:hover {
-  border-color: #0060df;
+  border-color: var(--color-blue);
+  box-shadow: var(--shadow-hover);
+  transform: translateY(-2px);
 }
 
 .explore-card-link {
@@ -165,9 +343,33 @@ body {
 }
 
 .explore-card-actions {
-  margin-top: 0.75rem;
-  padding-top: 0.75rem;
-  border-top: 1px solid #e5e5e5;
+  flex-shrink: 0;
+}
+
+/* A thin filled line (matching the reference's own div-as-divider), not a
+   border -- functionally identical, kept as a distinct rule since the
+   color (--color-gray-section, #F3F3F3) is a fill, not a border-color. */
+.explore-card-divider {
+  height: 1px;
+  background: var(--color-gray-section);
+  margin: 0 0 12px;
+}
+
+.explore-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.explore-card-note {
+  margin: 10px 0 0;
+  padding-top: 10px;
+  border-top: 1px solid var(--color-gray-section);
+  font-size: 0.75rem;
+  font-style: italic;
+  line-height: 1.5;
+  color: var(--color-gray-meta);
 }
 
 .explore-card-top {
@@ -175,34 +377,88 @@ body {
   justify-content: space-between;
   align-items: flex-start;
   gap: 0.5rem;
-  margin-bottom: 0.5rem;
+  margin-bottom: 10px;
+}
+
+.explore-card-route-arrow {
+  color: #bebebe;
+  flex-shrink: 0;
 }
 
 .explore-card-poster {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 10px;
+  min-width: 0;
+  flex: 1 1 auto;
 }
 
 .explore-card-avatar {
-  width: 36px;
-  height: 36px;
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
   object-fit: cover;
+  flex-shrink: 0;
 }
 
 .explore-card-avatar-placeholder {
-  background: #e5e5e5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.6875rem;
+}
+
+.explore-card-poster-info {
+  min-width: 0;
+}
+
+.explore-card-poster-name-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 2px;
 }
 
 .explore-card-poster-name {
   font-weight: 600;
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
+  color: var(--color-black);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .explore-card-poster-role {
-  font-size: 0.75rem;
-  color: #666;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 6px;
+  font-size: 0.71875rem;
+  color: var(--color-gray-body);
+  min-width: 0;
+}
+
+.explore-card-poster-role-sep {
+  color: #d4d4d4;
+  flex-shrink: 0;
+}
+
+.explore-card-poster-stat {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  flex-shrink: 0;
+}
+
+/* The card's own action slot (the real ConnectionRequestButton, or the
+   plain "View request" .btn-secondary link) is sized down to the
+   reference's tighter in-card button dimensions here, scoped to this one
+   context -- .btn-primary/.btn-secondary keep their normal site-wide size
+   everywhere else (trip/request detail pages, pagination, etc.). */
+.explore-card-footer .connection-request-button,
+.explore-card-footer .btn-secondary {
+  padding: 7px 14px;
+  font-size: 0.78125rem;
 }
 
 .explore-card-kind {
@@ -211,6 +467,7 @@ body {
   padding: 0.125rem 0.5rem;
   border-radius: 999px;
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .explore-card-kind-offer {
@@ -232,28 +489,64 @@ body {
   display: inline-block;
   font-size: 0.75rem;
   font-weight: 600;
-  color: #8a5a00;
-  background: #fff4e0;
+  color: var(--color-blue);
+  background: var(--color-blue-bg);
   padding: 0.125rem 0.5rem;
   border-radius: 999px;
   margin-bottom: 0.25rem;
 }
 
 .explore-card-route {
-  font-size: 0.9375rem;
   margin-bottom: 0.25rem;
+}
+
+.explore-card-route-headline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 3px;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  font-size: 1rem;
+  color: var(--color-black);
+}
+
+.explore-card-route-subtitle {
+  color: var(--color-gray-meta);
+  font-size: 0.71875rem;
+  margin-top: 0.125rem;
 }
 
 .explore-card-meta,
 .explore-card-seats {
-  font-size: 0.8125rem;
-  color: #444;
+  font-size: 0.78125rem;
+  color: var(--color-gray-body);
+  margin-bottom: 12px;
+}
+
+.explore-card-last-seat {
+  color: #f59e0b;
+  font-weight: 600;
 }
 
 .explore-card-riders {
-  font-size: 0.8125rem;
+  font-size: 0.78125rem;
   color: #1a7a3a;
-  margin-top: 0.125rem;
+  margin: -8px 0 12px;
+}
+
+/* Top-right seats badge -- always the same neutral gray regardless of
+   urgency (matching the reference exactly); a near-empty offer's urgency
+   reads instead through the amber " · Last seat" appended to the date line
+   (.explore-card-last-seat above), same place the reference puts it. */
+.explore-card-seats-badge {
+  font-size: 0.6875rem;
+  font-weight: 500;
+  color: var(--color-gray-meta);
+  white-space: nowrap;
+  flex-shrink: 0;
+  text-align: right;
+  margin-left: 12px;
 }
 
 .register-interest-form {
@@ -263,8 +556,8 @@ body {
   max-width: 480px;
   margin-top: 0.5rem;
   padding: 1rem;
-  border: 1px solid #e5e5e5;
-  border-radius: 8px;
+  border: 1.5px solid var(--color-border);
+  border-radius: 12px;
   background: #fff;
 }
 
@@ -273,9 +566,39 @@ body {
   font-size: 0.875rem;
 }
 
-.register-interest-form textarea {
+.register-interest-form textarea,
+.fulfill-request-form select,
+.fulfill-request-form input,
+.review-form select,
+.review-form textarea {
+  padding: 0.625rem 0.75rem;
+  border: 1.5px solid var(--color-border);
+  border-radius: 8px;
+  font-size: 0.9375rem;
+  font-family: inherit;
+  color: var(--color-black);
+  background: var(--color-white);
+}
+
+.fulfill-request-form select,
+.review-form select {
+  padding-right: 2rem;
+}
+
+.register-interest-form textarea,
+.review-form textarea {
   min-height: 5rem;
-  font: inherit;
+  resize: vertical;
+}
+
+.register-interest-form textarea:focus,
+.fulfill-request-form select:focus,
+.fulfill-request-form input:focus,
+.review-form select:focus,
+.review-form textarea:focus {
+  outline: 2px solid var(--color-blue);
+  outline-offset: -1px;
+  border-color: var(--color-blue);
 }
 
 .fulfill-request-form {
@@ -285,8 +608,8 @@ body {
   max-width: 480px;
   margin-top: 0.5rem;
   padding: 1rem;
-  border: 1px solid #e5e5e5;
-  border-radius: 8px;
+  border: 1.5px solid var(--color-border);
+  border-radius: 12px;
   background: #fff;
 }
 
@@ -306,8 +629,8 @@ body {
   max-width: 480px;
   margin-top: 0.5rem;
   padding: 1rem;
-  border: 1px solid #e5e5e5;
-  border-radius: 8px;
+  border: 1.5px solid var(--color-border);
+  border-radius: 12px;
   background: #fff;
 }
 
@@ -388,6 +711,20 @@ body {
 .message-compose textarea {
   min-height: 4rem;
   font: inherit;
+  padding: 0.625rem 0.75rem;
+  border: 1.5px solid var(--color-border);
+  border-radius: 8px;
+  resize: vertical;
+}
+
+.message-compose textarea:focus {
+  outline: 2px solid var(--color-blue);
+  outline-offset: -1px;
+  border-color: var(--color-blue);
+}
+
+.message-compose button[type="submit"] {
+  align-self: flex-start;
 }
 
 .conversation-list {
@@ -398,13 +735,17 @@ body {
 
 .conversation-item {
   padding: 0.75rem 1rem;
-  border: 1px solid #e5e5e5;
-  border-radius: 0;
+  border: 1.5px solid var(--color-border);
+  border-radius: 12px;
   background: #fff;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
 }
 
 .conversation-item:hover {
-  border-color: #0060df;
+  border-color: var(--color-blue);
+  box-shadow: var(--shadow-hover);
 }
 
 .conversation-item-link {
@@ -540,10 +881,27 @@ body {
   font-size: 0.8125rem;
 }
 
-.connection-request-compose textarea {
+.connection-request-compose textarea,
+.connection-request-compose select {
   min-height: 3.5rem;
   font: inherit;
   font-size: 0.875rem;
+  padding: 0.5rem 0.625rem;
+  border: 1.5px solid var(--color-border);
+  border-radius: 8px;
+  resize: vertical;
+}
+
+.connection-request-compose select {
+  min-height: 0;
+  padding-right: 2rem;
+}
+
+.connection-request-compose textarea:focus,
+.connection-request-compose select:focus {
+  outline: 2px solid var(--color-blue);
+  outline-offset: -1px;
+  border-color: var(--color-blue);
 }
 
 .connection-item-message {
@@ -617,6 +975,14 @@ body {
 .connection-status-label-declined,
 .connection-status-label-cancelled {
   color: #888;
+}
+
+.connection-status-label-completed {
+  color: #1a7a3a;
+}
+
+.connection-status-label-expired {
+  color: #8a6d00;
 }
 
 .trip-participant-list {
@@ -741,7 +1107,8 @@ body {
   font-weight: 600;
 }
 
-.trip-status-label-upcoming {
+.trip-status-label-upcoming,
+.trip-status-label-open {
   color: #0b57d0;
 }
 
@@ -765,4 +1132,1008 @@ body {
 .trip-row-actions {
   margin: 0.25rem 0 0.75rem;
   font-size: 0.875rem;
+}
+
+/* ---- Redesign: shared primitives (Round 1) ---- */
+
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  padding: 0.625rem 1.25rem;
+  border: none;
+  border-radius: 8px;
+  background: var(--color-black);
+  color: var(--color-white);
+  font-weight: 600;
+  font-size: 0.9375rem;
+  text-decoration: none;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+
+.btn-primary:hover {
+  opacity: 0.8;
+}
+
+.btn-primary:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  padding: 0.625rem 1.25rem;
+  border: none;
+  border-radius: 8px;
+  background: var(--color-gray-section);
+  color: var(--color-black);
+  font-weight: 600;
+  font-size: 0.9375rem;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
+}
+
+.btn-secondary:hover {
+  background: var(--color-black);
+  color: var(--color-white);
+}
+
+.btn-secondary:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.pagination-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.pagination-status {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-gray-body);
+}
+
+.pagination-disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.badge-verified {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.125rem 0.5rem;
+  border-radius: 999px;
+  background: var(--color-green-bg);
+  color: var(--color-green);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  vertical-align: middle;
+}
+
+.badge-verified svg {
+  width: 0.75rem;
+  height: 0.75rem;
+}
+
+.badge-students-only {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.125rem 0.5rem;
+  border-radius: 999px;
+  background: var(--color-blue-bg);
+  color: var(--color-blue);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.avatar-circle {
+  border-radius: 50%;
+  background: var(--color-gray-section);
+  border: 1.5px solid #e4e4e4;
+  object-fit: cover;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--color-black);
+}
+
+.section-shift-gray {
+  background: var(--color-gray-section);
+}
+
+.section-shift-white {
+  background: var(--color-white);
+}
+
+.eyebrow {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-gray-body);
+  margin-bottom: 0.5rem;
+}
+
+.heading-tight {
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  margin: 0;
+}
+
+/* Landing hero */
+
+.landing-hero {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+  align-items: center;
+  padding: 3rem 0;
+  margin: -1.5rem -1.5rem 0;
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
+}
+
+.landing-hero-title {
+  font-size: 2.25rem;
+  line-height: 1.05;
+}
+
+.landing-hero-subtitle {
+  color: var(--color-gray-body);
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  margin: 1rem 0 0;
+  max-width: 32rem;
+}
+
+.landing-hero-ctas {
+  display: flex;
+  gap: 0.75rem;
+  margin: 1.5rem 0;
+  flex-wrap: wrap;
+}
+
+.landing-trust-bar {
+  display: flex;
+  gap: 1.5rem;
+  font-size: 0.8125rem;
+  color: var(--color-gray-body);
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.landing-hero-art {
+  min-height: 200px;
+}
+
+.home-hero-art {
+  min-height: 240px;
+  background: var(--color-blue-bg);
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.landing-preview-section {
+  padding: 2rem 1.5rem;
+  margin: 0 -1.5rem;
+}
+
+.home-search-bar {
+  display: flex;
+  gap: 0.5rem;
+  margin: 1.5rem 0 1rem;
+  padding: 0.5rem;
+  background: var(--color-white);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  box-shadow: var(--shadow-hover);
+  flex-wrap: wrap;
+}
+
+.home-search-field {
+  flex: 1 1 160px;
+  min-width: 0;
+  padding: 0.625rem 2rem 0.625rem 0.75rem;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-family: inherit;
+  color: var(--color-black);
+  background-color: transparent;
+}
+
+.home-search-field:focus {
+  outline: 2px solid var(--color-blue);
+  outline-offset: -2px;
+}
+
+.home-search-bar .btn-primary {
+  flex: 0 0 auto;
+}
+
+.home-stat-line {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8125rem;
+  color: var(--color-gray-body);
+  margin: 0;
+}
+
+.home-stat-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--color-green);
+  flex-shrink: 0;
+}
+
+.home-results {
+  padding: 2rem 1.5rem;
+  margin: 0 -1.5rem;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 2rem 0;
+  color: var(--color-gray-body);
+}
+
+/* The gray body-text color above shouldn't bleed onto a heading -- a
+   heading inside .empty-state (e.g. not-found.tsx, the "no featured route"
+   empty state on Home) needs the same high-contrast black every other
+   .heading-tight use gets. */
+.empty-state h1 {
+  color: var(--color-black);
+}
+
+.empty-state-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.home-results-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+/* Home's 3 weighted preview sub-sections (package/Uber-share/personal-car)
+   -- spacing only, the heading itself carries the size difference via
+   which existing text-style class is used (heading-tight / post-hub-panel-
+   title / eyebrow). */
+.home-category-section + .home-category-section {
+  margin-top: 2rem;
+}
+
+.home-category-section > *:first-child {
+  display: block;
+  margin-bottom: 0.75rem;
+}
+
+@media (max-width: 640px) {
+  .landing-hero {
+    grid-template-columns: 1fr;
+  }
+
+  .home-search-bar {
+    flex-direction: column;
+  }
+
+  .home-search-bar .btn-primary {
+    width: 100%;
+  }
+}
+
+/* Explore split layout + schematic map */
+
+.explore-split {
+  display: grid;
+  grid-template-columns: 1fr 400px;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.schematic-map {
+  position: sticky;
+  top: 76px;
+  border: 1.5px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-white);
+  padding: 1rem;
+  /* A real height, not min-height -- RouteMap.tsx's Leaflet map is styled
+     height: 100%, which only resolves against a parent with a determinate
+     (not auto-via-min-height) height. Tall enough to feel like a real
+     panel next to the results grid rather than a cramped sidebar strip. */
+  height: 480px;
+}
+
+.schematic-map-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--color-gray-body);
+  font-size: 0.875rem;
+  text-align: center;
+}
+
+/* Restyles Leaflet's default chrome (zoom buttons, attribution, tooltips) to
+   match this app's own design language instead of Leaflet's out-of-the-box
+   look, which otherwise reads as a generic embedded map widget rather than
+   part of the product. Global (not scoped under .schematic-map) because
+   Leaflet renders these as siblings appended directly to the map's root
+   pane, outside any container class react-leaflet's own props can reach. */
+
+/* Mutes the default OpenStreetMap tile style's saturated road/land colors
+   and dense labels into a soft, minimal gray-blue palette closer to this
+   app's own design -- applied to the raster tiles themselves via Leaflet's
+   built-in className tile-layer option (RouteMap.tsx). A plain grid canvas
+   (no tile imagery at all) was tried first per an earlier reference mockup,
+   but live feedback was that it read as "blank boxes," not an actual map --
+   real tiles, muted, are what's here now. */
+.route-map-tiles {
+  filter: grayscale(0.55) brightness(1.08) contrast(0.92) saturate(0.8);
+}
+
+.leaflet-control-zoom.leaflet-bar {
+  border: 1.5px solid var(--color-border);
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: var(--shadow-hover);
+}
+
+.leaflet-control-zoom a.leaflet-control-zoom-in,
+.leaflet-control-zoom a.leaflet-control-zoom-out {
+  width: 1.875rem;
+  height: 1.875rem;
+  line-height: 1.875rem;
+  color: var(--color-black);
+  background: var(--color-white);
+  border: none;
+  font-family: var(--font-sans);
+}
+
+.leaflet-control-zoom a.leaflet-control-zoom-in:hover,
+.leaflet-control-zoom a.leaflet-control-zoom-out:hover {
+  background: var(--color-gray-section);
+  color: var(--color-black);
+}
+
+.leaflet-control-zoom a.leaflet-control-zoom-in {
+  border-bottom: 1px solid var(--color-border) !important;
+}
+
+.leaflet-touch .leaflet-bar a {
+  line-height: 1.875rem;
+}
+
+/* A small white pill, not plain floating text -- necessary now that labels
+   sit over real (if muted) tile imagery rather than a flat grid, where
+   plain text could land on a busy or similarly-light patch of map and
+   become unreadable. */
+.schematic-map-eyebrow {
+  position: absolute;
+  top: 0.875rem;
+  left: 1.125rem;
+  z-index: 1000;
+  margin-bottom: 0;
+  pointer-events: none;
+  background: rgba(255, 255, 255, 0.9);
+  padding: 0.25rem 0.625rem;
+  border-radius: 999px;
+  box-shadow: var(--shadow-hover);
+}
+
+/* The hovered route's two endpoints -- green ring for the origin, filled
+   blue for the destination, matching the reference mockup -- get a subtle
+   shadow so they read as the "active" markers; every other marker on the
+   page (see .route-map-marker-dim below) stays flat with no shadow. */
+.route-map-marker-origin,
+.route-map-marker-destination {
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.25));
+}
+
+/* A soft glow behind the hovered route's line so it reads as clearly the
+   "active" one, not just a thicker version of the same gray dashed lines. */
+.route-map-line-hovered {
+  filter: drop-shadow(0 0 4px rgba(29, 111, 255, 0.45));
+}
+
+.route-map-flow-dot {
+  filter: drop-shadow(0 0 4px rgba(29, 111, 255, 0.8));
+}
+
+/* Permanent (always-visible, not hover-only) small labels beside every
+   marker, rather than Leaflet's default hover-triggered tooltip. A small
+   white pill background (not plain floating text) keeps these legible over
+   real tile imagery regardless of what's underneath -- the hovered route's
+   two endpoints get a bolder, black label
+   (.route-map-marker-label-active); every other marker's label stays small
+   and gray, reading as ambient context rather than competing with the
+   highlighted route. Both variants hide Leaflet's default tooltip pointer
+   arrow, which would look odd on a small rounded pill. */
+.leaflet-tooltip.route-map-marker-label,
+.leaflet-tooltip.route-map-marker-label-active {
+  background: rgba(255, 255, 255, 0.92);
+  border: none;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  border-radius: 4px;
+  padding: 0.0625rem 0.375rem;
+  font-family: var(--font-sans);
+}
+
+.leaflet-tooltip.route-map-marker-label::before,
+.leaflet-tooltip.route-map-marker-label-active::before {
+  display: none;
+}
+
+.leaflet-tooltip.route-map-marker-label {
+  font-size: 0.6875rem;
+  font-weight: 500;
+  color: var(--color-gray-body);
+}
+
+.leaflet-tooltip.route-map-marker-label-active {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--color-black);
+}
+
+.leaflet-control-attribution {
+  border-radius: 6px;
+  font-size: 0.6875rem;
+  font-family: var(--font-sans);
+}
+
+@media (max-width: 780px) {
+  .explore-split {
+    grid-template-columns: 1fr;
+  }
+
+  .schematic-map {
+    position: static;
+  }
+}
+
+/* Detail page header (Trip/Request) */
+
+.detail-header {
+  margin-bottom: 1rem;
+}
+
+.detail-route-headline {
+  font-size: 1.75rem;
+  margin: 0.25rem 0 0.25rem;
+}
+
+.detail-route-subtitle {
+  display: block;
+  color: var(--color-gray-body);
+  font-size: 0.875rem;
+  margin: 0 0 0.5rem;
+  text-decoration: none;
+}
+
+.detail-route-subtitle:hover {
+  color: var(--color-blue);
+}
+
+.button-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.detail-poster-row {
+  margin: 0.75rem 0;
+}
+
+/* Wraps the stack of plain fact lines (date/time, seats, package info,
+   notes) directly under .detail-header on the Trip/Request detail pages --
+   reuses the same border/radius language as .list-card rather than
+   inventing a new visual style for what's otherwise just a stack of <p>
+   tags. */
+.detail-facts {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  margin-bottom: 1rem;
+  padding: 1rem 1.25rem;
+  border: 1.5px solid var(--color-border);
+  border-radius: 12px;
+}
+
+.detail-facts p {
+  margin: 0;
+  font-size: 0.9375rem;
+  color: var(--color-black);
+}
+
+/* Resets default anchor styling (blue, underlined) for a Link that wraps an
+   already-styled block -- e.g. PosterBadge -- so the link doesn't visually
+   look like a plain hyperlink slapped over a card. */
+.plain-link {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+}
+
+/* Post hub */
+
+.post-hub-groups {
+  display: flex;
+  gap: 2rem;
+  margin-top: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.post-hub-panel {
+  flex: 1;
+  min-width: 220px;
+}
+
+.post-hub-panel-title {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  margin: 0 0 0.75rem;
+}
+
+.post-hub-divider {
+  width: 1px;
+  background: var(--color-border);
+  align-self: stretch;
+}
+
+.post-hub-tiles {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.post-hub-tile {
+  display: block;
+  padding: 1rem;
+  border: 1.5px solid var(--color-border);
+  border-radius: 12px;
+  text-decoration: none;
+  color: var(--color-black);
+  font-weight: 600;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.15s ease;
+}
+
+.post-hub-tile:hover {
+  border-color: var(--color-blue);
+  box-shadow: var(--shadow-hover);
+  transform: translateY(-2px);
+}
+
+/* Visual-prominence weighting for the /post hub -- all 6 actions are
+   equally functional, only their visual size/emphasis differs (per product
+   decision: package delivery featured, Uber-sharing secondary, driving-
+   your-own-car smallest). See POST_ACTIONS in src/app/post/page.tsx. */
+.post-hub-tile-primary {
+  padding: 1.375rem 1.25rem;
+  background: var(--color-blue-bg);
+  border-color: var(--color-blue);
+  font-size: 1.0625rem;
+}
+
+.post-hub-tile-tertiary {
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-gray-body);
+}
+
+.post-hub-footer {
+  margin-top: 1.5rem;
+}
+
+@media (max-width: 640px) {
+  .post-hub-groups {
+    flex-direction: column;
+  }
+
+  .post-hub-divider {
+    display: none;
+  }
+}
+
+/* ---- Redesign: shared primitives (Round 2 -- list/form pages) ---- */
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.page-header-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+/* Pill sub-navigation for a page's own view switcher (Upcoming/History,
+   Received/Sent, Inbox/Archived) -- visually related to but smaller than
+   the top nav's .site-nav-tab pills, so a page never has two competing
+   "this is the active tab" languages on screen at once. */
+.subtabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.subtab {
+  padding: 0.375rem 0.875rem;
+  border: 1.5px solid var(--color-border);
+  border-radius: 999px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-gray-body);
+  text-decoration: none;
+}
+
+.subtab:hover {
+  border-color: var(--color-blue);
+  color: var(--color-black);
+}
+
+.subtab-active {
+  background: var(--color-black);
+  border-color: var(--color-black);
+  color: var(--color-white);
+}
+
+.subtab-active:hover {
+  color: var(--color-white);
+}
+
+.list-section {
+  margin-bottom: 2.5rem;
+}
+
+.list-section-title {
+  font-size: 1.0625rem;
+  font-weight: 700;
+  margin: 0 0 0.75rem;
+}
+
+.list-card {
+  display: block;
+  padding: 1rem 1.25rem;
+  border: 1.5px solid var(--color-border);
+  border-radius: 12px;
+  margin-bottom: 0.75rem;
+  color: inherit;
+  text-decoration: none;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.list-card:hover {
+  border-color: var(--color-blue);
+  box-shadow: var(--shadow-hover);
+}
+
+.list-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.list-card-title {
+  font-weight: 700;
+  font-size: 0.9375rem;
+  color: var(--color-black);
+  text-decoration: none;
+}
+
+.list-card-title:hover {
+  color: var(--color-blue);
+}
+
+.list-card-meta {
+  font-size: 0.8125rem;
+  color: var(--color-gray-body);
+  margin-top: 0.25rem;
+}
+
+.list-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--color-border);
+}
+
+/* Forms -- applied via className="app-form" on a bare <form> so every
+   create/edit/auth form in the app (TripPostForm, RequestPostForm,
+   ProfileEditForm, login, sign-up, verify, InviteParentForm,
+   ConnectStudentClient, ...) gets consistent field/button styling without
+   having to hand-edit every individual label/input pair. Deliberately
+   element-type selectors scoped under .app-form rather than new classes on
+   every field -- these forms all share the exact same
+   <div><label/><input/></div> (or <label><input type=checkbox/>text</label>)
+   shape already. */
+.app-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.125rem;
+  max-width: 32rem;
+  margin: 0 auto;
+}
+
+/* Wraps the eyebrow+heading+form on a single-form page (create/edit Trip,
+   Request, PackagePost, onboarding) so the heading lines up directly above
+   the centered .app-form below it, rather than staying flush against the
+   page's left edge while the form centers underneath it. Not used on
+   multi-section pages like /profile or /family, where other content
+   still wants the full page width. */
+.form-page {
+  max-width: 32rem;
+  margin: 0 auto;
+}
+
+.app-form > div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.app-form label {
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.app-form input,
+.app-form select,
+.app-form textarea {
+  padding: 0.625rem 0.75rem;
+  border: 1.5px solid var(--color-border);
+  border-radius: 8px;
+  font-size: 0.9375rem;
+  font-family: inherit;
+  color: var(--color-black);
+  background: var(--color-white);
+}
+
+.app-form select {
+  padding-right: 2rem;
+}
+
+.app-form input:focus,
+.app-form select:focus,
+.app-form textarea:focus {
+  outline: 2px solid var(--color-blue);
+  outline-offset: -1px;
+  border-color: var(--color-blue);
+}
+
+.app-form textarea {
+  min-height: 5rem;
+  resize: vertical;
+}
+
+.app-form input[type="checkbox"] {
+  width: auto;
+  accent-color: var(--color-blue);
+  margin-right: 0.5rem;
+}
+
+.app-form input[type="file"] {
+  border: none;
+  padding: 0;
+}
+
+.app-form fieldset {
+  border: 1.5px solid var(--color-border);
+  border-radius: 8px;
+  padding: 0.875rem 1rem;
+  margin: 0;
+}
+
+.app-form legend {
+  font-weight: 600;
+  font-size: 0.875rem;
+  padding: 0 0.25rem;
+}
+
+.app-form fieldset label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 500;
+  margin: 0.5rem 0;
+}
+
+.app-form [role="alert"] {
+  color: #c0341f;
+  font-size: 0.875rem;
+  margin: 0;
+}
+
+.fulfill-request-form [role="alert"],
+.review-form [role="alert"],
+.connection-request-compose [role="alert"],
+.empty-state [role="alert"] {
+  color: #c0341f;
+  font-size: 0.875rem;
+  margin: 0;
+}
+
+.app-form button[type="submit"] {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  padding: 0.625rem 1.25rem;
+  border: none;
+  border-radius: 8px;
+  background: var(--color-black);
+  color: var(--color-white);
+  font-weight: 600;
+  font-size: 0.9375rem;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+  align-self: flex-start;
+}
+
+.app-form button[type="submit"]:hover {
+  opacity: 0.8;
+}
+
+.app-form button[type="submit"]:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Auth pages (login/sign-up/verify) -- a centered card, distinct from the
+   full-width app shell, since these pages have no nav and no other content
+   competing for the frame. */
+.auth-card {
+  max-width: 26rem;
+  margin: 3rem auto;
+  padding: 2rem;
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+}
+
+.auth-card h1 {
+  margin: 0 0 0.5rem;
+}
+
+.auth-back-button {
+  background: none;
+  border: none;
+  padding: 0;
+  margin-bottom: 1rem;
+  color: var(--color-gray-body);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.auth-back-button:hover {
+  color: var(--color-black);
+}
+
+.persona-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+}
+
+.persona-picker button {
+  display: block;
+  width: 100%;
+  padding: 1rem;
+  border: 1.5px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-white);
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.9375rem;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.15s ease;
+}
+
+.persona-picker button:hover {
+  border-color: var(--color-blue);
+  box-shadow: var(--shadow-hover);
+  transform: translateY(-2px);
+}
+
+/* Profile pages (self + public) */
+.profile-header {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.profile-avatar-lg {
+  width: 88px;
+  height: 88px;
+  font-size: 2rem;
+  flex-shrink: 0;
+}
+
+.profile-name {
+  margin: 0;
+}
+
+.profile-meta {
+  color: var(--color-gray-body);
+  font-size: 0.9375rem;
+  margin: 0.25rem 0 0;
+}
+
+.profile-badges {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-top: 0.5rem;
+}
+
+.profile-section {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.profile-section-title {
+  font-size: 1.0625rem;
+  font-weight: 700;
+  margin: 0 0 0.25rem;
+}
+
+.profile-section-hint {
+  font-size: 0.8125rem;
+  color: var(--color-gray-body);
+  margin: 0 0 0.75rem;
 }

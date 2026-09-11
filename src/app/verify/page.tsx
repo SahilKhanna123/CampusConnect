@@ -8,7 +8,13 @@ import { useSearchParams } from "next/navigation";
 // back here from the emailed link to confirm it (?token=...).
 export default function VerifyPage() {
   return (
-    <Suspense fallback={<h1>Verify Your University Email</h1>}>
+    <Suspense
+      fallback={
+        <div className="auth-card">
+          <h1 className="heading-tight">Verify Your University Email</h1>
+        </div>
+      }
+    >
       <VerifyPageContent />
     </Suspense>
   );
@@ -52,9 +58,9 @@ function RequestForm() {
 
   if (status === "sent") {
     return (
-      <div>
-        <h1>Check your inbox</h1>
-        <p>
+      <div className="auth-card">
+        <h1 className="heading-tight">Check your inbox</h1>
+        <p className="profile-meta">
           We sent a verification link to <strong>{email}</strong>. Click it
           to get your verified badge.
         </p>
@@ -63,10 +69,11 @@ function RequestForm() {
   }
 
   return (
-    <div>
-      <h1>Verify Your University Email</h1>
-      <p>Required to post, request, or message on CampusConnect.</p>
-      <form onSubmit={handleSubmit}>
+    <div className="auth-card">
+      <span className="eyebrow">Verification</span>
+      <h1 className="heading-tight">Verify your university email</h1>
+      <p className="profile-meta">Required to post, request, or message on CampusConnect.</p>
+      <form onSubmit={handleSubmit} className="app-form">
         <div>
           <label htmlFor="email">University email</label>
           <input
@@ -125,26 +132,26 @@ function ConfirmToken({ token }: { token: string }) {
 
   if (state === "confirming") {
     return (
-      <div>
-        <h1>Verify Your University Email</h1>
-        <p>Confirming your verification link…</p>
+      <div className="auth-card">
+        <h1 className="heading-tight">Verify your university email</h1>
+        <p className="profile-meta">Confirming your verification link…</p>
       </div>
     );
   }
 
   if (state === "success") {
     return (
-      <div>
-        <h1>✓ University Verified</h1>
-        <p>Your badge is live. You can now post, request, and message.</p>
+      <div className="auth-card">
+        <h1 className="heading-tight">✓ University Verified</h1>
+        <p className="profile-meta">Your badge is live. You can now post, request, and message.</p>
       </div>
     );
   }
 
   return (
-    <div>
-      <h1>Verification Failed</h1>
-      <p>{message}</p>
+    <div className="auth-card">
+      <h1 className="heading-tight">Verification Failed</h1>
+      <p className="profile-meta">{message}</p>
     </div>
   );
 }

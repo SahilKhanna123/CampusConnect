@@ -51,7 +51,8 @@ export default async function FamilyPage() {
   if (user.signedUpAsParent) {
     return (
       <div>
-        <h1>Family</h1>
+        <span className="eyebrow">Family</span>
+        <h1 className="heading-tight">Family</h1>
         <p>
           Your linked students are shown on <Link href="/profile">your profile</Link>.
         </p>
@@ -62,7 +63,8 @@ export default async function FamilyPage() {
   if (!user.studentRecord) {
     return (
       <div>
-        <h1>Family</h1>
+        <span className="eyebrow">Family</span>
+        <h1 className="heading-tight">Family</h1>
         <p>This page is for managing parent connections to a student account.</p>
       </div>
     );
@@ -82,11 +84,12 @@ export default async function FamilyPage() {
 
   return (
     <div>
-      <h1>Family</h1>
-      <p>Manage the parents and guardians connected to your account.</p>
+      <span className="eyebrow">Family</span>
+      <h1 className="heading-tight">Family</h1>
+      <p className="profile-meta">Manage the parents and guardians connected to your account.</p>
 
-      <section>
-        <h2>Parents Connected to You</h2>
+      <section className="profile-section">
+        <h2 className="profile-section-title">Parents Connected to You</h2>
         {links.length === 0 ? (
           <p>No parent connections yet.</p>
         ) : (
@@ -112,9 +115,9 @@ export default async function FamilyPage() {
 
       {isUniversityVerified(user) ? (
         <>
-          <section>
-            <h2>Invite a Parent/Guardian</h2>
-            <p>
+          <section className="profile-section">
+            <h2 className="profile-section-title">Invite a Parent/Guardian</h2>
+            <p className="profile-section-hint">
               Invite a parent or guardian to connect with you. They&apos;ll be
               able to see rides and package requests related to you and post
               on your behalf, clearly labeled as posted by them, for you.
@@ -122,8 +125,8 @@ export default async function FamilyPage() {
             <InviteParentForm />
           </section>
 
-          <section>
-            <h2>Sent Invites</h2>
+          <section className="profile-section">
+            <h2 className="profile-section-title">Sent Invites</h2>
             {sentInvites.length === 0 ? (
               <p>No invites sent yet.</p>
             ) : (
@@ -149,10 +152,12 @@ export default async function FamilyPage() {
           </section>
         </>
       ) : (
-        <p>
-          <Link href="/verify">Verify your university email</Link> to invite a
-          parent or guardian.
-        </p>
+        <div className="profile-section">
+          <p>Verify your university email to invite a parent or guardian.</p>
+          <Link href="/verify" className="btn-secondary">
+            Verify your university email
+          </Link>
+        </div>
       )}
     </div>
   );

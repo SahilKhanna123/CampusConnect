@@ -39,7 +39,7 @@ export function InviteParentForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit}>
+    <form onSubmit={handleSubmit} className="app-form">
       <div>
         <label htmlFor="parentEmail">Parent/guardian&apos;s email</label>
         <input

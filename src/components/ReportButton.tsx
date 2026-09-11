@@ -27,7 +27,7 @@ export function ReportButton({
   contextId,
 }: {
   reportedUserId: string;
-  contextType?: "trip" | "request" | "message" | "profile";
+  contextType?: "trip" | "request" | "package" | "message" | "profile";
   contextId?: string;
 }) {
   const [phase, setPhase] = useState<"idle" | "composing" | "submitted">("idle");
@@ -98,7 +98,7 @@ export function ReportButton({
         />
         {error && <p role="alert">{error}</p>}
         <div>
-          <button type="submit" disabled={loading || !reason}>
+          <button type="submit" disabled={loading || !reason} className="btn-primary">
             {loading ? "Reporting…" : "Submit Report"}
           </button>{" "}
           <button
@@ -110,6 +110,7 @@ export function ReportButton({
               setError(null);
             }}
             disabled={loading}
+            className="btn-secondary"
           >
             Cancel
           </button>
@@ -122,7 +123,7 @@ export function ReportButton({
     <button
       type="button"
       onClick={() => setPhase("composing")}
-      className="report-button"
+      className="report-button btn-secondary"
     >
       Report user
     </button>

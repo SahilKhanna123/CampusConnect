@@ -25,6 +25,9 @@ export default async function ConversationPage({
     where: { id },
     include: {
       trip: { include: { originCity: true, destinationCity: true } },
+      // A conversation is scoped to exactly one of trip/packagePost, never
+      // both -- see the schema comment on Conversation.packagePostId.
+      packagePost: { include: { originCity: true, destinationCity: true } },
       participants: {
         include: { user: { select: { id: true, name: true, photoUrl: true } } },
       },
@@ -34,7 +37,9 @@ export default async function ConversationPage({
       },
       // Rendered as inline bubbles in MessageThread, see the Seat Offers
       // section of CLAUDE.md -- the full history, not just the latest, so
-      // past declined/cancelled offers stay visible in the thread.
+      // past declined/cancelled offers stay visible in the thread. Always
+      // empty for a package conversation -- PackagePost never creates a
+      // SeatOffer row (no seat/capacity concept exists for it at all).
       seatOffers: { orderBy: { createdAt: "asc" } },
     },
   });
@@ -49,12 +54,19 @@ export default async function ConversationPage({
   const initialBlocked = counterpart
     ? await isBlockedBetween(user.id, counterpart.id)
     : false;
-  const destinationLabel =
-    conversation.trip.destinationCity?.name ??
-    conversation.trip.destinationText ??
-    "?";
 
-  const isOwner = conversation.trip.travelerId === user.id;
+  const { trip, packagePost } = conversation;
+  const routeHref = trip ? `/trips/${trip.id}` : `/package-posts/${packagePost!.id}`;
+  const originName = trip ? trip.originCity.name : packagePost!.originCity.name;
+  const destinationLabel = trip
+    ? (trip.destinationCity?.name ?? trip.destinationText ?? "?")
+    : (packagePost!.destinationCity?.name ?? packagePost!.destinationText ?? "?");
+  const isOwner = trip
+    ? trip.travelerId === user.id
+    : packagePost!.postedById === user.id;
+  const seatsAvailable = trip
+    ? trip.seatsRemaining > 0 && tripDisplayStatus(trip) === "upcoming"
+    : false;
 
   return (
     <div>
@@ -67,24 +79,26 @@ export default async function ConversationPage({
         in person, at the time of the ride or pickup. CampusConnect doesn't
         process payments and can't help recover money sent to someone here.
       </p>
-      <p>
-        <Link href={`/trips/${conversation.tripId}`}>
-          {conversation.trip.originCity.name} → {destinationLabel}
+      <div className="detail-header">
+        <Link href={routeHref} className="detail-route-subtitle">
+          {originName} → {destinationLabel}
         </Link>
-      </p>
-      <h1>{counterpart?.name ?? "Conversation"}</h1>
+        <h1 className="heading-tight detail-route-headline">
+          {counterpart?.name ?? "Conversation"}
+        </h1>
+      </div>
       {counterpart && (
-        <>
+        <div className="button-row">
           <ReportButton
             reportedUserId={counterpart.id}
             contextType="message"
             contextId={conversation.id}
-          />{" "}
+          />
           <BlockButton
             blockedUserId={counterpart.id}
             initialBlocked={initialBlocked}
           />
-        </>
+        </div>
       )}
 
       {counterpart && (
@@ -93,10 +107,7 @@ export default async function ConversationPage({
           currentUserId={user.id}
           isOwner={isOwner}
           counterpartId={counterpart.id}
-          seatsAvailable={
-            conversation.trip.seatsRemaining > 0 &&
-            tripDisplayStatus(conversation.trip) === "upcoming"
-          }
+          seatsAvailable={seatsAvailable}
           initialMessages={conversation.messages.map((m) => ({
             id: m.id,
             body: m.body,

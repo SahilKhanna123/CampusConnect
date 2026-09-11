@@ -34,7 +34,18 @@ export default async function TripDetailPage({
     include: {
       originCity: { include: { region: true } },
       destinationCity: { include: { region: true } },
-      traveler: { select: { id: true, name: true, photoUrl: true } },
+      traveler: {
+        select: {
+          id: true,
+          name: true,
+          photoUrl: true,
+          signedUpAsParent: true,
+          verifications: {
+            where: { status: "verified" },
+            select: { type: true, status: true },
+          },
+        },
+      },
     },
   });
   if (!trip) notFound();
@@ -194,54 +205,67 @@ export default async function TripDetailPage({
 
   return (
     <div>
-      <h1>{trip.title || "Untitled trip"}</h1>
-      <p>
-        {trip.originCity.name} → {destinationLabel}
-      </p>
-      <p>Status: {displayStatus}</p>
-      {trip.studentsOnly && <p>🎓 Visible to students only</p>}
-      <p>
-        {trip.departureDate.toLocaleDateString()}
-        {trip.departureTime && ` at ${trip.departureTime}`}
-        {trip.flexibleTime && " (flexible)"}
-      </p>
-      <p>
-        Seats available: {trip.seatsRemaining} / {trip.seatsTotal}
-      </p>
-      {trip.packageSpaceAvailable && (
-        <p>
-          Package space available
-          {trip.packageCapacityNote && `: ${trip.packageCapacityNote}`}
+      <div className="detail-header">
+        {trip.studentsOnly && <span className="badge-students-only">🎓 Students only</span>}
+        <h1 className="heading-tight detail-route-headline">
+          {trip.title || "Untitled trip"}
+        </h1>
+        <p className="detail-route-subtitle">
+          {trip.originCity.name}
+          {trip.originCity.region ? `, ${trip.originCity.region.name}` : ""} →{" "}
+          {destinationLabel}
+          {trip.destinationCity?.region ? `, ${trip.destinationCity.region.name}` : ""}
         </p>
-      )}
-      {trip.tripNotes && <p>{trip.tripNotes}</p>}
-      <p>
-        Posted by{" "}
-        <Link href={`/profile/${trip.traveler.id}`}>{trip.traveler.name}</Link>
-      </p>
+        <p className={`trip-status-label trip-status-label-${displayStatus}`}>
+          {displayStatus}
+        </p>
+      </div>
+      <div className="detail-facts">
+        <p>
+          {trip.departureDate.toLocaleDateString()}
+          {trip.departureTime && ` at ${trip.departureTime}`}
+          {trip.flexibleTime && " (flexible)"}
+        </p>
+        <p>
+          Seats available: {trip.seatsRemaining} / {trip.seatsTotal}
+        </p>
+        {trip.category === "uber_share" && (
+          <p>
+            Splitting an Uber/Lyft
+            {trip.estimatedFarePerSeat && ` · ~$${trip.estimatedFarePerSeat} per seat`}
+            {trip.meetingPoint && ` · Meet at: ${trip.meetingPoint}`}
+          </p>
+        )}
+        {trip.tripNotes && <p>{trip.tripNotes}</p>}
+      </div>
+      <div className="detail-poster-row">
+        <Link href={`/profile/${trip.traveler.id}`} className="plain-link">
+          <PosterBadge poster={trip.traveler} />
+        </Link>
+      </div>
       {/* Reporting/blocking inherently requires an account -- there's no
           useful "preview" of either action, so they're simply absent for an
           anonymous viewer rather than linking to sign-up. */}
       {!isOwner && user && (
-        <>
+        <div className="button-row">
           <ReportButton
             reportedUserId={trip.traveler.id}
             contextType="trip"
             contextId={trip.id}
-          />{" "}
+          />
           <BlockButton
             blockedUserId={trip.traveler.id}
             initialBlocked={initialBlocked}
           />
-        </>
+        </div>
       )}
 
       {isOwner && isUpcoming && (
-        <div>
-          <Link href={`/trips/${trip.id}/edit`}>Edit</Link>
-          {" · "}
+        <div className="button-row">
+          <Link href={`/trips/${trip.id}/edit`} className="btn-secondary">
+            Edit
+          </Link>
           <MarkTripCompleteButton tripId={trip.id} />
-          {" · "}
           <DeletePostButton
             deleteUrl={`/api/trips/${trip.id}`}
             redirectTo="/my-posts"
@@ -257,9 +281,9 @@ export default async function TripDetailPage({
           for exactly this reason. Only "Add as Participant" itself is
           upcoming-gated, since confirm-seat requires it server-side. */}
       {isOwner && participantRows.length > 0 && (
-        <div>
-          <h2>Participants</h2>
-          <p>
+        <section className="profile-section">
+          <h2 className="profile-section-title">Participants</h2>
+          <p className="profile-section-hint">
             {trip.seatsRemaining} of {trip.seatsTotal} seat
             {trip.seatsTotal === 1 ? "" : "s"} still open
           </p>
@@ -280,7 +304,7 @@ export default async function TripDetailPage({
               </div>
             ))}
           </div>
-        </div>
+        </section>
       )}
 
       {/* Public roster: anyone viewing the trip can see who's confirmed to
@@ -290,8 +314,8 @@ export default async function TripDetailPage({
           own comment above). Also surfaced compactly on /explore and Home
           cards via ExploreCard's confirmedRiderCount. */}
       {!isOwner && confirmedRiders.length > 0 && (
-        <div>
-          <h2>Riders</h2>
+        <section className="profile-section">
+          <h2 className="profile-section-title">Riders</h2>
           <div className="trip-participant-list">
             {confirmedRiders.map((row) => (
               <div key={`${row.kind}-${row.id}`} className="trip-participant-row">
@@ -299,22 +323,21 @@ export default async function TripDetailPage({
               </div>
             ))}
           </div>
-        </div>
+        </section>
       )}
 
       {isOwner && fulfillingRequests.length > 0 && (
-        <div>
-          <h2>Requests You&apos;re Fulfilling</h2>
+        <section className="profile-section">
+          <h2 className="profile-section-title">Requests You&apos;re Fulfilling</h2>
           <div className="trip-participant-list">
             {fulfillingRequests.map((r) => (
               <div key={r.id} className="trip-participant-row">
-                <Link href={`/requests/${r.id}`}>
+                <Link href={`/requests/${r.id}`} className="plain-link">
                   <PosterBadge poster={r.postedBy} />
                 </Link>
                 <span>
-                  {r.type === "ride"
-                    ? `Ride, ${r.seatsRequested ?? 1} seat(s)`
-                    : `Package: ${r.packageDescription ?? ""}`}
+                  {r.category === "uber_share" ? "Uber-share" : "Ride"},{" "}
+                  {r.seatsRequested ?? 1} seat(s)
                 </span>
                 {r.status === "accepted" ? (
                   <MarkRequestCompleteButton requestId={r.id} />
@@ -324,7 +347,7 @@ export default async function TripDetailPage({
               </div>
             ))}
           </div>
-        </div>
+        </section>
       )}
 
       {/* An already-accepted connection keeps its "Connected — View
@@ -333,27 +356,29 @@ export default async function TripDetailPage({
           new connection requests to inactive trips, but don't hide existing
           connection history" split in the Trip Management spec. */}
       {!isOwner && (connectionRequestStatus === "accepted" || isUpcoming) && (
-        <div>
-          {user ? (
-            <ConnectionRequestButton
-              tripId={trip.id}
-              initialStatus={connectionRequestStatus}
-              conversationId={acceptedConversation?.id}
-            />
-          ) : (
-            // Same label as the real button, but a plain link to sign-up --
-            // clicking it takes a logged-out visitor straight there rather
-            // than opening the note composer, per product decision.
-            <Link href="/sign-up" className="connection-request-button">
-              Request to Connect
-            </Link>
-          )}
+        <>
+          <div className="button-row">
+            {user ? (
+              <ConnectionRequestButton
+                tripId={trip.id}
+                initialStatus={connectionRequestStatus}
+                conversationId={acceptedConversation?.id}
+              />
+            ) : (
+              // Same label as the real button, but a plain link to sign-up --
+              // clicking it takes a logged-out visitor straight there rather
+              // than opening the note composer, per product decision.
+              <Link href="/sign-up" className="connection-request-button btn-primary">
+                Request to Connect
+              </Link>
+            )}
+          </div>
           {myConnectionRequest?.seatConfirmedAt && (
             <p className="seat-confirmed-badge">
               ✓ You have a confirmed seat on this trip.
             </p>
           )}
-        </div>
+        </>
       )}
 
       {!isOwner && isUpcoming && (
@@ -362,7 +387,7 @@ export default async function TripDetailPage({
             user ? (
               <RegisterInterestForm tripId={trip.id} />
             ) : (
-              <Link href="/sign-up" className="connection-request-button">
+              <Link href="/sign-up" className="connection-request-button btn-secondary">
                 Register for a seat
               </Link>
             )

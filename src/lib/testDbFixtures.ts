@@ -10,6 +10,7 @@ import type {
   ConnectionRequest,
   SeatOffer,
   Conversation,
+  PackagePost,
 } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { makeUser } from "@/lib/testFixtures";
@@ -126,6 +127,7 @@ export async function createTrip(
       departureDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       seatsTotal: 1,
       seatsRemaining: 1,
+      category: "personal_car",
       status: "upcoming",
       ...overrides,
     },
@@ -140,12 +142,30 @@ export async function createRequest(
   const beneficiary = deps.beneficiary ?? postedBy;
   return prisma.request.create({
     data: {
-      type: "ride",
+      category: "personal_car",
       postedById: postedBy.id,
       beneficiaryId: beneficiary.id,
       tripId: deps.trip?.id ?? null,
       destinationText: "Test Destination",
       status: "pending",
+      ...overrides,
+    },
+  });
+}
+
+export async function createPackagePost(
+  overrides: Partial<PackagePost> = {},
+  deps: { postedBy?: User; originCity?: City } = {},
+): Promise<PackagePost> {
+  const postedBy = deps.postedBy ?? (await createUser());
+  const originCity = deps.originCity ?? (await createCity());
+  return prisma.packagePost.create({
+    data: {
+      kind: "offering_space",
+      postedById: postedBy.id,
+      originCityId: originCity.id,
+      destinationText: "Test Destination",
+      status: "open",
       ...overrides,
     },
   });
@@ -176,16 +196,23 @@ export async function createConnectionRequest(
   });
 }
 
+// Defaults to a Trip-scoped conversation (creating one if neither `trip`
+// nor `packagePost` is passed) -- pass `deps.packagePost` instead for a
+// package-post conversation. Passing both is a caller error (mirrors the
+// "exactly one of tripId/packagePostId" invariant enforced app-level in
+// findOrCreateConversationForPost, see src/lib/messaging.ts).
 export async function createConversationWithParticipants(
   overrides: Partial<Conversation> = {},
-  deps: { trip?: Trip; userA?: User; userB?: User } = {},
+  deps: { trip?: Trip; packagePost?: PackagePost; userA?: User; userB?: User } = {},
 ): Promise<Conversation & { participantIds: [string, string] }> {
-  const trip = deps.trip ?? (await createTrip());
   const userA = deps.userA ?? (await createUser());
   const userB = deps.userB ?? (await createUser());
+  const postRef = deps.packagePost
+    ? { packagePostId: deps.packagePost.id }
+    : { tripId: (deps.trip ?? (await createTrip())).id };
   const conversation = await prisma.conversation.create({
     data: {
-      tripId: trip.id,
+      ...postRef,
       ...overrides,
       participants: {
         create: [{ userId: userA.id }, { userId: userB.id }],

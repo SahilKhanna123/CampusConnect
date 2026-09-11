@@ -3,28 +3,29 @@ import { getCurrentUser, hasStudentRecord } from "@/lib/auth";
 import { getCitiesByRegion } from "@/lib/geo";
 import { TripPostForm } from "@/components/TripPostForm";
 
-// Create-Trip form -- reached from "Offer a Ride" or "Offer Package Space"
-// on /post. Both are the same Trip, just pre-checking packageSpaceAvailable
-// for the package entry point via ?package=true.
+// Create-Trip form -- reached from "Offer a Ride" or "Split an Uber/Lyft"
+// on /post, which pre-select Trip.category via ?category=.
 export default async function CreateTripPage({
   searchParams,
 }: {
-  searchParams: Promise<{ package?: string }>;
+  searchParams: Promise<{ category?: string }>;
 }) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
-  const { package: packageParam } = await searchParams;
+  const { category } = await searchParams;
   const citiesByRegion = await getCitiesByRegion();
+  const isUberShare = category === "uber_share";
 
   return (
-    <div>
-      <h1>Offer a Ride</h1>
+    <div className="form-page">
+      <span className="eyebrow">Post</span>
+      <h1 className="heading-tight">{isUberShare ? "Split an Uber/Lyft" : "Offer a Ride"}</h1>
       <TripPostForm
         citiesByRegion={citiesByRegion}
         isStudent={hasStudentRecord(user)}
         initialValues={{
-          packageSpaceAvailable: packageParam === "true",
+          category: isUberShare ? "uber_share" : "personal_car",
         }}
       />
     </div>

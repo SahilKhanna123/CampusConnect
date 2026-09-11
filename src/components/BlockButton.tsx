@@ -60,7 +60,7 @@ export function BlockButton({
         type="button"
         onClick={handleClick}
         disabled={loading}
-        className="block-button"
+        className="block-button btn-secondary"
       >
         {loading ? "…" : blocked ? "Unblock user" : "Block user"}
       </button>

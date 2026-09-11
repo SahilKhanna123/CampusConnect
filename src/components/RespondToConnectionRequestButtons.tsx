@@ -50,11 +50,19 @@ export function RespondToConnectionRequestButtons({
   }
 
   return (
-    <div>
-      <button onClick={() => respond("accept")} disabled={status !== "idle"}>
+    <div className="button-row">
+      <button
+        onClick={() => respond("accept")}
+        disabled={status !== "idle"}
+        className="btn-primary"
+      >
         {status === "accepting" ? "Accepting…" : "Accept"}
-      </button>{" "}
-      <button onClick={() => respond("decline")} disabled={status !== "idle"}>
+      </button>
+      <button
+        onClick={() => respond("decline")}
+        disabled={status !== "idle"}
+        className="btn-secondary"
+      >
         {status === "declining" ? "Declining…" : "Decline"}
       </button>
       {error && <p role="alert">{error}</p>}

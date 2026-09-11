@@ -67,11 +67,16 @@ export function ConversationActions({
   }
 
   return (
-    <div className="conversation-item-actions">
-      <button type="button" onClick={handleArchiveToggle} disabled={loading}>
+    <div className="conversation-item-actions button-row">
+      <button
+        type="button"
+        onClick={handleArchiveToggle}
+        disabled={loading}
+        className="btn-secondary"
+      >
         {archived ? "Unarchive" : "Archive"}
-      </button>{" "}
-      <button type="button" onClick={handleDelete} disabled={loading}>
+      </button>
+      <button type="button" onClick={handleDelete} disabled={loading} className="btn-secondary">
         Delete
       </button>
       {error && <p role="alert">{error}</p>}

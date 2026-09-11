@@ -6,6 +6,7 @@ import { requestDisplayStatus, tripDisplayStatus } from "@/lib/postStatus";
 import { DeletePostButton } from "@/components/DeletePostButton";
 import { MarkTripCompleteButton } from "@/components/MarkTripCompleteButton";
 import { MarkRequestCompleteButton } from "@/components/MarkRequestCompleteButton";
+import { MarkPackagePostCompleteButton } from "@/components/MarkPackagePostCompleteButton";
 
 // Lists the current user's own Trip (offer) and Request (need) posts --
 // travelerId / postedById are the ownership fields the API routes enforce
@@ -33,13 +34,18 @@ export default async function MyPostsPage({
   const { tab } = await searchParams;
   const activeTab = tab === "history" ? "history" : "upcoming";
 
-  const [trips, requests] = await Promise.all([
+  const [trips, requests, packagePosts] = await Promise.all([
     prisma.trip.findMany({
       where: { travelerId: user.id },
       include: { originCity: true, destinationCity: true },
       orderBy: { departureDate: "desc" },
     }),
     prisma.request.findMany({
+      where: { postedById: user.id },
+      include: { originCity: true, destinationCity: true },
+      orderBy: { createdAt: "desc" },
+    }),
+    prisma.packagePost.findMany({
       where: { postedById: user.id },
       include: { originCity: true, destinationCity: true },
       orderBy: { createdAt: "desc" },
@@ -80,183 +86,209 @@ export default async function MyPostsPage({
   );
   const shownRequests = activeTab === "history" ? pastRequests : upcomingRequests;
 
+  const openPackagePosts = packagePosts.filter((p) => p.status === "open");
+  const closedPackagePosts = packagePosts.filter((p) => p.status !== "open");
+  const shownPackagePosts =
+    activeTab === "history" ? closedPackagePosts : openPackagePosts;
+
   function connectionSummary(tripId: string) {
     const counts = countsByTrip.get(tripId);
     if (!counts || counts.total === 0) return null;
     return (
       <span className="trip-connection-summary">
-        {" — "}
         {counts.total} connection request{counts.total === 1 ? "" : "s"}
         {counts.accepted > 0 && ` (${counts.accepted} accepted)`}
       </span>
     );
   }
 
-  function tripLabel(trip: (typeof trips)[number]) {
+  function tripCard(trip: (typeof trips)[number], statusKey: string, statusLabel: string) {
     return (
-      <Link href={`/trips/${trip.id}`}>
-        {trip.studentsOnly && "🎓 "}
-        {trip.title || "Untitled trip"}: {trip.originCity.name} →{" "}
-        {trip.destinationCity?.name ?? trip.destinationText} —{" "}
-        {trip.departureDate.toLocaleDateString()}
-      </Link>
+      <div key={trip.id} className="list-card">
+        <div className="list-card-top">
+          <Link href={`/trips/${trip.id}`} className="list-card-title">
+            {trip.studentsOnly && "🎓 "}
+            {trip.title || "Untitled trip"}
+          </Link>
+          <span className={`trip-status-label trip-status-label-${statusKey}`}>
+            {statusLabel}
+          </span>
+        </div>
+        <div className="list-card-meta">
+          {trip.originCity.name} → {trip.destinationCity?.name ?? trip.destinationText} —{" "}
+          {trip.departureDate.toLocaleDateString()}
+          {countsByTrip.get(trip.id) && " · "}
+          {connectionSummary(trip.id)}
+        </div>
+        {(statusKey === "upcoming" || statusKey === "expired") && (
+          <div className="list-card-actions">
+            <Link href={`/trips/${trip.id}/edit`} className="btn-secondary">
+              Edit
+            </Link>
+            <MarkTripCompleteButton tripId={trip.id} />
+            <DeletePostButton
+              deleteUrl={`/api/trips/${trip.id}`}
+              redirectTo="/my-posts"
+              actionLabel="Cancel Trip"
+              confirmMessage="Cancel this trip? Anyone with a pending or accepted connection request will be notified. This can't be undone."
+            />
+          </div>
+        )}
+      </div>
     );
   }
 
   return (
     <div>
-      <h1>My Posts</h1>
-      <p>
-        <Link href="/post">Create a new post</Link>
-      </p>
+      <div className="page-header">
+        <div>
+          <span className="eyebrow">My Posts</span>
+          <h1 className="heading-tight">Your trips &amp; requests</h1>
+        </div>
+        <div className="page-header-actions">
+          <Link href="/post" className="btn-primary">
+            Create a new post
+          </Link>
+        </div>
+      </div>
 
-      <nav aria-label="My posts view">
+      <div className="subtabs" aria-label="My posts view">
         <Link
           href="/my-posts"
           aria-current={activeTab === "upcoming" ? "page" : undefined}
-          style={{ fontWeight: activeTab === "upcoming" ? "bold" : "normal" }}
+          className={activeTab === "upcoming" ? "subtab subtab-active" : "subtab"}
         >
           Upcoming
         </Link>
-        {" | "}
         <Link
           href="/my-posts?tab=history"
           aria-current={activeTab === "history" ? "page" : undefined}
-          style={{ fontWeight: activeTab === "history" ? "bold" : "normal" }}
+          className={activeTab === "history" ? "subtab subtab-active" : "subtab"}
         >
           History
         </Link>
-      </nav>
+      </div>
 
-      <h2>Trips You&apos;re Offering</h2>
-      {activeTab === "upcoming" ? (
-        upcomingTrips.length === 0 ? (
-          <p>No upcoming trips posted yet.</p>
+      <div className="list-section">
+        <h2 className="list-section-title">Trips You&apos;re Offering</h2>
+        {activeTab === "upcoming" ? (
+          upcomingTrips.length === 0 ? (
+            <p>No upcoming trips posted yet.</p>
+          ) : (
+            upcomingTrips.map((trip) => tripCard(trip, "upcoming", "Upcoming"))
+          )
         ) : (
-          <ul>
-            {upcomingTrips.map((trip) => (
-              <li key={trip.id}>
-                {tripLabel(trip)}{" "}
-                <span className="trip-status-label trip-status-label-upcoming">
-                  (upcoming)
+          <>
+            {completedTrips.length === 0 && cancelledTrips.length === 0 && expiredTrips.length === 0 ? (
+              <p>No trip history yet.</p>
+            ) : (
+              <>
+                {completedTrips.length > 0 && (
+                  <>
+                    <h3 className="list-section-title">Completed</h3>
+                    {completedTrips.map((trip) => tripCard(trip, "completed", "Completed"))}
+                  </>
+                )}
+                {cancelledTrips.length > 0 && (
+                  <>
+                    <h3 className="list-section-title">Cancelled</h3>
+                    {cancelledTrips.map((trip) => tripCard(trip, "cancelled", "Cancelled"))}
+                  </>
+                )}
+                {expiredTrips.length > 0 && (
+                  <>
+                    <h3 className="list-section-title">Past due</h3>
+                    <p className="list-card-meta">
+                      These trips&apos; dates have passed without being marked
+                      completed or cancelled.
+                    </p>
+                    {expiredTrips.map((trip) => tripCard(trip, "expired", "Past due"))}
+                  </>
+                )}
+              </>
+            )}
+          </>
+        )}
+      </div>
+
+      <div className="list-section">
+        <h2 className="list-section-title">Your Requests</h2>
+        {shownRequests.length === 0 ? (
+          <p>
+            {activeTab === "history"
+              ? "No past requests."
+              : "No upcoming requests posted yet."}
+          </p>
+        ) : (
+          shownRequests.map((r) => (
+            <div key={r.id} className="list-card">
+              <div className="list-card-top">
+                <Link href={`/requests/${r.id}`} className="list-card-title">
+                  {r.studentsOnly && "🎓 "}
+                  {r.category === "uber_share" ? "Uber-share" : "Ride"}:{" "}
+                  {r.originCity?.name ?? "?"} → {r.destinationCity?.name ?? r.destinationText ?? "?"}
+                </Link>
+                <span
+                  className={`connection-status-label connection-status-label-${requestDisplayStatus(r)}`}
+                >
+                  {requestDisplayStatus(r)}
                 </span>
-                {connectionSummary(trip.id)}
-                <div className="trip-row-actions">
-                  <Link href={`/trips/${trip.id}/edit`}>Edit</Link>
-                  {" · "}
-                  <MarkTripCompleteButton tripId={trip.id} />
-                  {" · "}
+              </div>
+              {r.neededDate && (
+                <div className="list-card-meta">{r.neededDate.toLocaleDateString()}</div>
+              )}
+              {r.status === "accepted" && (
+                <div className="list-card-actions">
+                  <MarkRequestCompleteButton requestId={r.id} />
+                </div>
+              )}
+            </div>
+          ))
+        )}
+      </div>
+
+      <div className="list-section">
+        <h2 className="list-section-title">Package Posts</h2>
+        {shownPackagePosts.length === 0 ? (
+          <p>
+            {activeTab === "history"
+              ? "No past package posts."
+              : "No open package posts yet."}
+          </p>
+        ) : (
+          shownPackagePosts.map((p) => (
+            <div key={p.id} className="list-card">
+              <div className="list-card-top">
+                <Link href={`/package-posts/${p.id}`} className="list-card-title">
+                  {p.studentsOnly && "🎓 "}
+                  {p.kind === "offering_space" ? "Offering space" : "Need delivery"}:{" "}
+                  {p.originCity.name} → {p.destinationCity?.name ?? p.destinationText}
+                </Link>
+                <span className={`trip-status-label trip-status-label-${p.status}`}>
+                  {p.status}
+                </span>
+              </div>
+              {p.date && (
+                <div className="list-card-meta">{p.date.toLocaleDateString()}</div>
+              )}
+              {p.status === "open" && (
+                <div className="list-card-actions">
+                  <Link href={`/package-posts/${p.id}/edit`} className="btn-secondary">
+                    Edit
+                  </Link>
+                  <MarkPackagePostCompleteButton packagePostId={p.id} />
                   <DeletePostButton
-                    deleteUrl={`/api/trips/${trip.id}`}
+                    deleteUrl={`/api/package-posts/${p.id}`}
                     redirectTo="/my-posts"
-                    actionLabel="Cancel Trip"
-                    confirmMessage="Cancel this trip? Anyone with a pending or accepted connection request will be notified. This can't be undone."
+                    actionLabel="Cancel post"
+                    confirmMessage="Cancel this post? This can't be undone."
                   />
                 </div>
-              </li>
-            ))}
-          </ul>
-        )
-      ) : (
-        <>
-          <h3>Completed</h3>
-          {completedTrips.length === 0 ? (
-            <p>No completed trips.</p>
-          ) : (
-            <ul>
-              {completedTrips.map((trip) => (
-                <li key={trip.id}>
-                  {tripLabel(trip)}{" "}
-                  <span className="trip-status-label trip-status-label-completed">
-                    (completed)
-                  </span>
-                  {connectionSummary(trip.id)}
-                </li>
-              ))}
-            </ul>
-          )}
-
-          <h3>Cancelled</h3>
-          {cancelledTrips.length === 0 ? (
-            <p>No cancelled trips.</p>
-          ) : (
-            <ul>
-              {cancelledTrips.map((trip) => (
-                <li key={trip.id}>
-                  {tripLabel(trip)}{" "}
-                  <span className="trip-status-label trip-status-label-cancelled">
-                    (cancelled)
-                  </span>
-                  {connectionSummary(trip.id)}
-                </li>
-              ))}
-            </ul>
-          )}
-
-          {expiredTrips.length > 0 && (
-            <>
-              <h3>Past due</h3>
-              <p>
-                These trips&apos; dates have passed without being marked
-                completed or cancelled.
-              </p>
-              <ul>
-                {expiredTrips.map((trip) => (
-                  <li key={trip.id}>
-                    {tripLabel(trip)}{" "}
-                    <span className="trip-status-label trip-status-label-expired">
-                      (expired)
-                    </span>
-                    {connectionSummary(trip.id)}
-                    <div className="trip-row-actions">
-                      <Link href={`/trips/${trip.id}/edit`}>Edit</Link>
-                      {" · "}
-                      <MarkTripCompleteButton tripId={trip.id} />
-                      {" · "}
-                      <DeletePostButton
-                        deleteUrl={`/api/trips/${trip.id}`}
-                        redirectTo="/my-posts"
-                        actionLabel="Cancel Trip"
-                        confirmMessage="Cancel this trip? Anyone with a pending or accepted connection request will be notified. This can't be undone."
-                      />
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </>
-          )}
-        </>
-      )}
-
-      <h2>Your Requests</h2>
-      {shownRequests.length === 0 ? (
-        <p>
-          {activeTab === "history"
-            ? "No past requests."
-            : "No upcoming requests posted yet."}
-        </p>
-      ) : (
-        <ul>
-          {shownRequests.map((r) => (
-            <li key={r.id}>
-              <Link href={`/requests/${r.id}`}>
-                {r.studentsOnly && "🎓 "}
-                {r.type === "ride" ? "Ride" : "Delivery"}:{" "}
-                {r.originCity?.name ?? "?"} →{" "}
-                {r.destinationCity?.name ?? r.destinationText ?? "?"}
-                {r.neededDate && ` — ${r.neededDate.toLocaleDateString()}`}
-              </Link>
-              {" "}({requestDisplayStatus(r)})
-              {r.status === "accepted" && (
-                <>
-                  {" · "}
-                  <MarkRequestCompleteButton requestId={r.id} />
-                </>
               )}
-            </li>
-          ))}
-        </ul>
-      )}
+            </div>
+          ))
+        )}
+      </div>
     </div>
   );
 }

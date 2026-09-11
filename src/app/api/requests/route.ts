@@ -4,7 +4,7 @@ import { getCurrentUser, hasStudentRecord } from "@/lib/auth";
 import { canCreatePost } from "@/lib/rate-limit";
 import { requestFieldsSchema } from "@/lib/postSchemas";
 
-// GET /api/requests?originCityId=&destinationCityId=&type=
+// GET /api/requests?originCityId=&destinationCityId=&category=
 // Filtered browse of standalone (tripId=null), still-pending Requests -- no
 // matching/discovery UI consumes this yet (deliberately deferred). Requires
 // auth (401 otherwise) and applies the same studentsOnly filter Explore/Home
@@ -20,7 +20,7 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const originCityId = searchParams.get("originCityId") ?? undefined;
   const destinationCityId = searchParams.get("destinationCityId") ?? undefined;
-  const type = searchParams.get("type");
+  const category = searchParams.get("category");
   const studentsOnlyFilter = hasStudentRecord(user) ? {} : { studentsOnly: false };
 
   const requests = await prisma.request.findMany({
@@ -30,7 +30,7 @@ export async function GET(request: Request) {
       ...studentsOnlyFilter,
       ...(originCityId ? { originCityId } : {}),
       ...(destinationCityId ? { destinationCityId } : {}),
-      ...(type === "ride" || type === "package" ? { type } : {}),
+      ...(category === "personal_car" || category === "uber_share" ? { category } : {}),
     },
     include: {
       originCity: true,
@@ -96,17 +96,16 @@ export async function POST(request: Request) {
 
   const created = await prisma.request.create({
     data: {
-      type: data.type,
+      category: data.category,
       originCityId: data.originCityId,
       destinationCityId: data.destinationCityId ?? null,
       destinationText: data.destinationText ?? null,
       neededDate: data.neededDate ? new Date(data.neededDate) : null,
       neededTime: data.neededTime || null,
       flexibleTime: data.flexibleTime ?? false,
-      seatsRequested: data.type === "ride" ? (data.seatsRequested ?? 1) : null,
-      packageDescription:
-        data.type === "package" ? data.packageDescription || null : null,
-      packageSize: data.type === "package" ? data.packageSize || null : null,
+      seatsRequested: data.seatsRequested ?? 1,
+      estimatedFarePerSeat:
+        data.category === "uber_share" ? (data.estimatedFarePerSeat ?? null) : null,
       notes: data.notes || null,
       studentsOnly: data.studentsOnly ?? false,
       postedById: user.id,

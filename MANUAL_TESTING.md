@@ -11,6 +11,165 @@ functions — see the Automated Tests section of CLAUDE.md. Everything else
 automated coverage yet, so this file remains the actual test coverage for
 those.
 
+## UI Focus Reweighting: 50% package / 30% Uber-share / 10% rides (2026-09-10)
+
+Product decision: visual prominence across the 3 post categories should
+read roughly 50% package delivery, 30% Uber-sharing, 10% individual rides
+— functionality is unchanged, only emphasis (order, item count/caps,
+heading size). Verified via a fresh (non-contended) `curl`/`Invoke-
+WebRequest` fetch of `/` and `/post` plus a live browser check of the
+logged-out landing page; the signed-in Home view was not independently
+walked through in a browser this pass (no test-account credentials on
+hand) — its query/render logic is a structural mirror of the already-
+verified logged-out path and passed `tsc --noEmit`.
+
+- [x] `/post`: package tiles ("Offer Package Space" / "Need Something
+      Delivered") render first in each panel, visually larger with a
+      light blue tint. Uber-sharing tiles render second, same size as
+      before. Ride tiles ("Offer a Ride (my car)" / "Need a Ride") render
+      last, visibly smaller and muted gray.
+      — **Verified 2026-09-10** via live browser screenshot.
+- [x] Header CTA reads "+ Post" (not "+ Post a trip") and still links to
+      `/post`.
+      — **Verified 2026-09-10** via `curl`.
+- [x] `/` logged out: hero headline reads "Send a package. Share a ride.",
+      subtitle mentions package delivery first. Below the fold, "Browse
+      listings" splits into 3 ordered sub-sections when data exists on the
+      active route — "📦 Package Deliveries" (large heading, up to 6
+      cards), "🚕 Splitting an Uber/Lyft" (medium heading, up to 4), "🚗
+      Individual Rides" (small label, up to 2). A section with zero
+      matching posts is omitted entirely, not shown as an empty grid.
+      — **Verified 2026-09-10** via live browser screenshot: San Jose →
+      Irvine package (Offering space), a Fremont → Irvine Uber-share
+      ("Split to airport", Last seat), and 2 personal-car rides all
+      rendered in the correct sections/order.
+- [ ] `/` signed in: same hero-copy and 3-section treatment, plus the
+      "N posts this week" stat line now also counts PackagePost creations
+      — not independently walked through in a browser this pass.
+- [ ] A route with open `PackagePost` rows but zero Uber-share or
+      personal-car posts (or vice versa) correctly shows only the
+      non-empty section(s) — only the "all 3 present" case was actually
+      exercised this pass.
+
+## Trip Categories & Package Carrying: 3-way split (2026-09-10)
+
+Splits the old ride/package-bundled Trip+Request model into 3 distinct
+concepts: Trips (`Trip.category = personal_car`, unchanged in spirit),
+Uber-sharing (`Trip.category = uber_share`, a genuinely new feature —
+splitting a real Uber/Lyft fare, no payment processing, just a stated
+figure settled in person), and Package carrying (the new, deliberately
+minimal `PackagePost` model — no seats/capacity, no formal accept/decline,
+coordination happens entirely via direct message). See CLAUDE.md's own
+"Trip Categories & Package Carrying" section for the full architecture
+rationale. Migration applied via the safer additive-migration + targeted-
+cleanup path (not a destructive reset) since the dev database is live.
+
+- [x] Posting an Uber-share trip (`/post/trip?category=uber_share`) shows
+      the fare/meeting-point fields (only when `category=uber_share`) and
+      creates a `Trip` with those set.
+      — **Verified 2026-09-10** via live browser: created a Fremont →
+      Irvine "Split to airport" trip with a fare and meeting point.
+- [x] The full Uber-share lifecycle (connect → confirm seat → message →
+      complete → review) works identically to a personal_car trip, with
+      zero production-code differences — proven by the new
+      `category: "uber_share"` parity cases added to the `confirm-seat`,
+      `requests/[id]/accept`, and `seat-offers/[id]/accept` DB test suites.
+      — **Verified 2026-09-10** via `npm run test` (106/106 passing,
+      includes these parity cases) — not independently re-walked through
+      in a live browser this pass.
+- [x] Posting a package (`/post/package?kind=offering_space` or
+      `?kind=needing_delivery`) creates a minimal `PackagePost` — origin/
+      destination, date/time/flexible, notes, students-only — with no
+      seat/capacity fields anywhere in the form.
+      — **Verified 2026-09-10** via live browser: created a San Jose →
+      Irvine "offering space" package post, visible on `/` and linking
+      correctly to its detail page.
+- [ ] Messaging a package poster via `PackageMessageForm` on
+      `/package-posts/[id]` creates/reuses a `Conversation` keyed on
+      `packagePostId` rather than `tripId`, and the resulting thread
+      renders correctly on `/messages`.
+      — not independently tested this pass.
+- [ ] Marking a package post complete/cancelled (owner-only) transitions
+      `status` correctly and is reflected on `/my-posts`'s new "Package
+      Posts" section.
+      — not independently tested this pass.
+- [ ] `PackagePost` counts toward the same combined 10-per-12h anti-spam
+      cap as Trip/Request creation.
+      — covered by `rate-limit.db.test.ts`'s new case (part of the
+      106-passing suite above), not independently re-verified live.
+
+## Visual Redesign Round 1 (2026-09-09)
+
+Applies the black/white/gray + blue-accent design system (approved via a
+Claude Design canvas) to Home, Explore, Trip/Request detail, and Post —
+see CLAUDE.md's design-system notes if added, or the PR description for
+the full rationale. `npm run test`, `npx tsc --noEmit`, and `npm run
+build` all passed clean, but **none of this was walked through in a
+browser** — the coding sandbox's Supabase connection was unreachable
+(`Can't reach database server at aws-0-us-east-2.pooler.supabase.com:6543`)
+for the whole session, unrelated to these changes (raw TCP to that host
+succeeded, so this looks like the Supabase project itself being paused/
+unreachable, not a code issue). Every item below is unverified.
+
+- [ ] Nav/header: signed out, no tab row or "+ Post a trip" CTA renders,
+      just Log in / Sign up. Signed in, all 6 tabs render (Home, Explore,
+      My Posts, Connections, Messages, Profile — `/post` is intentionally
+      not a tab anymore), the active tab has a black underline that moves
+      with navigation, the black "+ Post a trip" CTA goes to `/post`, the
+      Messages tab badge and the 🔔 bell badge still show real unread
+      counts, avatar/initials + name render, sign-out still works.
+- [ ] No dead gap at the bottom of any page now that the old fixed-bottom
+      nav bar is gone (`.site-main`'s padding was changed accordingly).
+- [ ] Parent-link gate still works: a parent account with no linked
+      student is still force-redirected to `/family/connect-student` from
+      any URL; `/family/invite/accept` is still reachable directly.
+- [ ] Onboarding nudge banner still renders under the header (not
+      swallowed by the new header markup) for an account with
+      `onboardingCompletedAt: null`, links to `/onboarding`, and
+      disappears once actually on `/onboarding`.
+- [ ] `/` and `/explore` cards: hovering a card lifts it, the border turns
+      blue (`#1D6FFF`), a shadow appears. A verified poster shows a real
+      green pill with a checkmark, not "· ✓ Verified" text. A
+      students-only post shows a blue pill, not amber. A small gray
+      "City, Region → City, Region" line renders under the bold route
+      line (test a trip whose `destinationCity` is null/uses
+      `destinationText` too — the subtitle should just omit that side,
+      not crash).
+- [ ] `/explore`'s new right-column schematic map: hovering each card in
+      the results grid highlights that card's route on the map (solid
+      blue, animated traveling dot) and dims every other route to ~25%
+      opacity; un-hovering resets it. The filter form (origin/destination/
+      date/type + Clear filters) still works via normal GET navigation.
+- [ ] `/` logged out: the new hero renders (inline SVG illustration, both
+      CTAs styled primary/secondary, a trust-bar line), followed by the
+      live preview grid and its "See everything on Explore" link.
+- [ ] `/` logged in: eyebrow + heading restyled ("Your route: ..." /
+      "Featured route: ..."), card grid unchanged functionally, including
+      both empty-state paths (no featured route configured; nothing
+      posted on the route right now).
+- [ ] `/trips/[id]`: owner sees Edit/Mark Completed/Cancel Trip, all still
+      functional; Participants section still lists rows with working
+      Confirm-Seat/Remove controls. Non-owner sees the Riders section,
+      Report/Block, and Request-to-Connect/Register-for-a-seat flows, all
+      still functional. Status pill text still matches
+      `tripDisplayStatus`.
+- [ ] `/requests/[id]`: now shows a `PosterBadge` (avatar + name + role +
+      verified pill) for the poster instead of a plain name link — same
+      for "Fulfilling with ..." once matched. The three-way review branch
+      (no review yet / their review shown / your own review shown) still
+      renders correctly for a completed request. `canOffer`'s three states
+      (signed out, has eligible trips, has none) all still render.
+- [ ] `/post`: shows two grouped panels ("Offer" / "Need") with a divider;
+      all four tiles still route to the same hrefs as before
+      (`/post/trip`, `/post/trip?package=true`, `/post/request?type=ride`,
+      `/post/request?type=package`) and the downstream forms still
+      pre-fill/pre-select correctly from those query params.
+- [ ] Spillover sanity check (expected to look different, not to break):
+      `/my-posts`, `/connections`, `/messages`, `/messages/[id]`,
+      `/profile` still function — Delete/Mark-Complete buttons, Report/
+      Block buttons, and `.conversation-item` hover-border now pick up the
+      new styling through shared components.
+
 ## Logged-Out Landing Page on Home (2026-09-02)
 
 - [x] Signed out (no session), visit `/` directly — an introduction/landing

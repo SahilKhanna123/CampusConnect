@@ -1,24 +1,36 @@
 import { prisma } from "@/lib/prisma";
 
+export type ConversationPostRef =
+  | { tripId: string; packagePostId?: undefined }
+  | { tripId?: undefined; packagePostId: string };
+
 /**
- * Finds (or creates) the Conversation scoped to (tripId, userIdA, userIdB) --
- * the single conversation-creation code path in the app. Originally inline
- * in POST /api/conversations (RegisterInterestForm's endpoint); extracted
- * here so POST /api/connection-requests/[id]/accept can reuse the exact
- * same logic when a ConnectionRequest is accepted, instead of standing up a
- * second messaging mechanism. Deliberately a plain find-then-create, not
- * the race-hardened pattern claimOrCreateStudentRecord uses for
- * StudentRecord -- a duplicate thread here is a minor UX nuisance, not a
- * security or data-integrity issue.
+ * Finds (or creates) the Conversation scoped to (post, userIdA, userIdB) --
+ * the single conversation-creation code path in the app. `post` is exactly
+ * one of a Trip or a PackagePost (see the schema comment on
+ * Conversation.packagePostId) -- a Trip conversation covers both
+ * personal_car and uber_share categories identically, since Uber-sharing is
+ * just a Trip category, not a separate model. Originally inline in POST
+ * /api/conversations (RegisterInterestForm's endpoint); extracted here so
+ * POST /api/connection-requests/[id]/accept can reuse the exact same logic
+ * when a ConnectionRequest is accepted, instead of standing up a second
+ * messaging mechanism. Deliberately a plain find-then-create, not the
+ * race-hardened pattern claimOrCreateStudentRecord uses for StudentRecord
+ * -- a duplicate thread here is a minor UX nuisance, not a security or
+ * data-integrity issue.
  */
-export async function findOrCreateConversationForTrip(
-  tripId: string,
+export async function findOrCreateConversationForPost(
+  post: ConversationPostRef,
   userIdA: string,
   userIdB: string,
 ) {
+  const postWhere = post.tripId
+    ? { tripId: post.tripId }
+    : { packagePostId: post.packagePostId };
+
   const existing = await prisma.conversation.findFirst({
     where: {
-      tripId,
+      ...postWhere,
       AND: [
         { participants: { some: { userId: userIdA } } },
         { participants: { some: { userId: userIdB } } },
@@ -40,7 +52,7 @@ export async function findOrCreateConversationForTrip(
 
   return prisma.conversation.create({
     data: {
-      tripId,
+      ...postWhere,
       participants: { create: [{ userId: userIdA }, { userId: userIdB }] },
     },
   });

@@ -120,7 +120,7 @@ export async function PATCH(
   // (not a Prisma _sum aggregate) is needed because a SQL sum skips NULLs,
   // and seatsRequested defaults to 1 when null.
   const consumingRequests = await prisma.request.findMany({
-    where: { tripId: id, type: "ride", status: { in: ["accepted", "completed"] } },
+    where: { tripId: id, status: { in: ["accepted", "completed"] } },
     select: { seatsRequested: true },
   });
   const requestSeatsConsumed = consumingRequests.reduce(
@@ -141,6 +141,7 @@ export async function PATCH(
     where: { id },
     data: {
       title: data.title,
+      category: data.category,
       originCityId: data.originCityId,
       destinationCityId: data.destinationCityId ?? null,
       destinationText: data.destinationText ?? null,
@@ -149,8 +150,9 @@ export async function PATCH(
       flexibleTime: data.flexibleTime ?? false,
       seatsTotal: data.seatsTotal,
       seatsRemaining: data.seatsTotal - totalConsumed,
-      packageSpaceAvailable: data.packageSpaceAvailable ?? false,
-      packageCapacityNote: data.packageCapacityNote || null,
+      estimatedFarePerSeat:
+        data.category === "uber_share" ? (data.estimatedFarePerSeat ?? null) : null,
+      meetingPoint: data.category === "uber_share" ? data.meetingPoint || null : null,
       tripNotes: data.tripNotes || null,
       studentsOnly: data.studentsOnly ?? false,
     },

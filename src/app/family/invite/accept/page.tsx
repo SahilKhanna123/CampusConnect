@@ -21,8 +21,8 @@ export default async function AcceptFamilyInvitePage({
 
   if (!token) {
     return (
-      <div>
-        <h1>Accept Family Invitation</h1>
+      <div className="auth-card">
+        <h1 className="heading-tight">Accept Family Invitation</h1>
         <p>This link is missing information and can&apos;t be used.</p>
       </div>
     );
@@ -35,8 +35,8 @@ export default async function AcceptFamilyInvitePage({
 
   if (!invite) {
     return (
-      <div>
-        <h1>Accept Family Invitation</h1>
+      <div className="auth-card">
+        <h1 className="heading-tight">Accept Family Invitation</h1>
         <p>This invite link isn&apos;t valid.</p>
       </div>
     );
@@ -44,8 +44,8 @@ export default async function AcceptFamilyInvitePage({
 
   if (invite.status === "accepted") {
     return (
-      <div>
-        <h1>Already Accepted</h1>
+      <div className="auth-card">
+        <h1 className="heading-tight">Already Accepted</h1>
         <p>This invitation has already been accepted.</p>
       </div>
     );
@@ -53,8 +53,8 @@ export default async function AcceptFamilyInvitePage({
 
   if (invite.status === "revoked") {
     return (
-      <div>
-        <h1>Invitation No Longer Available</h1>
+      <div className="auth-card">
+        <h1 className="heading-tight">Invitation No Longer Available</h1>
         <p>This invitation is no longer available.</p>
       </div>
     );
@@ -68,8 +68,8 @@ export default async function AcceptFamilyInvitePage({
   const isExpired = invite.status === "expired" || invite.expiresAt < new Date();
   if (isExpired) {
     return (
-      <div>
-        <h1>Invitation Expired</h1>
+      <div className="auth-card">
+        <h1 className="heading-tight">Invitation Expired</h1>
         <p>Ask {invite.student.name} to send a new invite.</p>
       </div>
     );
@@ -79,8 +79,8 @@ export default async function AcceptFamilyInvitePage({
 
   if (!user) {
     return (
-      <div>
-        <h1>Accept Family Invitation</h1>
+      <div className="auth-card">
+        <h1 className="heading-tight">Accept Family Invitation</h1>
         <p>
           <strong>{invite.student.name}</strong> invited you to connect as
           their parent/guardian on CampusConnect.
@@ -90,17 +90,22 @@ export default async function AcceptFamilyInvitePage({
           exact email this invite was sent to — then come back to this link
           to accept.
         </p>
-        <p>
-          <Link href="/login">Log in</Link> · <Link href="/sign-up">Sign up</Link>
-        </p>
+        <div className="button-row">
+          <Link href="/login" className="btn-secondary">
+            Log in
+          </Link>
+          <Link href="/sign-up" className="btn-primary">
+            Sign up
+          </Link>
+        </div>
       </div>
     );
   }
 
   if (user.email.toLowerCase() !== invite.parentEmail) {
     return (
-      <div>
-        <h1>Wrong Account</h1>
+      <div className="auth-card">
+        <h1 className="heading-tight">Wrong Account</h1>
         <p>
           This invite was sent to <strong>{invite.parentEmail}</strong>, but
           you&apos;re signed in as {user.email}. Sign out and log in or sign
@@ -111,8 +116,8 @@ export default async function AcceptFamilyInvitePage({
   }
 
   return (
-    <div>
-      <h1>Accept Family Invitation</h1>
+    <div className="auth-card">
+      <h1 className="heading-tight">Accept Family Invitation</h1>
       <p>
         <strong>{invite.student.name}</strong> invited you to connect as
         their parent/guardian on CampusConnect. Accepting lets you see rides
