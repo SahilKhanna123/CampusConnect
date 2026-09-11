@@ -13,6 +13,7 @@ import {
 } from "@/lib/auth";
 import { getUnreadConversationCount } from "@/lib/messaging";
 import { getUnreadNotificationCount } from "@/lib/notifications";
+import { NavTabs } from "@/components/NavTabs";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -25,18 +26,6 @@ export const metadata: Metadata = {
   description:
     "A trusted community marketplace connecting students, parents, alumni, and travelers between home and college.",
 };
-
-// "Post" is deliberately not in this list -- it's rendered as the primary
-// "+ Post a trip" CTA button instead of a tab (see the header JSX below),
-// but /post itself is unchanged and still fully reachable.
-const PRIMARY_TABS = [
-  { href: "/", label: "Home" },
-  { href: "/explore", label: "Explore" },
-  { href: "/my-posts", label: "My Posts" },
-  { href: "/connections", label: "Connections" },
-  { href: "/messages", label: "Messages" },
-  { href: "/profile", label: "Profile" },
-];
 
 // A parent-signup account can't use the rest of the app until they've
 // linked at least one student via OTP -- per product decision, this
@@ -52,13 +41,25 @@ const PARENT_LINK_GATE_EXEMPT_PATHS = [
   "/family/invite/accept",
 ];
 
+// A short second line under the user's name in the header, e.g. "UC Irvine ·
+// Junior" for a verified student, "UC Irvine" alone if no year is set, or the
+// user's home city for anyone without a university affiliation (parent,
+// alumni, unverified traveler). Purely cosmetic -- never used for any
+// verification/authorization decision, those stay on isUniversityVerified/
+// universityBadgeLabel etc.
+function headerSubtitle(user: NonNullable<Awaited<ReturnType<typeof getCurrentUser>>>) {
+  const universityName = user.studentRecord?.universityDomain?.universityName;
+  if (universityName) {
+    return user.year ? `${universityName} · ${user.year}` : universityName;
+  }
+  return user.homeCity?.name ?? null;
+}
+
 export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   const user = await getCurrentUser();
   const pathname = (await headers()).get("x-pathname");
-  const isActiveTab = (href: string) =>
-    href === "/" ? pathname === "/" : !!pathname?.startsWith(href);
 
   if (user?.signedUpAsParent && !hasLinkedStudent(user)) {
     if (!pathname || !PARENT_LINK_GATE_EXEMPT_PATHS.includes(pathname)) {
@@ -100,32 +101,13 @@ export default async function RootLayout({
               <span className="site-logo-mark" aria-hidden="true" />
               <span className="site-title">CampusConnect</span>
             </Link>
-            {user && (
-              <nav className="site-nav-tabs">
-                {PRIMARY_TABS.map((item) => (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className={
-                      isActiveTab(item.href)
-                        ? "site-nav-tab site-nav-tab-active"
-                        : "site-nav-tab"
-                    }
-                  >
-                    {item.label}
-                    {item.href === "/messages" && unreadConversationCount > 0 && (
-                      <span className="nav-badge">{unreadConversationCount}</span>
-                    )}
-                  </Link>
-                ))}
-              </nav>
-            )}
+            {user && <NavTabs unreadConversationCount={unreadConversationCount} />}
           </div>
           <div className="site-header-right">
             {user ? (
               <>
                 <Link href="/post" className="btn-primary site-post-cta">
-                  + Post a trip
+                  + Post
                 </Link>
                 <Link
                   href="/notifications"
@@ -158,7 +140,12 @@ export default async function RootLayout({
                       {user.name.slice(0, 1).toUpperCase()}
                     </span>
                   )}
-                  <span className="site-user-name">{user.name}</span>
+                  <div>
+                    <div className="site-user-name">{user.name}</div>
+                    {headerSubtitle(user) && (
+                      <div className="site-user-subtitle">{headerSubtitle(user)}</div>
+                    )}
+                  </div>
                 </div>
                 <span className="site-auth-status-verify">
                   {universityBadgeLabel(user) ??
