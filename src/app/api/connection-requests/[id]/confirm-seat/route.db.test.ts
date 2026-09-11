@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
+import { Prisma } from "@prisma/client";
 import { resetAndSeed } from "@/lib/testDb";
 import { createUser, createTrip, createConnectionRequest } from "@/lib/testDbFixtures";
 import { prisma } from "@/lib/prisma";
@@ -95,6 +96,35 @@ describe("POST /api/connection-requests/[id]/confirm-seat -- overbooking prevent
       where: { tripId: trip.id, seatConfirmedAt: { not: null } },
     });
     expect(confirmedCount).toBe(1);
+  });
+
+  it("decrements seatsRemaining identically for an uber_share trip -- confirms this route is category-blind", async () => {
+    const owner = await createUser();
+    const trip = await createTrip(
+      {
+        seatsTotal: 2,
+        seatsRemaining: 2,
+        category: "uber_share",
+        estimatedFarePerSeat: new Prisma.Decimal(9.75),
+        meetingPoint: "Ring Road Loop",
+      },
+      { traveler: owner },
+    );
+    const rider = await createUser();
+    const cr = await createConnectionRequest(
+      {},
+      { trip, requester: rider, recipient: owner },
+    );
+
+    vi.mocked(getCurrentUser).mockResolvedValue(makeUser({ id: owner.id }));
+
+    const res = await POST(postRequest(), paramsFor(cr.id));
+    expect(res.status).toBe(200);
+
+    const updatedTrip = await prisma.trip.findUniqueOrThrow({
+      where: { id: trip.id },
+    });
+    expect(updatedTrip.seatsRemaining).toBe(1);
   });
 
   it("rejects confirming when the trip already has 0 seats remaining", async () => {

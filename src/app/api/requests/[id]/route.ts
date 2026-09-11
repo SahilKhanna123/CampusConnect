@@ -91,17 +91,16 @@ export async function PATCH(
   await prisma.request.update({
     where: { id },
     data: {
-      type: data.type,
+      category: data.category,
       originCityId: data.originCityId,
       destinationCityId: data.destinationCityId ?? null,
       destinationText: data.destinationText ?? null,
       neededDate: data.neededDate ? new Date(data.neededDate) : null,
       neededTime: data.neededTime || null,
       flexibleTime: data.flexibleTime ?? false,
-      seatsRequested: data.type === "ride" ? (data.seatsRequested ?? 1) : null,
-      packageDescription:
-        data.type === "package" ? data.packageDescription || null : null,
-      packageSize: data.type === "package" ? data.packageSize || null : null,
+      seatsRequested: data.seatsRequested ?? 1,
+      estimatedFarePerSeat:
+        data.category === "uber_share" ? (data.estimatedFarePerSeat ?? null) : null,
       notes: data.notes || null,
       studentsOnly: data.studentsOnly ?? false,
     },

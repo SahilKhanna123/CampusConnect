@@ -40,7 +40,7 @@ export function CancelConnectionRequestButton({
 
   return (
     <div>
-      <button onClick={handleCancel} disabled={status === "cancelling"}>
+      <button onClick={handleCancel} disabled={status === "cancelling"} className="btn-secondary">
         {status === "cancelling" ? "Cancelling…" : "Cancel request"}
       </button>
       {error && <p role="alert">{error}</p>}

@@ -24,7 +24,7 @@ export function MarkAllNotificationsReadButton() {
       type="button"
       onClick={handleClick}
       disabled={loading}
-      className="mark-all-read-button"
+      className="mark-all-read-button btn-secondary"
     >
       {loading ? "Marking…" : "Mark all as read"}
     </button>

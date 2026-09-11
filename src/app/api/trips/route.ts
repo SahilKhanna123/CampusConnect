@@ -22,6 +22,7 @@ export async function GET(request: Request) {
   const originCityId = searchParams.get("originCityId") ?? undefined;
   const destinationCityId = searchParams.get("destinationCityId") ?? undefined;
   const date = searchParams.get("date");
+  const category = searchParams.get("category");
   const studentsOnlyFilter = hasStudentRecord(user) ? {} : { studentsOnly: false };
 
   const trips = await prisma.trip.findMany({
@@ -31,6 +32,7 @@ export async function GET(request: Request) {
       ...(originCityId ? { originCityId } : {}),
       ...(destinationCityId ? { destinationCityId } : {}),
       ...(date ? { departureDate: new Date(date) } : {}),
+      ...(category === "personal_car" || category === "uber_share" ? { category } : {}),
     },
     include: {
       originCity: true,
@@ -91,6 +93,7 @@ export async function POST(request: Request) {
     data: {
       travelerId: user.id,
       title: data.title,
+      category: data.category,
       originCityId: data.originCityId,
       destinationCityId: data.destinationCityId ?? null,
       destinationText: data.destinationText ?? null,
@@ -99,8 +102,9 @@ export async function POST(request: Request) {
       flexibleTime: data.flexibleTime ?? false,
       seatsTotal: data.seatsTotal,
       seatsRemaining: data.seatsTotal,
-      packageSpaceAvailable: data.packageSpaceAvailable ?? false,
-      packageCapacityNote: data.packageCapacityNote || null,
+      estimatedFarePerSeat:
+        data.category === "uber_share" ? (data.estimatedFarePerSeat ?? null) : null,
+      meetingPoint: data.category === "uber_share" ? data.meetingPoint || null : null,
       tripNotes: data.tripNotes || null,
       studentsOnly: data.studentsOnly ?? false,
     },

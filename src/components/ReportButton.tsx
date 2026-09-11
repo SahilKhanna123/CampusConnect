@@ -27,7 +27,7 @@ export function ReportButton({
   contextId,
 }: {
   reportedUserId: string;
-  contextType?: "trip" | "request" | "message" | "profile";
+  contextType?: "trip" | "request" | "package" | "message" | "profile";
   contextId?: string;
 }) {
   const [phase, setPhase] = useState<"idle" | "composing" | "submitted">("idle");

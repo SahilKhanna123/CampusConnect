@@ -12,7 +12,7 @@ import { useSearchParams } from "next/navigation";
 // link). Requiring a real click is the whole mitigation.
 export default function LinkObjectionPage() {
   return (
-    <Suspense fallback={<h1>Remove Parent Connection</h1>}>
+    <Suspense fallback={<h1 className="heading-tight">Remove Parent Connection</h1>}>
       <LinkObjectionContent />
     </Suspense>
   );
@@ -47,8 +47,8 @@ function LinkObjectionContent() {
 
   if (!token) {
     return (
-      <div>
-        <h1>Remove Parent Connection</h1>
+      <div className="auth-card">
+        <h1 className="heading-tight">Remove Parent Connection</h1>
         <p>This link is missing information and can&apos;t be used.</p>
       </div>
     );
@@ -56,8 +56,8 @@ function LinkObjectionContent() {
 
   if (state === "done") {
     return (
-      <div>
-        <h1>Connection Removed</h1>
+      <div className="auth-card">
+        <h1 className="heading-tight">Connection Removed</h1>
         <p>
           That parent connection has been removed. If you create a
           CampusConnect account later using this email, it won&apos;t be
@@ -68,8 +68,8 @@ function LinkObjectionContent() {
   }
 
   return (
-    <div>
-      <h1>Remove Parent Connection</h1>
+    <div className="auth-card">
+      <h1 className="heading-tight">Remove Parent Connection</h1>
       <p>
         Someone claiming to be a parent/guardian connected with you on
         CampusConnect using this email address. If you don&apos;t recognize
@@ -77,7 +77,7 @@ function LinkObjectionContent() {
         don&apos;t need a CampusConnect account to do this.
       </p>
       {error && <p role="alert">{error}</p>}
-      <button onClick={handleReject} disabled={state === "submitting"}>
+      <button onClick={handleReject} disabled={state === "submitting"} className="btn-secondary">
         {state === "submitting"
           ? "Removing…"
           : "This wasn't me — remove this connection"}

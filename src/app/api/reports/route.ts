@@ -21,7 +21,7 @@ const createSchema = z
     reportedUserId: z.string().min(1),
     reason: z.enum(REPORT_REASONS),
     detail: z.string().trim().max(1000).optional(),
-    contextType: z.enum(["trip", "request", "message", "profile"]).optional(),
+    contextType: z.enum(["trip", "request", "package", "message", "profile"]).optional(),
     contextId: z.string().min(1).optional(),
   })
   .refine(

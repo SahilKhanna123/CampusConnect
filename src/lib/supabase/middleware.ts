@@ -80,6 +80,16 @@ export function shouldRedirectToParentLinkGate(params: {
 export async function updateSession(request: NextRequest) {
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set("x-pathname", request.nextUrl.pathname);
+  // Cleared unconditionally up front (never left as whatever the client
+  // sent) so a request can't spoof this by just setting the header itself --
+  // it only ever ends up populated below, after this same middleware
+  // validates the session with Supabase. getCurrentUser() (src/lib/auth.ts)
+  // trusts this instead of re-validating the JWT with a second
+  // supabase.auth.getUser() call of its own -- every authenticated
+  // page/route load and every message-poll tick was paying for TWO Auth
+  // round trips per request before this, which is real, avoidable load on
+  // top of whatever else is consuming the project's disk IO budget.
+  requestHeaders.set("x-supabase-user-id", "");
 
   let response = NextResponse.next({ request: { headers: requestHeaders } });
 
@@ -117,6 +127,18 @@ export async function updateSession(request: NextRequest) {
   const {
     data: { user: authUser },
   } = await supabase.auth.getUser();
+
+  // Propagate the now-validated user id to every downstream Server
+  // Component/Route Handler via getCurrentUser() -- rebuilding `response`
+  // is required for a request-header change made after the initial
+  // NextResponse.next() to actually reach them, but any session-refresh
+  // cookies queued onto the old `response` (via the setAll callback above)
+  // have to be carried over explicitly, or a token refresh that happened on
+  // this very request would be silently dropped.
+  requestHeaders.set("x-supabase-user-id", authUser?.id ?? "");
+  const pendingCookies = response.cookies.getAll();
+  response = NextResponse.next({ request: { headers: requestHeaders } });
+  pendingCookies.forEach((cookie) => response.cookies.set(cookie));
 
   // API routes are exempt: they have their own auth checks, and this is the
   // exact mechanism a gated parent uses to link a student in the first

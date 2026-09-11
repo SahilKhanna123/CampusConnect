@@ -24,8 +24,11 @@ export default async function OnboardingPage() {
 
   return (
     <div>
-      <h1>Set Up Your Profile</h1>
-      <p>{badge ?? "University verification will appear here once confirmed."}</p>
+      <span className="eyebrow">Welcome</span>
+      <h1 className="heading-tight">Set up your profile</h1>
+      <p className="profile-meta">
+        {badge ?? "University verification will appear here once confirmed."}
+      </p>
       <ProfileEditForm
         initialName={user.name}
         initialPhotoUrl={user.photoUrl}

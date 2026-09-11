@@ -89,10 +89,10 @@ export default async function RequestDetailPage({
     found.destinationCity?.name ?? found.destinationText ?? "?";
 
   // Non-owner + still pending + not yet matched to any trip: offer the
-  // viewer a picker over their own eligible upcoming Trips (package
-  // requests are further filtered to trips with packageSpaceAvailable, a
-  // hard capacity precondition -- not a "matching/search" heuristic, which
-  // stays out of scope everywhere else in this app). tripDisplayStatus is
+  // viewer a picker over their own eligible upcoming Trips, filtered to the
+  // same category (personal_car/uber_share) this request wants -- see the
+  // category-mismatch rejection in POST /api/requests/[id]/accept.
+  // tripDisplayStatus is
   // reapplied in JS since DB status:"upcoming" alone doesn't exclude a
   // trip whose date has already passed, same gate every other
   // actionability check in this app already uses.
@@ -103,7 +103,7 @@ export default async function RequestDetailPage({
           where: {
             travelerId: user.id,
             status: "upcoming",
-            ...(found.type === "package" ? { packageSpaceAvailable: true } : {}),
+            category: found.category,
           },
           include: { originCity: true, destinationCity: true },
         })
@@ -115,7 +115,7 @@ export default async function RequestDetailPage({
       <div className="detail-header">
         {found.studentsOnly && <span className="badge-students-only">🎓 Students only</span>}
         <span className="eyebrow">
-          {found.type === "ride" ? "Ride needed" : "Delivery needed"}
+          {found.category === "uber_share" ? "Uber-share needed" : "Ride needed"}
         </span>
         <h1 className="heading-tight detail-route-headline">
           {found.originCity?.name ?? "?"} → {destinationLabel}
@@ -128,25 +128,22 @@ export default async function RequestDetailPage({
         </p>
         <p className="trip-status-label">{requestDisplayStatus(found)}</p>
       </div>
-      {found.neededDate && (
-        <p>
-          {found.neededDate.toLocaleDateString()}
-          {found.neededTime && ` at ${found.neededTime}`}
-          {found.flexibleTime && " (flexible)"}
-        </p>
-      )}
-      {found.type === "ride" && found.seatsRequested && (
-        <p>Seats needed: {found.seatsRequested}</p>
-      )}
-      {found.type === "package" && (
-        <p>
-          {found.packageDescription}
-          {found.packageSize && ` — ${found.packageSize}`}
-        </p>
-      )}
-      {found.notes && <p>{found.notes}</p>}
+      <div className="detail-facts">
+        {found.neededDate && (
+          <p>
+            {found.neededDate.toLocaleDateString()}
+            {found.neededTime && ` at ${found.neededTime}`}
+            {found.flexibleTime && " (flexible)"}
+          </p>
+        )}
+        {found.seatsRequested && <p>Seats needed: {found.seatsRequested}</p>}
+        {found.category === "uber_share" && found.estimatedFarePerSeat && (
+          <p>~${found.estimatedFarePerSeat.toString()} per seat</p>
+        )}
+        {found.notes && <p>{found.notes}</p>}
+      </div>
       <div className="detail-poster-row">
-        <Link href={`/profile/${found.postedBy.id}`}>
+        <Link href={`/profile/${found.postedBy.id}`} className="plain-link">
           <PosterBadge poster={found.postedBy} />
         </Link>
       </div>
@@ -154,24 +151,24 @@ export default async function RequestDetailPage({
           equivalent comment on /trips/[id] for why these are simply absent
           for an anonymous viewer rather than linking to sign-up. */}
       {!isOwner && user && (
-        <>
+        <div className="button-row">
           <ReportButton
             reportedUserId={found.postedBy.id}
             contextType="request"
             contextId={found.id}
-          />{" "}
+          />
           <BlockButton
             blockedUserId={found.postedBy.id}
             initialBlocked={initialBlocked}
           />
-        </>
+        </div>
       )}
 
       {isOwner && (
-        <div>
+        <div className="button-row">
           <Link href={`/requests/${found.id}/edit`} className="btn-secondary">
             Edit
-          </Link>{" "}
+          </Link>
           <DeletePostButton
             deleteUrl={`/api/requests/${found.id}`}
             redirectTo="/my-posts"
@@ -197,10 +194,12 @@ export default async function RequestDetailPage({
               }))}
             />
           ) : (
-            <p>
-              You don&apos;t have any upcoming trips that could fulfill this
-              request. <Link href="/post/trip">Post a trip</Link> to offer one.
-            </p>
+            <div className="empty-state">
+              <p>You don&apos;t have any upcoming trips that could fulfill this request.</p>
+              <Link href="/post/trip" className="btn-secondary">
+                Post a trip
+              </Link>
+            </div>
           )}
         </div>
       )}
@@ -208,7 +207,7 @@ export default async function RequestDetailPage({
       {found.trip && (found.status === "accepted" || found.status === "completed") && (
         <div className="trip-participant-row">
           <div>
-            <Link href={`/profile/${found.trip.traveler.id}`}>
+            <Link href={`/profile/${found.trip.traveler.id}`} className="plain-link">
               <PosterBadge poster={found.trip.traveler} />
             </Link>
             <p>
@@ -226,7 +225,8 @@ export default async function RequestDetailPage({
       )}
 
       {found.status === "completed" && found.trip && (isOwner || isTripOwner) && (
-        <div className="review-section">
+        <section className="profile-section">
+          <h2 className="profile-section-title">Reviews</h2>
           {theirReview && (
             <p>
               {counterpartName} rated you {theirReview.rating}/5
@@ -240,7 +240,7 @@ export default async function RequestDetailPage({
           ) : (
             <ReviewForm requestId={found.id} revieweeName={counterpartName ?? "them"} />
           )}
-        </div>
+        </section>
       )}
     </div>
   );

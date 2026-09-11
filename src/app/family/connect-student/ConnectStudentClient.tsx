@@ -94,9 +94,10 @@ export function ConnectStudentClient({
 
   if (step === "profile") {
     return (
-      <div>
-        <h1>Your Profile</h1>
-        <p>
+      <div className="auth-card">
+        <span className="eyebrow">Step 1 of 3</span>
+        <h1 className="heading-tight">Your profile</h1>
+        <p className="profile-meta">
           First, tell us a bit about yourself. You&apos;ll connect your
           student next.
         </p>
@@ -121,29 +122,33 @@ export function ConnectStudentClient({
 
   if (step === "done") {
     return (
-      <div>
-        <h1>You&apos;re Connected</h1>
-        <p>
+      <div className="auth-card">
+        <span className="eyebrow">All set</span>
+        <h1 className="heading-tight">You&apos;re connected</h1>
+        <p className="profile-meta">
           You can now use CampusConnect, including posting rides and package
           requests on behalf of your student. We&apos;ve also emailed{" "}
           {studentEmail} to let them know, with an easy way for them to
           remove the connection if this wasn&apos;t expected.
         </p>
-        <button onClick={() => router.push("/")}>Go to Home</button>
+        <button className="btn-primary" onClick={() => router.push("/")}>
+          Go to Home
+        </button>
       </div>
     );
   }
 
   if (step === "code") {
     return (
-      <div>
-        <h1>Enter the Code</h1>
-        <p>
+      <div className="auth-card">
+        <span className="eyebrow">Step 3 of 3</span>
+        <h1 className="heading-tight">Enter the code</h1>
+        <p className="profile-meta">
           We sent a verification code to <strong>{studentEmail}</strong>. Ask
           your student for the code, or check the inbox yourself if you have
           access, and enter it below.
         </p>
-        <form onSubmit={handleSubmitCode}>
+        <form onSubmit={handleSubmitCode} className="app-form">
           <div>
             <label htmlFor="code">Verification code</label>
             <input
@@ -166,15 +171,16 @@ export function ConnectStudentClient({
   }
 
   return (
-    <div>
-      <h1>Connect Your Student</h1>
-      <p>
+    <div className="auth-card">
+      <span className="eyebrow">Step 2 of 3</span>
+      <h1 className="heading-tight">Connect your student</h1>
+      <p className="profile-meta">
         To use CampusConnect, connect at least one student. Enter your
         student&apos;s university email below — we&apos;ll send a
         verification code there, not to you, to confirm this is really
         their school email before connecting your accounts.
       </p>
-      <form onSubmit={handleSubmitEmail}>
+      <form onSubmit={handleSubmitEmail} className="app-form">
         <div>
           <label htmlFor="studentEmail">Student&apos;s university email</label>
           <input

@@ -113,7 +113,7 @@ export function ProfileEditForm({
   }
 
   return (
-    <form onSubmit={handleSubmit}>
+    <form onSubmit={handleSubmit} className="app-form">
       <div>
         <label htmlFor="name">Full name</label>
         <input
@@ -133,7 +133,8 @@ export function ProfileEditForm({
             alt=""
             width={64}
             height={64}
-            style={{ borderRadius: "50%", display: "block", objectFit: "cover" }}
+            className="avatar-circle"
+            style={{ marginBottom: "0.5rem" }}
           />
         )}
         <input

@@ -70,6 +70,7 @@ export function SeatOfferBubble({
           type="button"
           onClick={() => act("cancel", { status: "cancelled", respondedAt: now() })}
           disabled={loading}
+          className="btn-secondary"
         >
           {loading ? "Cancelling…" : "Cancel"}
         </button>
@@ -88,6 +89,7 @@ export function SeatOfferBubble({
               })
             }
             disabled={loading}
+            className="btn-primary"
           >
             {loading ? "Accepting…" : "Accept seat"}
           </button>{" "}
@@ -95,6 +97,7 @@ export function SeatOfferBubble({
             type="button"
             onClick={() => act("decline", { status: "declined", respondedAt: now() })}
             disabled={loading}
+            className="btn-secondary"
           >
             {loading ? "Declining…" : "Decline"}
           </button>
@@ -113,6 +116,7 @@ export function SeatOfferBubble({
           type="button"
           onClick={() => act("release-seat", { seatConfirmedAt: null })}
           disabled={loading}
+          className="btn-secondary"
         >
           {loading ? "Removing…" : "Remove"}
         </button>

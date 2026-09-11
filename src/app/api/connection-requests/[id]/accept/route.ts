@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
-import { findOrCreateConversationForTrip } from "@/lib/messaging";
+import { findOrCreateConversationForPost } from "@/lib/messaging";
 import { createNotification } from "@/lib/notifications";
 import { tripDisplayStatus } from "@/lib/postStatus";
 import { isBlockedBetween } from "@/lib/blocks";
@@ -13,7 +13,7 @@ import { isBlockedBetween } from "@/lib/blocks";
 // ConnectionRequest ownership checks in this app are consistently 403;
 // 404-to-avoid-leaking-existence is reserved for the private Conversation
 // thread routes, a different sensitivity tier). Only a pending request can
-// be accepted. Accepting calls findOrCreateConversationForTrip
+// be accepted. Accepting calls findOrCreateConversationForPost
 // (src/lib/messaging.ts) -- the same helper POST /api/conversations uses --
 // so "a connection is created" means exactly "the existing Conversation
 // system now has a thread for this pair," not a new mechanism.
@@ -70,8 +70,8 @@ export async function POST(
     );
   }
 
-  const conversation = await findOrCreateConversationForTrip(
-    connectionRequest.tripId,
+  const conversation = await findOrCreateConversationForPost(
+    { tripId: connectionRequest.tripId },
     connectionRequest.requesterId,
     connectionRequest.recipientId,
   );

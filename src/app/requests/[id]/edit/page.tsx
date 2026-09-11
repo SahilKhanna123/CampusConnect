@@ -23,13 +23,14 @@ export default async function EditRequestPage({
 
   return (
     <div>
-      <h1>Edit Request</h1>
+      <span className="eyebrow">Edit</span>
+      <h1 className="heading-tight">Edit Request</h1>
       <RequestPostForm
         citiesByRegion={citiesByRegion}
         requestId={found.id}
         isStudent={hasStudentRecord(user)}
         initialValues={{
-          type: found.type,
+          category: found.category,
           originCityId: found.originCityId ?? "",
           destinationCityId: found.destinationCityId ?? "",
           destinationText: found.destinationText ?? "",
@@ -39,8 +40,7 @@ export default async function EditRequestPage({
           neededTime: found.neededTime ?? "",
           flexibleTime: found.flexibleTime,
           seatsRequested: found.seatsRequested ?? 1,
-          packageDescription: found.packageDescription ?? "",
-          packageSize: found.packageSize ?? "",
+          estimatedFarePerSeat: found.estimatedFarePerSeat?.toString() ?? "",
           notes: found.notes ?? "",
           studentsOnly: found.studentsOnly,
         }}

@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
+import { Prisma } from "@prisma/client";
 import { resetAndSeed } from "@/lib/testDb";
 import { createUser, createTrip, createRequest } from "@/lib/testDbFixtures";
 import { prisma } from "@/lib/prisma";
@@ -116,19 +117,21 @@ describe("POST /api/requests/[id]/accept -- overbooking prevention", () => {
     expect(updatedRequest.tripId).toBeNull();
   });
 
-  it("accepts a package request purely on packageSpaceAvailable, with no seat decrement", async () => {
+  it("accepts an uber_share request against an uber_share trip identically to personal_car, decrementing seatsRemaining", async () => {
     const owner = await createUser();
     const trip = await createTrip(
       {
-        seatsTotal: 1,
-        seatsRemaining: 1,
-        packageSpaceAvailable: true,
+        seatsTotal: 2,
+        seatsRemaining: 2,
+        category: "uber_share",
+        estimatedFarePerSeat: new Prisma.Decimal(12.5),
+        meetingPoint: "Front of Student Union",
       },
       { traveler: owner },
     );
     const poster = await createUser();
     const req = await createRequest(
-      { type: "package", seatsRequested: null },
+      { category: "uber_share" },
       { postedBy: poster },
     );
 
@@ -136,6 +139,29 @@ describe("POST /api/requests/[id]/accept -- overbooking prevention", () => {
 
     const res = await POST(postRequest(trip.id), paramsFor(req.id));
     expect(res.status).toBe(200);
+
+    const updatedTrip = await prisma.trip.findUniqueOrThrow({
+      where: { id: trip.id },
+    });
+    expect(updatedTrip.seatsRemaining).toBe(1);
+  });
+
+  it("rejects a category mismatch between the request and the trip", async () => {
+    const owner = await createUser();
+    const trip = await createTrip(
+      { seatsTotal: 1, seatsRemaining: 1, category: "personal_car" },
+      { traveler: owner },
+    );
+    const poster = await createUser();
+    const req = await createRequest(
+      { category: "uber_share" },
+      { postedBy: poster },
+    );
+
+    vi.mocked(getCurrentUser).mockResolvedValue(makeUser({ id: owner.id }));
+
+    const res = await POST(postRequest(trip.id), paramsFor(req.id));
+    expect(res.status).toBe(400);
 
     const updatedTrip = await prisma.trip.findUniqueOrThrow({
       where: { id: trip.id },

@@ -3,15 +3,17 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser, hasStudentRecord } from "@/lib/auth";
 import { tripDisplayStatus } from "@/lib/postStatus";
-import { findOrCreateConversationForTrip } from "@/lib/messaging";
+import { findOrCreateConversationForPost } from "@/lib/messaging";
 import { createNotification, truncateForNotification } from "@/lib/notifications";
 import { isBlockedBetween } from "@/lib/blocks";
 import { canSendMessage } from "@/lib/rate-limit";
 
 // GET /api/conversations
 // Lists the caller's conversations, most recently created first, each with
-// its Trip route, the other participant, and a one-message preview -- what
-// /messages renders.
+// its Trip or PackagePost route, the other participant, and a one-message
+// preview -- what /messages renders. A conversation is scoped to exactly
+// one of trip/packagePost, never both -- see the schema comment on
+// Conversation.packagePostId.
 export async function GET() {
   const user = await getCurrentUser();
   if (!user) {
@@ -22,6 +24,7 @@ export async function GET() {
     where: { participants: { some: { userId: user.id } } },
     include: {
       trip: { include: { originCity: true, destinationCity: true } },
+      packagePost: { include: { originCity: true, destinationCity: true } },
       participants: {
         where: { userId: { not: user.id } },
         include: { user: { select: { id: true, name: true, photoUrl: true } } },
@@ -35,23 +38,27 @@ export async function GET() {
 }
 
 const startConversationSchema = z.object({
-  tripId: z.string().min(1),
+  tripId: z.string().min(1).optional(),
+  packagePostId: z.string().min(1).optional(),
   body: z.string().trim().min(1).max(2000),
 });
 
 // POST /api/conversations
-// Body: { tripId, body }
+// Body: { tripId, body } | { packagePostId, body }
 // Starts (or reuses) a conversation between the caller and the Trip's
-// traveler, with `body` as the first Message -- the plan doc's "message the
-// traveler before committing to a formal request" flow (Conversation is
-// scoped to trip+counterpart, requestId stays null). Triggered today by the
-// "Register for a seat" button on /trips/[id]. Deliberately does NOT create
-// a Request or touch Trip.seatsRemaining -- that's the separate, still-
-// unbuilt matching lifecycle (requests/[id]/accept, see CLAUDE.md), which
-// needs a DB-transaction capacity check this endpoint has no business doing.
+// traveler (both personal_car and uber_share categories -- Uber-sharing is
+// just a Trip category, not a separate model) or a PackagePost's poster,
+// with `body` as the first Message -- the plan doc's "message before
+// committing to a formal request" flow. Triggered by "Register for a seat"
+// on /trips/[id] for a Trip, or PackageMessageForm for a PackagePost --
+// deliberately the *only* interaction entry point for a package post, per
+// product decision ("all conversations about packages should be done in
+// private DMs"). Deliberately does NOT create a Request or touch
+// Trip.seatsRemaining -- that's the separate matching lifecycle
+// (requests/[id]/accept, see CLAUDE.md).
 //
 // Conversation find-or-create is shared with POST
-// /api/connection-requests/[id]/accept via findOrCreateConversationForTrip
+// /api/connection-requests/[id]/accept via findOrCreateConversationForPost
 // (src/lib/messaging.ts) -- see that function's comment for why it's a
 // plain find-then-create rather than a race-hardened pattern.
 export async function POST(request: Request) {
@@ -61,46 +68,11 @@ export async function POST(request: Request) {
   }
 
   const parsed = startConversationSchema.safeParse(await request.json());
-  if (!parsed.success) {
+  if (!parsed.success || (!parsed.data.tripId && !parsed.data.packagePostId)) {
     return NextResponse.json({ error: "A message is required." }, { status: 400 });
   }
-  const { tripId, body } = parsed.data;
+  const { tripId, packagePostId, body } = parsed.data;
 
-  const trip = await prisma.trip.findUnique({ where: { id: tripId } });
-  if (!trip) {
-    return NextResponse.json({ error: "Trip not found." }, { status: 404 });
-  }
-  if (trip.travelerId === user.id) {
-    return NextResponse.json(
-      { error: "You can't message yourself about your own trip." },
-      { status: 400 },
-    );
-  }
-  if (tripDisplayStatus(trip) !== "upcoming") {
-    return NextResponse.json(
-      { error: "This trip is no longer accepting messages." },
-      { status: 400 },
-    );
-  }
-  // Same studentsOnly gate POST /api/connection-requests enforces -- closes
-  // the direct-endpoint gap for a non-student who can't discover or open
-  // this trip's page in the first place.
-  if (trip.studentsOnly && !hasStudentRecord(user)) {
-    return NextResponse.json(
-      { error: "This trip is only visible to students." },
-      { status: 403 },
-    );
-  }
-  // Neither party can start a new conversation with the other once blocked,
-  // regardless of who initiated the block (plan doc §7) -- an existing
-  // conversation that predates the block is untouched (this endpoint only
-  // finds-or-creates; it never reaches an already-existing thread).
-  if (await isBlockedBetween(user.id, trip.travelerId)) {
-    return NextResponse.json(
-      { error: "You can't message this user." },
-      { status: 403 },
-    );
-  }
   if (!(await canSendMessage(user.id))) {
     return NextResponse.json(
       { error: "You're sending messages too quickly. Try again in a few minutes." },
@@ -108,10 +80,82 @@ export async function POST(request: Request) {
     );
   }
 
-  const conversation = await findOrCreateConversationForTrip(
-    tripId,
+  let counterpartId: string;
+  let notificationTitle: string;
+
+  if (tripId) {
+    const trip = await prisma.trip.findUnique({ where: { id: tripId } });
+    if (!trip) {
+      return NextResponse.json({ error: "Trip not found." }, { status: 404 });
+    }
+    if (trip.travelerId === user.id) {
+      return NextResponse.json(
+        { error: "You can't message yourself about your own trip." },
+        { status: 400 },
+      );
+    }
+    if (tripDisplayStatus(trip) !== "upcoming") {
+      return NextResponse.json(
+        { error: "This trip is no longer accepting messages." },
+        { status: 400 },
+      );
+    }
+    // Same studentsOnly gate POST /api/connection-requests enforces -- closes
+    // the direct-endpoint gap for a non-student who can't discover or open
+    // this trip's page in the first place.
+    if (trip.studentsOnly && !hasStudentRecord(user)) {
+      return NextResponse.json(
+        { error: "This trip is only visible to students." },
+        { status: 403 },
+      );
+    }
+    if (await isBlockedBetween(user.id, trip.travelerId)) {
+      return NextResponse.json(
+        { error: "You can't message this user." },
+        { status: 403 },
+      );
+    }
+    counterpartId = trip.travelerId;
+    notificationTitle = trip.title ? ` for "${trip.title}"` : "";
+  } else {
+    const packagePost = await prisma.packagePost.findUnique({
+      where: { id: packagePostId },
+    });
+    if (!packagePost) {
+      return NextResponse.json({ error: "Package post not found." }, { status: 404 });
+    }
+    if (packagePost.postedById === user.id) {
+      return NextResponse.json(
+        { error: "You can't message yourself about your own post." },
+        { status: 400 },
+      );
+    }
+    if (packagePost.status !== "open") {
+      return NextResponse.json(
+        { error: "This package post is no longer open." },
+        { status: 400 },
+      );
+    }
+    if (packagePost.studentsOnly && !hasStudentRecord(user)) {
+      return NextResponse.json(
+        { error: "This post is only visible to students." },
+        { status: 403 },
+      );
+    }
+    if (await isBlockedBetween(user.id, packagePost.postedById)) {
+      return NextResponse.json(
+        { error: "You can't message this user." },
+        { status: 403 },
+      );
+    }
+    counterpartId = packagePost.postedById;
+    notificationTitle = "";
+  }
+
+  const conversation = await findOrCreateConversationForPost(
+    tripId ? { tripId } : { packagePostId: packagePostId! },
     user.id,
-    trip.travelerId,
+    counterpartId,
   );
 
   await prisma.message.create({
@@ -119,10 +163,10 @@ export async function POST(request: Request) {
   });
 
   await createNotification({
-    userId: trip.travelerId,
+    userId: counterpartId,
     type: "new_message",
     title: "New message",
-    message: `${user.name}: ${truncateForNotification(body)}`,
+    message: `${user.name}: ${truncateForNotification(body)}${notificationTitle}`,
     relatedId: conversation.id,
   });
 

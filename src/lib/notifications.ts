@@ -5,7 +5,7 @@ import type { NotificationType } from "@prisma/client";
  * The one notification-creation path in the app -- every trigger site
  * (connection request create/accept/decline, new message) calls this rather
  * than a bespoke prisma.notification.create, same convention as
- * findOrCreateConversationForTrip being the one Conversation-creation path.
+ * findOrCreateConversationForPost being the one Conversation-creation path.
  */
 export async function createNotification({
   userId,

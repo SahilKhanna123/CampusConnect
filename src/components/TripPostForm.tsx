@@ -4,9 +4,11 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 type CityGroup = { regionName: string; cities: { id: string; name: string }[] };
+type TripCategory = "personal_car" | "uber_share";
 
 export type TripFormValues = {
   title: string;
+  category: TripCategory;
   originCityId: string;
   destinationCityId: string;
   destinationText: string;
@@ -14,8 +16,8 @@ export type TripFormValues = {
   departureTime: string;
   flexibleTime: boolean;
   seatsTotal: number;
-  packageSpaceAvailable: boolean;
-  packageCapacityNote: string;
+  estimatedFarePerSeat: string;
+  meetingPoint: string;
   tripNotes: string;
   studentsOnly: boolean;
 };
@@ -28,7 +30,11 @@ const WRITE_IN_DESTINATION = "__write_in__";
 // Create or edit a Trip ("offer"). Edit mode is triggered by passing
 // tripId -- same form, PATCH instead of POST, same convention as
 // ProfileEditForm (the form always submits the full set of fields, never a
-// partial patch).
+// partial patch). category distinguishes today's original "I'm driving my
+// own car" feature (personal_car) from splitting a real Uber/Lyft ride
+// (uber_share, see the TripCategory enum comment in prisma/schema.prisma)
+// -- estimatedFarePerSeat/meetingPoint only render, and are only required,
+// when uber_share is selected.
 export function TripPostForm({
   citiesByRegion,
   tripId,
@@ -48,6 +54,9 @@ export function TripPostForm({
 }) {
   const router = useRouter();
   const [title, setTitle] = useState(initialValues?.title ?? "");
+  const [category, setCategory] = useState<TripCategory>(
+    initialValues?.category ?? "personal_car",
+  );
   const [originCityId, setOriginCityId] = useState(
     initialValues?.originCityId ?? "",
   );
@@ -69,11 +78,11 @@ export function TripPostForm({
   const [seatsTotal, setSeatsTotal] = useState(
     initialValues?.seatsTotal ?? 1,
   );
-  const [packageSpaceAvailable, setPackageSpaceAvailable] = useState(
-    initialValues?.packageSpaceAvailable ?? false,
+  const [estimatedFarePerSeat, setEstimatedFarePerSeat] = useState(
+    initialValues?.estimatedFarePerSeat ?? "",
   );
-  const [packageCapacityNote, setPackageCapacityNote] = useState(
-    initialValues?.packageCapacityNote ?? "",
+  const [meetingPoint, setMeetingPoint] = useState(
+    initialValues?.meetingPoint ?? "",
   );
   const [tripNotes, setTripNotes] = useState(initialValues?.tripNotes ?? "");
   const [studentsOnly, setStudentsOnly] = useState(
@@ -81,6 +90,8 @@ export function TripPostForm({
   );
   const [status, setStatus] = useState<"idle" | "submitting">("idle");
   const [error, setError] = useState<string | null>(null);
+
+  const isUberShare = category === "uber_share";
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -92,6 +103,7 @@ export function TripPostForm({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         title,
+        category,
         originCityId,
         destinationCityId:
           destinationCityId === WRITE_IN_DESTINATION ? undefined : destinationCityId,
@@ -101,8 +113,9 @@ export function TripPostForm({
         departureTime: departureTime || undefined,
         flexibleTime,
         seatsTotal: Number(seatsTotal),
-        packageSpaceAvailable,
-        packageCapacityNote: packageCapacityNote || undefined,
+        estimatedFarePerSeat:
+          isUberShare && estimatedFarePerSeat ? Number(estimatedFarePerSeat) : undefined,
+        meetingPoint: isUberShare ? meetingPoint || undefined : undefined,
         tripNotes: tripNotes || undefined,
         studentsOnly: isStudent ? studentsOnly : false,
       }),
@@ -125,7 +138,30 @@ export function TripPostForm({
   }
 
   return (
-    <form onSubmit={handleSubmit}>
+    <form onSubmit={handleSubmit} className="app-form">
+      <fieldset>
+        <legend>Trip type</legend>
+        <label>
+          <input
+            type="radio"
+            name="category"
+            checked={category === "personal_car"}
+            onChange={() => setCategory("personal_car")}
+          />
+          {" "}
+          Driving my own car
+        </label>
+        <label>
+          <input
+            type="radio"
+            name="category"
+            checked={category === "uber_share"}
+            onChange={() => setCategory("uber_share")}
+          />
+          {" "}
+          Splitting an Uber/Lyft
+        </label>
+      </fieldset>
       <div>
         <label htmlFor="title">Subject</label>
         <input
@@ -225,7 +261,9 @@ export function TripPostForm({
         </label>
       </div>
       <div>
-        <label htmlFor="seatsTotal">Seats available</label>
+        <label htmlFor="seatsTotal">
+          {isUberShare ? "Seats to split the fare" : "Seats available"}
+        </label>
         <input
           id="seatsTotal"
           type="number"
@@ -236,30 +274,34 @@ export function TripPostForm({
           onChange={(e) => setSeatsTotal(Number(e.target.value))}
         />
       </div>
-      <div>
-        <label>
-          <input
-            type="checkbox"
-            checked={packageSpaceAvailable}
-            onChange={(e) => setPackageSpaceAvailable(e.target.checked)}
-          />
-          {" "}
-          I also have package space
-        </label>
-      </div>
-      {packageSpaceAvailable && (
-        <div>
-          <label htmlFor="packageCapacityNote">
-            Package space details (optional)
-          </label>
-          <input
-            id="packageCapacityNote"
-            type="text"
-            placeholder="e.g. small boxes only, one large duffel"
-            value={packageCapacityNote}
-            onChange={(e) => setPackageCapacityNote(e.target.value)}
-          />
-        </div>
+      {isUberShare && (
+        <>
+          <div>
+            <label htmlFor="estimatedFarePerSeat">Estimated fare per seat ($)</label>
+            <input
+              id="estimatedFarePerSeat"
+              type="number"
+              min={0}
+              step="0.01"
+              required
+              placeholder="e.g. 12.50"
+              value={estimatedFarePerSeat}
+              onChange={(e) => setEstimatedFarePerSeat(e.target.value)}
+            />
+          </div>
+          <div>
+            <label htmlFor="meetingPoint">Meeting point</label>
+            <input
+              id="meetingPoint"
+              type="text"
+              maxLength={200}
+              required
+              placeholder="e.g. Front of Student Union"
+              value={meetingPoint}
+              onChange={(e) => setMeetingPoint(e.target.value)}
+            />
+          </div>
+        </>
       )}
       <div>
         <label htmlFor="tripNotes">Notes (optional)</label>

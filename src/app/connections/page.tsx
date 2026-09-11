@@ -61,25 +61,25 @@ export default async function ConnectionsPage({
 
   return (
     <div>
-      <h1>Connection Requests</h1>
+      <span className="eyebrow">Connections</span>
+      <h1 className="heading-tight">Connection Requests</h1>
 
-      <nav aria-label="Connection requests view">
+      <div className="subtabs" aria-label="Connection requests view">
         <Link
           href="/connections"
           aria-current={activeTab === "received" ? "page" : undefined}
-          style={{ fontWeight: activeTab === "received" ? "bold" : "normal" }}
+          className={activeTab === "received" ? "subtab subtab-active" : "subtab"}
         >
           Received
         </Link>
-        {" | "}
         <Link
           href="/connections?tab=sent"
           aria-current={activeTab === "sent" ? "page" : undefined}
-          style={{ fontWeight: activeTab === "sent" ? "bold" : "normal" }}
+          className={activeTab === "sent" ? "subtab subtab-active" : "subtab"}
         >
           Sent
         </Link>
-      </nav>
+      </div>
 
       {activeTab === "received" ? (
         received.length === 0 ? (

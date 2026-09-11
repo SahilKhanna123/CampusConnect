@@ -4,6 +4,7 @@ import {
   createUser,
   createTrip,
   createCity,
+  createPackagePost,
   createConversationWithParticipants,
 } from "@/lib/testDbFixtures";
 import { prisma } from "@/lib/prisma";
@@ -29,6 +30,19 @@ describe("canCreatePost", () => {
     expect(await canCreatePost(owner.id)).toBe(true);
 
     await createTrip({}, { traveler: owner, originCity: city });
+    expect(await canCreatePost(owner.id)).toBe(false);
+  });
+
+  it("counts a PackagePost toward the same combined cap as Trip/Request", async () => {
+    const owner = await createUser();
+    const city = await createCity();
+
+    for (let i = 0; i < 9; i++) {
+      await createTrip({}, { traveler: owner, originCity: city });
+    }
+    expect(await canCreatePost(owner.id)).toBe(true);
+
+    await createPackagePost({}, { postedBy: owner, originCity: city });
     expect(await canCreatePost(owner.id)).toBe(false);
   });
 

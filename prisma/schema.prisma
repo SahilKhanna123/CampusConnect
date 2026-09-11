@@ -51,9 +51,19 @@ enum ParentStudentLinkStatus {
   revoked
 }
 
-enum RequestType {
-  ride
-  package
+// Shared by Trip and Request -- the one vocabulary for "what kind of ride
+// this is," matched on both the offer side (Trip.category) and the need
+// side (Request.category). personal_car is today's original "I'm driving
+// my own car, offering seats" feature; uber_share is a deliberate reversal
+// of this project's earlier "not a group-Uber-splitting feature" MVP
+// exclusion (see the removed line in the "Explicitly Not MVP" list in
+// CLAUDE.md) -- students coordinate and split the cost of a real Uber/Lyft
+// ride. No payment processing is implied: Trip.estimatedFarePerSeat is a
+// stated, informational figure only, settled in person, same principle as
+// this app's existing "no payment fields" gas-money framing.
+enum TripCategory {
+  personal_car
+  uber_share
 }
 
 enum RequestStatus {
@@ -167,28 +177,28 @@ model User {
   // Matches Supabase Auth's auth.users.id exactly — set explicitly by app
   // code in the auth callback (src/app/auth/callback/route.ts), never
   // generated here. One User row per Supabase Auth account.
-  id               String   @id
-  email            String   @unique
-  name             String
-  photoUrl         String?
+  id                    String    @id
+  email                 String    @unique
+  name                  String
+  photoUrl              String?
   // Free-text, unused by the profile feature -- university affiliation is
   // always derived from the verified StudentRecord/VerificationRecord
   // instead, never from this field. Left in place only in case a future
   // alumni-onboarding feature wants a self-declared (unverified) school
   // name; do not wire it into any "university" display in the meantime.
-  collegeName      String?
+  collegeName           String?
   // Superseded by homeCityId below -- kept only because it's not worth a
   // migration to drop an already-unpopulated column. Do not read or write
   // this in new code.
-  homeRegionId     String?
-  homeRegion       Region?  @relation(fields: [homeRegionId], references: [id])
+  homeRegionId          String?
+  homeRegion            Region?   @relation(fields: [homeRegionId], references: [id])
   // The profile/onboarding feature's home-area field. City-level (not just
   // Region-level) so it lines up with how Trip/Request already key
   // origin/destination off City -- a "general home area" for display is
   // just city.name, and it doubles as an input to future trip-matching that
   // Region-level granularity couldn't support.
-  homeCityId       String?
-  homeCity         City?    @relation("UserHomeCity", fields: [homeCityId], references: [id])
+  homeCityId            String?
+  homeCity              City?     @relation("UserHomeCity", fields: [homeCityId], references: [id])
   // Set once the post-signup onboarding form (student: /onboarding, parent:
   // step 0 of /family/connect-student) is submitted. An explicit timestamp
   // rather than inferring completion from homeCityId being non-null, so the
@@ -199,18 +209,18 @@ model User {
   // "year" is deliberately a free string, not a class-year enum, so a
   // student can write "Junior" or "2027" or whatever reads naturally to
   // them; over-structuring this wasn't worth it for what's a display field.
-  major             String?
-  year              String?
-  travelPreferences String?
+  major                 String?
+  year                  String?
+  travelPreferences     String?
   // Multi-select against LOOKING_FOR_OPTIONS (src/lib/lookingFor.ts) --
   // reuses the Post page's own vocabulary (Offer a Ride / Need a Ride /
   // Offer Package Space / Need Delivery) rather than inventing new
   // categories. A stated interest, not a capability grant -- doesn't gate
   // anything, purely descriptive on the profile.
-  lookingFor        String[] @default([])
+  lookingFor            String[]  @default([])
   // Parent-only onboarding field. Private -- same visibility tier as email,
   // never surfaced on the public profile (see src/lib/profile.ts).
-  phone             String?
+  phone                 String?
   // Parent-only, free text, self-declared by the parent (NOT derived from
   // StudentRecord.fullName -- that stays private, shown only to the parent
   // themselves on their own /profile). Public, so another user browsing a
@@ -219,7 +229,7 @@ model User {
   // (see src/app/api/family/link-objection/[token]/reject/route.ts) --
   // the student's own objection/revoke is the safety valve for a parent
   // publicly naming them without consent.
-  linkedStudentName String?
+  linkedStudentName     String?
   // A factual record of onboarding path, NOT a permanent role -- doesn't
   // restrict what this account can do (still USER != ROLE: a parent can
   // request rides for themselves, offer package space, etc. exactly like
@@ -228,33 +238,34 @@ model User {
   // hasLinkedStudent() in src/lib/auth.ts and the check in
   // src/app/layout.tsx) -- set once at creation via
   // src/app/api/auth/parent-signup, never changed afterward.
-  signedUpAsParent Boolean  @default(false)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  signedUpAsParent      Boolean   @default(false)
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
 
-  verifications            VerificationRecord[]
-  tripsAsTraveler          Trip[]                    @relation("TripTraveler")
-  requestsPosted           Request[]                 @relation("RequestPostedBy")
-  requestsBeneficiary      Request[]                 @relation("RequestBeneficiary")
+  verifications              VerificationRecord[]
+  tripsAsTraveler            Trip[]                    @relation("TripTraveler")
+  requestsPosted             Request[]                 @relation("RequestPostedBy")
+  requestsBeneficiary        Request[]                 @relation("RequestBeneficiary")
   // A User's own StudentRecord, if they signed up (or later claimed) with a
   // supported university email. Nullable -- parents/alumni/travelers never
   // have one. The reverse of StudentRecord.userId.
-  studentRecord            StudentRecord?
-  parentLinksAsParent      ParentStudentLink[]       @relation("LinkParent")
-  parentStudentOtpRequests ParentStudentOtpRequest[]
-  invitesSent              ParentStudentInvite[]     @relation("InviteStudent")
-  conversationsIn          ConversationParticipant[]
-  messagesSent             Message[]                 @relation("MessageSender")
-  connectionRequestsSent     ConnectionRequest[]     @relation("ConnectionRequestRequester")
-  connectionRequestsReceived ConnectionRequest[]     @relation("ConnectionRequestRecipient")
-  seatOffersReceived        SeatOffer[]              @relation("SeatOfferRecipient")
-  reviewsGiven             Review[]                  @relation("ReviewReviewer")
-  reviewsReceived          Review[]                  @relation("ReviewReviewee")
-  reportsFiled             Report[]                  @relation("ReportReporter")
-  reportsAgainst           Report[]                  @relation("ReportReported")
-  blocksInitiated          Block[]                   @relation("BlockBlocker")
-  blocksReceived           Block[]                   @relation("BlockBlocked")
-  notifications            Notification[]
+  studentRecord              StudentRecord?
+  parentLinksAsParent        ParentStudentLink[]       @relation("LinkParent")
+  parentStudentOtpRequests   ParentStudentOtpRequest[]
+  invitesSent                ParentStudentInvite[]     @relation("InviteStudent")
+  conversationsIn            ConversationParticipant[]
+  messagesSent               Message[]                 @relation("MessageSender")
+  connectionRequestsSent     ConnectionRequest[]       @relation("ConnectionRequestRequester")
+  connectionRequestsReceived ConnectionRequest[]       @relation("ConnectionRequestRecipient")
+  seatOffersReceived         SeatOffer[]               @relation("SeatOfferRecipient")
+  reviewsGiven               Review[]                  @relation("ReviewReviewer")
+  reviewsReceived            Review[]                  @relation("ReviewReviewee")
+  reportsFiled               Report[]                  @relation("ReportReporter")
+  reportsAgainst             Report[]                  @relation("ReportReported")
+  blocksInitiated            Block[]                   @relation("BlockBlocker")
+  blocksReceived             Block[]                   @relation("BlockBlocked")
+  notifications              Notification[]
+  packagePostsPosted         PackagePost[]             @relation("PackagePostPostedBy")
 
   @@index([homeRegionId])
   @@index([homeCityId])
@@ -452,18 +463,47 @@ model Region {
 // post a trip against any city (e.g. an LAX airport entry outside every
 // seeded region). Pre-seed common ones; support adding more on demand.
 model City {
-  id       String @id @default(uuid())
-  name     String
-  regionId String
-  region   Region @relation(fields: [regionId], references: [id])
+  id        String @id @default(uuid())
+  name      String
+  regionId  String
+  region    Region @relation(fields: [regionId], references: [id])
+  // Nullable on purpose -- a City can exist (and be posted against) before
+  // anyone's resolved its real-world coordinates. Backfilled for the seeded
+  // cities in prisma/seed.ts; any City missing these falls back to the same
+  // on-demand geocode-and-cache path a write-in Trip/Request.destinationText
+  // uses (see src/lib/geocode.ts's resolveCoordinates), just keyed on
+  // City.name instead of free text -- this column is purely a fast-path
+  // cache to skip that network call for the common cities, not a second
+  // source of truth.
+  latitude  Float?
+  longitude Float?
 
-  tripsAsOrigin         Trip[]    @relation("TripOrigin")
-  tripsAsDestination    Trip[]    @relation("TripDestination")
-  requestsAsOrigin      Request[] @relation("RequestOrigin")
-  requestsAsDestination Request[] @relation("RequestDestination")
-  usersAsHomeCity       User[]    @relation("UserHomeCity")
+  tripsAsOrigin             Trip[]        @relation("TripOrigin")
+  tripsAsDestination        Trip[]        @relation("TripDestination")
+  requestsAsOrigin          Request[]     @relation("RequestOrigin")
+  requestsAsDestination     Request[]     @relation("RequestDestination")
+  usersAsHomeCity           User[]        @relation("UserHomeCity")
+  packagePostsAsOrigin      PackagePost[] @relation("PackagePostOrigin")
+  packagePostsAsDestination PackagePost[] @relation("PackagePostDestination")
 
   @@unique([name, regionId])
+}
+
+// Caches a free-text place name -> real-world coordinates lookup against
+// OpenStreetMap's Nominatim geocoder (see src/lib/geocode.ts) -- backs the
+// Explore route map's real markers for a write-in Trip/Request.destinationText
+// (e.g. "SFO Airport") that has no City row to carry City.latitude/longitude
+// on. `query` is the normalized (trimmed, lowercased) input text, not the
+// raw display string, so "SFO Airport" and "sfo airport " share one row.
+// Caching isn't just a performance nicety here: Nominatim's usage policy
+// caps the public instance at ~1 request/second and expects callers to
+// cache results rather than re-resolving the same place repeatedly.
+model GeocodeCache {
+  id        String   @id @default(uuid())
+  query     String   @unique
+  latitude  Float
+  longitude Float
+  createdAt DateTime @default(now())
 }
 
 // A RouteCommunity being `active` controls what Home *features* by default
@@ -481,49 +521,70 @@ model RouteCommunity {
 }
 
 model Trip {
-  id                    String     @id @default(uuid())
-  travelerId            String
-  traveler              User       @relation("TripTraveler", fields: [travelerId], references: [id])
+  id                   String       @id @default(uuid())
+  travelerId           String
+  traveler             User         @relation("TripTraveler", fields: [travelerId], references: [id])
   // Subject line stating the purpose of the post at a glance (e.g. "Weekend
   // trip home, 2 seats free"). Nullable in the DB only because it postdates
   // this model's earliest rows -- tripFieldsSchema requires it non-empty on
   // every create/edit going forward.
-  title                 String?
-  originCityId          String
-  originCity            City       @relation("TripOrigin", fields: [originCityId], references: [id])
+  title                String?
+  originCityId         String
+  originCity           City         @relation("TripOrigin", fields: [originCityId], references: [id])
   // Nullable + destinationText below: a poster can pick a listed City OR
   // type a destination that isn't in the seeded list (e.g. an airport, or a
   // town outside the launch regions). Exactly one of the two is required --
   // enforced by tripFieldsSchema's refine, not a DB constraint, consistent
   // with how validation works everywhere else in this project.
-  destinationCityId     String?
-  destinationCity       City?      @relation("TripDestination", fields: [destinationCityId], references: [id])
-  destinationText       String?
-  departureDate         DateTime
-  departureTime         String?
+  destinationCityId    String?
+  destinationCity      City?        @relation("TripDestination", fields: [destinationCityId], references: [id])
+  destinationText      String?
+  departureDate        DateTime
+  departureTime        String?
   // Poster is open to some slack around departureDate/departureTime rather
   // than requiring an exact match -- purely descriptive for now (no
   // matching/search logic reads this yet).
-  flexibleTime          Boolean    @default(false)
-  seatsTotal            Int        @default(0)
-  seatsRemaining        Int        @default(0)
-  packageSpaceAvailable Boolean    @default(false)
-  packageCapacityNote   String?
+  flexibleTime         Boolean      @default(false)
+  // Shared by both categories below -- Uber-sharing still needs a seat
+  // count (how many people are splitting the fare), which is exactly why
+  // ConnectionRequest/SeatOffer's existing guarded-decrement overbooking
+  // logic needs no changes to support the new category.
+  seatsTotal           Int          @default(0)
+  seatsRemaining       Int          @default(0)
+  // personal_car (default): today's original "I'm driving my own car"
+  // feature, unchanged. uber_share: splitting a real Uber/Lyft ride --
+  // see the TripCategory enum comment for the full rationale.
+  category             TripCategory @default(personal_car)
+  // uber_share only. A stated, informational per-seat cost the group is
+  // expected to split and settle in person -- never processed as a real
+  // payment (no escrow/payment infrastructure exists or is implied here),
+  // same "settle up yourselves" principle already covered by the
+  // .chat-safety-notice banner in /messages/[id]. Required at the Zod
+  // layer (tripFieldsSchema's superRefine) when category = uber_share,
+  // nullable here because it's meaningless for a personal_car trip.
+  estimatedFarePerSeat Decimal?     @db.Decimal(6, 2)
+  // uber_share only. The one thing a shared Uber/Lyft genuinely needs that
+  // a personal-car trip doesn't: everyone in the group has to physically
+  // converge on one pickup spot before the ride is even requested (a
+  // personal-car driver can plausibly do minor pickup detours -- that
+  // nuance already lives in the free-text tripNotes below). Required at
+  // the Zod layer when category = uber_share.
+  meetingPoint         String?      @db.VarChar(200)
   // Free text describing the TRIP (e.g. "driving my own car" vs. "organizing
   // a shared ride") — never a contribution/gas-money/payment field.
-  tripNotes             String?
+  tripNotes            String?
   // Restricts this post's visibility to other students only -- see the
   // matching comment on Request.studentsOnly below for the full rationale
   // (definition of "a student," enforcement points, and why this is a
   // per-post choice rather than a User-level setting).
-  studentsOnly          Boolean    @default(false)
-  status                TripStatus @default(upcoming)
-  createdAt             DateTime   @default(now())
+  studentsOnly         Boolean      @default(false)
+  status               TripStatus   @default(upcoming)
+  createdAt            DateTime     @default(now())
 
-  requests            Request[]
-  conversations       Conversation[]
-  connectionRequests  ConnectionRequest[]
-  seatOffers          SeatOffer[]
+  requests           Request[]
+  conversations      Conversation[]
+  connectionRequests ConnectionRequest[]
+  seatOffers         SeatOffer[]
 
   @@index([originCityId, destinationCityId, departureDate])
   @@index([travelerId])
@@ -547,14 +608,14 @@ enum ConnectionRequestStatus {
 // there is exactly one messaging system, not two; ConnectionRequest only
 // gates *when* it unlocks for this flow, it doesn't reimplement it.
 model ConnectionRequest {
-  id          String                  @id @default(uuid())
-  tripId      String
-  trip        Trip                    @relation(fields: [tripId], references: [id])
-  requesterId String
-  requester   User                    @relation("ConnectionRequestRequester", fields: [requesterId], references: [id])
-  recipientId String
-  recipient   User                    @relation("ConnectionRequestRecipient", fields: [recipientId], references: [id])
-  status      ConnectionRequestStatus @default(pending)
+  id              String                  @id @default(uuid())
+  tripId          String
+  trip            Trip                    @relation(fields: [tripId], references: [id])
+  requesterId     String
+  requester       User                    @relation("ConnectionRequestRequester", fields: [requesterId], references: [id])
+  recipientId     String
+  recipient       User                    @relation("ConnectionRequestRecipient", fields: [recipientId], references: [id])
+  status          ConnectionRequestStatus @default(pending)
   // Note the requester must attach when asking to connect, so the trip
   // owner always has context for what they're deciding on (shown on
   // /connections and included in the connection_request notification) --
@@ -566,9 +627,9 @@ model ConnectionRequest {
   // /api/connection-requests/[id]/accept) so the context carries into the
   // chat itself rather than being stranded on a row the recipient can no
   // longer see once they've acted on it.
-  message     String?
-  createdAt   DateTime                @default(now())
-  updatedAt   DateTime                @updatedAt
+  message         String?
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
   // Set by the trip owner via POST .../confirm-seat once an accepted
   // connection actually takes a seat on the trip -- distinct from `status`
   // itself because not every accepted connection necessarily becomes a
@@ -609,22 +670,22 @@ model ConnectionRequest {
 // POST /api/seat-offers) -- there's no other UI surface to reach this
 // action from, per product decision.
 model SeatOffer {
-  id             String          @id @default(uuid())
-  tripId         String
-  trip           Trip            @relation(fields: [tripId], references: [id])
-  recipientId    String
-  recipient      User            @relation("SeatOfferRecipient", fields: [recipientId], references: [id])
-  conversationId String
-  conversation   Conversation    @relation(fields: [conversationId], references: [id])
-  status         SeatOfferStatus @default(pending)
+  id              String          @id @default(uuid())
+  tripId          String
+  trip            Trip            @relation(fields: [tripId], references: [id])
+  recipientId     String
+  recipient       User            @relation("SeatOfferRecipient", fields: [recipientId], references: [id])
+  conversationId  String
+  conversation    Conversation    @relation(fields: [conversationId], references: [id])
+  status          SeatOfferStatus @default(pending)
   // Set only on accept, together with the Trip.seatsRemaining decrement, in
   // the same transaction -- kept separate from `status` (rather than
   // folding into it) so an owner's later "Remove" doesn't erase the
   // historical fact that the recipient did accept, same convention as
   // ConnectionRequest.seatConfirmedAt.
   seatConfirmedAt DateTime?
-  createdAt      DateTime        @default(now())
-  respondedAt    DateTime?
+  createdAt       DateTime        @default(now())
+  respondedAt     DateTime?
 
   // No DB-level uniqueness on (tripId, recipientId) -- same "only a PENDING
   // duplicate is disallowed, checked in application code" tradeoff as
@@ -635,14 +696,23 @@ model SeatOffer {
   @@index([conversationId])
 }
 
-// Unified ride + package request. type discriminates the two; tripId is
-// nullable so a "requester posts first" flow (need a ride before any
-// matching trip exists) is representable without a second model.
+// A standalone "need a ride" post. tripId is nullable so a "requester
+// posts first" flow (need a ride before any matching trip exists) is
+// representable without a second model; it's set once a trip owner
+// fulfills this request (see POST /api/requests/[id]/accept). Package
+// requests moved out entirely to the standalone PackagePost model, which
+// has no equivalent "match to a trip" concept at all.
 model Request {
-  id     String      @id @default(uuid())
-  type   RequestType
-  tripId String?
-  trip   Trip?       @relation(fields: [tripId], references: [id])
+  id       String       @id @default(uuid())
+  // Mirrors Trip.category -- lets this standalone request specify whether
+  // it wants a personal-car trip or wants to split an Uber, matched later
+  // via POST /api/requests/[id]/accept (which can optionally reject a
+  // mismatched category -- see that route). Reuses TripCategory rather
+  // than a parallel enum: there is exactly one vocabulary for "what kind
+  // of ride," on both sides of the match.
+  category TripCategory @default(personal_car)
+  tripId   String?
+  trip     Trip?        @relation(fields: [tripId], references: [id])
 
   // Only used when tripId is null (standalone request).
   originCityId      String?
@@ -659,8 +729,6 @@ model Request {
   // Mirrors Trip.flexibleTime -- purely descriptive, no matching/search
   // logic reads this yet.
   flexibleTime      Boolean   @default(false)
-  // General notes, distinct from packageDescription (package-specific
-  // details) -- applies to ride and package requests alike.
   notes             String?
   // When true, this post is only discoverable/viewable by other students --
   // "a student" here means an account with a claimed StudentRecord
@@ -692,13 +760,12 @@ model Request {
 
   status RequestStatus @default(pending)
 
-  // ride-specific
-  seatsRequested Int?
-
-  // package-specific
-  packageDescription String?
-  packageSize        String?
-  neededByDate       DateTime?
+  seatsRequested       Int?
+  // uber_share only, optional even then -- a rider asking "does anyone
+  // have an Uber to X" may not have a number in mind yet. Purely
+  // descriptive, never enforced against Trip.estimatedFarePerSeat at
+  // accept time.
+  estimatedFarePerSeat Decimal? @db.Decimal(6, 2)
 
   createdAt   DateTime  @default(now())
   respondedAt DateTime?
@@ -714,19 +781,85 @@ model Request {
 
 // Scoped to (trip, counterpart) so a prospective requester can ask questions
 // before a formal Request exists. requestId is attached once one is created.
+// tripId is nullable and paired with packagePostId below -- exactly one of
+// the two is required, enforced app-level in findOrCreateConversationForPost
+// (src/lib/messaging.ts), never a DB constraint -- the same "exactly one of
+// X/Y" convention already used for Trip/Request's destinationCityId vs.
+// destinationText. A PackagePost conversation never has a tripId, and vice
+// versa.
 model Conversation {
-  id        String   @id @default(uuid())
-  tripId    String
-  trip      Trip     @relation(fields: [tripId], references: [id])
-  requestId String?  @unique
-  request   Request? @relation(fields: [requestId], references: [id])
-  createdAt DateTime @default(now())
+  id            String       @id @default(uuid())
+  tripId        String?
+  trip          Trip?        @relation(fields: [tripId], references: [id])
+  packagePostId String?
+  packagePost   PackagePost? @relation(fields: [packagePostId], references: [id])
+  requestId     String?      @unique
+  request       Request?     @relation(fields: [requestId], references: [id])
+  createdAt     DateTime     @default(now())
 
   participants ConversationParticipant[]
   messages     Message[]
   seatOffers   SeatOffer[]
 
   @@index([tripId])
+  @@index([packagePostId])
+}
+
+enum PackagePostKind {
+  offering_space
+  needing_delivery
+}
+
+enum PackagePostStatus {
+  open
+  completed
+  cancelled
+}
+
+// Deliberately minimal by product decision -- no structured description or
+// size field, no formal accept/decline handshake, no capacity counter, and
+// no ConnectionRequest/SeatOffer rows of any kind. Just a route and rough
+// timing; all real coordination happens over DM via the existing
+// Conversation/Message system (see findOrCreateConversationForPost in
+// src/lib/messaging.ts and PackageMessageForm.tsx), the same way
+// RegisterInterestForm already lets a prospective rider message a Trip
+// owner with no formal request first. offering_space ("I have room for a
+// package on my route") and needing_delivery ("I need something carried")
+// share every field except kind -- kept as one lean model rather than two,
+// since only the framing differs between the two sides.
+model PackagePost {
+  id         String          @id @default(uuid())
+  kind       PackagePostKind
+  postedById String
+  postedBy   User            @relation("PackagePostPostedBy", fields: [postedById], references: [id])
+
+  originCityId      String
+  originCity        City    @relation("PackagePostOrigin", fields: [originCityId], references: [id])
+  // Mirrors Trip.destinationText -- exactly one of destinationCityId/
+  // destinationText required, enforced by packagePostFieldsSchema's
+  // refine, same convention as Trip and Request.
+  destinationCityId String?
+  destinationCity   City?   @relation("PackagePostDestination", fields: [destinationCityId], references: [id])
+  destinationText   String?
+
+  date         DateTime?
+  time         String?
+  flexibleTime Boolean   @default(false)
+  // Single freeform field replacing what would otherwise be a
+  // packageDescription/packageSize pair -- "minimal to no details" per
+  // product decision; anything more specific than a short optional note is
+  // meant to happen in the DM, not a form field.
+  notes        String?   @db.VarChar(300)
+  studentsOnly Boolean   @default(false)
+
+  status      PackagePostStatus @default(open)
+  createdAt   DateTime          @default(now())
+  completedAt DateTime?
+
+  conversations Conversation[]
+
+  @@index([postedById])
+  @@index([originCityId, destinationCityId, date])
 }
 
 model ConversationParticipant {
@@ -761,6 +894,15 @@ model ConversationParticipant {
   deletedAt      DateTime?
 
   @@unique([conversationId, userId])
+  // The @@unique above backs lookups by (conversationId, userId) or by
+  // conversationId alone (its leading column), but not a userId-only
+  // lookup -- and getUnreadConversationCount() (src/lib/messaging.ts) does
+  // exactly that (WHERE userId = ? AND archivedAt IS NULL AND deletedAt IS
+  // NULL) on every single authenticated page load, since it powers the nav
+  // badge in the root layout. Without this, that's a sequential scan of the
+  // whole table on every page view app-wide -- add it explicitly rather
+  // than relying on the unique constraint's incidental coverage.
+  @@index([userId])
 }
 
 model Message {

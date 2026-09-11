@@ -27,47 +27,60 @@ export default async function PublicProfilePage({
 
   return (
     <div>
-      {profile.photoUrl && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={profile.photoUrl}
-          alt=""
-          width={96}
-          height={96}
-          style={{ borderRadius: "50%", objectFit: "cover" }}
-        />
-      )}
-      <h1>{profile.name}</h1>
-      {profile.university && <p>{profile.university}</p>}
-      {(profile.major || profile.year) && (
-        <p>
-          {[profile.major, profile.year].filter(Boolean).join(" · ")}
-        </p>
-      )}
-      {profile.homeArea && <p>{profile.homeArea}</p>}
-      {profile.linkedStudentName && (
-        <p>Connected to {profile.linkedStudentName}</p>
-      )}
-      {profile.travelPreferences && <p>{profile.travelPreferences}</p>}
-      {profile.lookingFor.length > 0 && (
-        <p>
-          Looking for:{" "}
-          {profile.lookingFor.map(lookingForLabel).join(", ")}
-        </p>
-      )}
-      <ul>
-        {profile.badges.email && <li>✓ Email Verified</li>}
-        {profile.badges.university && <li>✓ University Verified</li>}
-        {profile.badges.parentRelationship && (
-          <li>✓ Parent Relationship Verified</li>
+      <div className="profile-header">
+        {profile.photoUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={profile.photoUrl}
+            alt=""
+            width={88}
+            height={88}
+            className="avatar-circle profile-avatar-lg"
+          />
+        ) : (
+          <span className="avatar-circle profile-avatar-lg" aria-hidden="true">
+            {profile.name.slice(0, 1).toUpperCase()}
+          </span>
         )}
-        {profile.badges.identity && <li>✓ Identity Verified</li>}
-      </ul>
+        <div>
+          <h1 className="heading-tight profile-name">{profile.name}</h1>
+          {profile.university && <p className="profile-meta">{profile.university}</p>}
+          {(profile.major || profile.year) && (
+            <p className="profile-meta">
+              {[profile.major, profile.year].filter(Boolean).join(" · ")}
+            </p>
+          )}
+          {profile.homeArea && <p className="profile-meta">{profile.homeArea}</p>}
+          <div className="profile-badges">
+            {profile.badges.email && <span className="badge-verified">✓ Email Verified</span>}
+            {profile.badges.university && (
+              <span className="badge-verified">✓ University Verified</span>
+            )}
+            {profile.badges.parentRelationship && (
+              <span className="badge-verified">✓ Parent Relationship Verified</span>
+            )}
+            {profile.badges.identity && (
+              <span className="badge-verified">✓ Identity Verified</span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {profile.linkedStudentName && (
+        <p className="profile-meta">Connected to {profile.linkedStudentName}</p>
+      )}
+      {profile.travelPreferences && <p className="profile-meta">{profile.travelPreferences}</p>}
+      {profile.lookingFor.length > 0 && (
+        <p className="profile-meta">
+          Looking for: {profile.lookingFor.map(lookingForLabel).join(", ")}
+        </p>
+      )}
+
       {viewer.id !== userId && (
-        <>
-          <ReportButton reportedUserId={userId} contextType="profile" />{" "}
+        <div className="button-row">
+          <ReportButton reportedUserId={userId} contextType="profile" />
           <BlockButton blockedUserId={userId} initialBlocked={initialBlocked} />
-        </>
+        </div>
       )}
     </div>
   );

@@ -40,6 +40,9 @@ export default async function MessagesPage({
     },
     include: {
       trip: { include: { originCity: true, destinationCity: true } },
+      // A conversation is scoped to exactly one of trip/packagePost --
+      // see the schema comment on Conversation.packagePostId.
+      packagePost: { include: { originCity: true, destinationCity: true } },
       // Unfiltered (both participants) -- unlike before this needed only
       // the counterpart's User, this page now also needs the caller's own
       // participant row for its lastReadAt/archivedAt.
@@ -53,25 +56,25 @@ export default async function MessagesPage({
 
   return (
     <div>
-      <h1>Messages</h1>
+      <span className="eyebrow">Messages</span>
+      <h1 className="heading-tight">Messages</h1>
 
-      <nav aria-label="Messages view">
+      <div className="subtabs" aria-label="Messages view">
         <Link
           href="/messages"
           aria-current={activeTab === "inbox" ? "page" : undefined}
-          style={{ fontWeight: activeTab === "inbox" ? "bold" : "normal" }}
+          className={activeTab === "inbox" ? "subtab subtab-active" : "subtab"}
         >
           Inbox
         </Link>
-        {" | "}
         <Link
           href="/messages?tab=archived"
           aria-current={activeTab === "archived" ? "page" : undefined}
-          style={{ fontWeight: activeTab === "archived" ? "bold" : "normal" }}
+          className={activeTab === "archived" ? "subtab subtab-active" : "subtab"}
         >
           Archived
         </Link>
-      </nav>
+      </div>
 
       {conversations.length === 0 ? (
         <p>
@@ -94,8 +97,9 @@ export default async function MessagesPage({
               user.id,
               myParticipant?.lastReadAt,
             );
+            const post = c.trip ?? c.packagePost!;
             const destinationLabel =
-              c.trip.destinationCity?.name ?? c.trip.destinationText ?? "?";
+              post.destinationCity?.name ?? post.destinationText ?? "?";
             const lastActivityAt = lastMessage?.sentAt ?? c.createdAt;
             return (
               <div
@@ -116,7 +120,7 @@ export default async function MessagesPage({
                     {unread && <span className="unread-badge">New</span>}
                   </div>
                   <div className="conversation-item-route">
-                    {c.trip.originCity.name} → {destinationLabel}
+                    {post.originCity.name} → {destinationLabel}
                   </div>
                   {lastMessage && (
                     <div className="conversation-item-preview">
