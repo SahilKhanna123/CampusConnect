@@ -11,6 +11,28 @@ functions — see the Automated Tests section of CLAUDE.md. Everything else
 automated coverage yet, so this file remains the actual test coverage for
 those.
 
+## Gate Trip/Package Detail Pages for Logged-Out Visitors (2026-09-15)
+
+Product decision (reported live): a logged-out visitor could view full
+`/trips/[id]`/`/package-posts/[id]` detail pages, which shouldn't be
+possible — clicking into a specific post's details should prompt sign-up
+instead. The `/explore` and Home **browse grids** stay public (unchanged);
+only the two detail pages themselves are now gated
+(`redirect("/sign-up")` for a `null` `getCurrentUser()`). This **supersedes
+the "Logged-Out Public Preview on Explore + Trip/Request Detail" entry**
+further down this file, which documented the opposite (detail pages public
+too) — that entry is now historical only.
+
+- [ ] Logged out, `/explore` and `/` still show real trip/package cards
+      (route, date, seats) — browsing itself is unaffected.
+- [ ] Logged out, clicking a trip or package card (or navigating directly
+      to `/trips/[id]` / `/package-posts/[id]`) redirects straight to
+      `/sign-up`, no detail content shown first.
+- [ ] Logged in, both detail pages work exactly as before (no regression
+      to owner actions, ConnectionRequestButton, RegisterInterestForm,
+      PackageMessageForm, Report/Block).
+- [ ] `npm run build` and `npm test` both pass.
+
 ## Remove Standalone Request ("Need") Flow + Reviews (2026-09-15)
 
 Product decision: the standalone "Need a Ride"/"Need to Split an Uber"/"Need
@@ -275,6 +297,10 @@ unreachable, not a code issue). Every item below is unverified.
       unstyled beyond the existing shared stylesheet classes it reuses.
 
 ## Logged-Out Public Preview on Explore + Trip/Request Detail (2026-09-02)
+
+**Partially superseded (2026-09-15)**: the detail-page checks below (public
+`/trips/[id]`) no longer apply — see the "Gate Trip/Package Detail Pages"
+entry above. The `/explore` browse-grid checks are still accurate.
 
 - [x] Signed out (no session), visit `/explore` directly — the listing grid
       renders normally (not a redirect to `/login`); filters (origin,
