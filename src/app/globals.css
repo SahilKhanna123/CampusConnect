@@ -796,14 +796,23 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   color: rgba(255, 255, 255, 0.75);
 }
 
+/* Aligned like a regular message bubble (left for the recipient, right for
+   the owner who sent it -- see seat-offer-bubble-self) rather than centered
+   in the middle of the thread, which read as a floating, disconnected
+   widget once the chat panel got wider. */
 .seat-offer-bubble {
-  align-self: center;
-  max-width: 90%;
+  align-self: flex-start;
+  max-width: min(70%, 32rem);
   padding: 0.625rem 0.875rem;
   border: 1.5px solid var(--color-blue);
-  border-radius: 12px;
+  border-radius: 14px 14px 14px 4px;
   background: var(--color-blue-bg);
   text-align: center;
+}
+
+.seat-offer-bubble-self {
+  align-self: flex-end;
+  border-radius: 14px 14px 4px 14px;
 }
 
 .seat-offer-bubble-text {

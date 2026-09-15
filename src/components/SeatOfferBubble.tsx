@@ -129,7 +129,7 @@ export function SeatOfferBubble({
   }
 
   return (
-    <li className="seat-offer-bubble">
+    <li className={isOwner ? "seat-offer-bubble seat-offer-bubble-self" : "seat-offer-bubble"}>
       <div className="seat-offer-bubble-text">
         {statusText}
         {offer.status === "accepted" && offer.seatConfirmedAt && (
