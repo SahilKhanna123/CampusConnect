@@ -649,7 +649,7 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
    column) rather than stretching to the site's full 1600px width, which
    read as a few stray lines of text floating in a huge empty page. */
 .chat-page {
-  max-width: 640px;
+  max-width: 860px;
   margin: 0 auto;
 }
 
@@ -738,7 +738,7 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   display: flex;
   align-items: flex-end;
   gap: 0.5rem;
-  max-width: 78%;
+  max-width: min(70%, 32rem);
   align-self: flex-start;
 }
 
@@ -990,7 +990,7 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   display: flex;
   align-items: flex-start;
   gap: 0.5rem;
-  max-width: 640px;
+  max-width: 860px;
   margin: 0 auto 1rem;
   padding: 0.625rem 0.875rem;
   border: 1.5px solid #f0d58c;
