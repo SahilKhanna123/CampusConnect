@@ -651,6 +651,15 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
 .chat-page {
   max-width: 860px;
   margin: 0 auto;
+  /* Fills the viewport below the sticky header instead of leaving the
+     chat panel to hug its own content height and strand a wall of blank
+     page underneath it -- 120px approximates .site-header's height plus
+     .site-main's top/bottom padding. .chat-panel below grows to fill
+     whatever's left after the safety notice and header take their own
+     natural height. */
+  min-height: calc(100vh - 120px);
+  display: flex;
+  flex-direction: column;
 }
 
 .chat-header {
@@ -716,6 +725,8 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
 .chat-panel {
   display: flex;
   flex-direction: column;
+  flex: 1;
+  min-height: 0;
   border: 1.5px solid var(--color-border);
   border-radius: 12px;
   background: var(--color-white);
@@ -729,7 +740,7 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   display: flex;
   flex-direction: column;
   gap: 0.875rem;
-  max-height: 55vh;
+  flex: 1;
   min-height: 12rem;
   overflow-y: auto;
 }
