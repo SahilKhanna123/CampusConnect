@@ -19,16 +19,22 @@ const RouteMap = dynamic(
 export function ExploreMapView({
   posts,
   isLoggedIn,
+  emptyMessage = "No trips match your filters right now.",
 }: {
   posts: ExploreCardPost[];
   isLoggedIn: boolean;
+  // Explore's view toggle (All/Rides/Packages) means an empty grid can mean
+  // three different things -- the caller passes the message that matches
+  // whichever category is actually being browsed, rather than this
+  // component guessing from the post list (which is empty either way).
+  emptyMessage?: string;
 }) {
   const [hoveredKey, setHoveredKey] = useState<string | null>(null);
 
   if (posts.length === 0) {
     return (
       <div className="explore-panel">
-        <p>No trips match your filters right now.</p>
+        <p>{emptyMessage}</p>
       </div>
     );
   }

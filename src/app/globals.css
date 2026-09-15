@@ -1780,6 +1780,15 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   font-weight: 600;
   color: var(--color-gray-body);
   text-decoration: none;
+  /* .subtab was originally only ever applied to a <Link> (Upcoming/History,
+     Received/Sent, Inbox/Archived) -- ExploreViewTabs is the first caller to
+     put it on a real <button> (needed there for router.replace(), not a
+     plain navigation, see its own comment), so this resets the UA default
+     button chrome (face color, font, cursor) these three properties would
+     otherwise bring in. Harmless no-ops on the existing <Link> usages. */
+  background: none;
+  font-family: inherit;
+  cursor: pointer;
 }
 
 .subtab:hover {

@@ -144,6 +144,7 @@ function formatCardDate(date: Date | null): string {
 // amber, it appends " · Last seat" onto the date/time line instead (see
 // .explore-card-last-seat below).
 function seatsBadgeText(post: ExploreCardPost): string {
+  if (post.kind === "package") return "📦 Package space";
   if (post.seatsRemaining <= 0) return "Full";
   return `${post.seatsRemaining} seat${post.seatsRemaining === 1 ? "" : "s"} left`;
 }
@@ -224,14 +225,43 @@ export type TripCardPost = {
   note?: string | null;
 };
 
-export type ExploreCardPost = TripCardPost;
+// A PackagePost, normalized the same way TripCardPost is -- lets
+// ExploreCard/ExploreMapView/RouteMap treat both post kinds as one
+// interchangeable list (see the Explore page's view toggle, which can mix
+// packages and rides in one grid/map). Coordinates are optional/undefined
+// the same "omit rather than guess" way TripCardPost already handles them.
+// No packageKind field -- every PackagePost is implicitly an offer of
+// space, since the standalone "need something delivered" side was removed
+// (see Trip Categories & Package Carrying in CLAUDE.md).
+export type PackageCardPost = {
+  kind: "package";
+  id: string;
+  originName: string;
+  destinationName: string;
+  originRegionName?: string | null;
+  destinationRegionName?: string | null;
+  originLat?: number | null;
+  originLng?: number | null;
+  destinationLat?: number | null;
+  destinationLng?: number | null;
+  date: Date | null;
+  time: string | null;
+  flexibleTime: boolean;
+  poster: Poster;
+  studentsOnly: boolean;
+  // PackagePost.notes -- same treatment as TripCardPost.note.
+  note?: string | null;
+};
 
-// Renders a Trip offer -- used by the Explore page's grid. Clicking the
-// card body opens /trips/[id]. The card is a <div> wrapping an inner <Link>
-// (not a <Link> itself) so the card's ConnectionRequestButton can sit as a
-// sibling, not nested inside the anchor -- HTML disallows interactive
-// content (a <button>) inside an <a>, and nesting them would also make
-// clicks ambiguous.
+export type ExploreCardPost = TripCardPost | PackageCardPost;
+
+// One card renders either a Trip offer or a PackagePost -- used by the
+// Explore page's grid. Clicking the card body opens the matching detail
+// page (/trips/[id], /package-posts/[id]). The card is a <div> wrapping an
+// inner <Link> (not a <Link> itself) so an offer card's
+// ConnectionRequestButton can sit as a sibling, not nested inside the
+// anchor -- HTML disallows interactive content (a <button>) inside an <a>,
+// and nesting them would also make clicks ambiguous.
 export function ExploreCard({
   post,
   isLoggedIn = true,
@@ -243,8 +273,8 @@ export function ExploreCard({
   // logged-out public-preview visitors.
   isLoggedIn?: boolean;
 }) {
-  const href = `/trips/${post.id}`;
-  const isLastSeat = post.seatsRemaining === 1;
+  const href = post.kind === "offer" ? `/trips/${post.id}` : `/package-posts/${post.id}`;
+  const isLastSeat = post.kind === "offer" && post.seatsRemaining === 1;
 
   return (
     <div className="explore-card">
@@ -262,7 +292,9 @@ export function ExploreCard({
           <div className="explore-card-students-only">🎓 Students only</div>
         )}
 
-        {post.title && <div className="explore-card-title">{post.title}</div>}
+        {post.kind === "offer" && post.title && (
+          <div className="explore-card-title">{post.title}</div>
+        )}
 
         {(post.originRegionName || post.destinationRegionName) && (
           <div className="explore-card-route-subtitle">
@@ -280,7 +312,7 @@ export function ExploreCard({
           {isLastSeat && <span className="explore-card-last-seat"> · Last seat</span>}
         </div>
 
-        {!!post.confirmedRiderCount && (
+        {post.kind === "offer" && !!post.confirmedRiderCount && (
           <div className="explore-card-riders">
             🎫 {post.confirmedRiderCount} confirmed rider
             {post.confirmedRiderCount === 1 ? "" : "s"}
@@ -293,17 +325,28 @@ export function ExploreCard({
       <div className="explore-card-footer">
         <PosterBadge poster={post.poster} />
         <div className="explore-card-actions">
-          {isLoggedIn ? (
-            <ConnectionRequestButton
-              tripId={post.id}
-              initialStatus={post.connectionRequestStatus}
-            />
+          {post.kind === "offer" ? (
+            isLoggedIn ? (
+              <ConnectionRequestButton
+                tripId={post.id}
+                initialStatus={post.connectionRequestStatus}
+              />
+            ) : (
+              // Same label as the real button, but a plain link to sign-up
+              // -- clicking it takes a logged-out visitor straight there
+              // rather than opening the note composer, per product
+              // decision.
+              <Link href="/sign-up" className="connection-request-button btn-primary">
+                Request to Connect
+              </Link>
+            )
           ) : (
-            // Same label as the real button, but a plain link to sign-up --
-            // clicking it takes a logged-out visitor straight there rather
-            // than opening the note composer, per product decision.
-            <Link href="/sign-up" className="connection-request-button btn-primary">
-              Request to Connect
+            // A PackagePost's only interaction (PackageMessageForm) lives on
+            // its own detail page, not the card -- same plain-link footer
+            // for every viewer regardless of isLoggedIn, matching
+            // PackagePostCard.tsx's identical convention on Home.
+            <Link href={href} className="btn-secondary">
+              View details
             </Link>
           )}
         </div>

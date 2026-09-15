@@ -6,12 +6,40 @@ import { tripDisplayStatus } from "@/lib/postStatus";
 import { type ExploreCardPost } from "@/components/ExploreCard";
 import { ExploreMapView } from "@/components/ExploreMapView";
 import { ExploreFilters } from "@/components/ExploreFilters";
+import { ExploreViewTabs, type ExploreView } from "@/components/ExploreViewTabs";
 import type { ConnectionStatus } from "@/components/ConnectionRequestButton";
 import { getBlockedCounterpartIds } from "@/lib/blocks";
 import { getConfirmedRiderCounts } from "@/lib/tripParticipants";
 import { resolvePostCoordinates } from "@/lib/geocode";
 
 const PAGE_SIZE = 4;
+
+// Explore's category toggle defaults to "packages" -- package delivery is
+// meant to carry the majority of this page's visual weight (per product
+// decision, the same 50%+ package-first reweighting already applied to Home
+// and the Post hub), not an equal split. The "all" view honors that with a
+// 2:1 package:ride interleave (see interleavePackagesAndRides below) rather
+// than a plain chronological merge, which is what a Rides-only page
+// defaulted to for the entire project's history until now.
+function normalizeView(raw: string | undefined): ExploreView {
+  return raw === "all" || raw === "rides" ? raw : "packages";
+}
+
+// Interleaves two already-sorted row lists at a fixed 2:1 ratio (two package
+// rows per one ride row) so the combined "All" view reads as package-
+// majority (~67%, within the requested 60-70% range) without needing a
+// weighted-random shuffle or a second sort key. Once one list is exhausted,
+// the rest of the other is appended in its existing order.
+function interleavePackagesAndRides<T>(packages: T[], rides: T[]): T[] {
+  const result: T[] = [];
+  let i = 0;
+  let j = 0;
+  while (i < packages.length || j < rides.length) {
+    for (let k = 0; k < 2 && i < packages.length; k++) result.push(packages[i++]);
+    if (j < rides.length) result.push(rides[j++]);
+  }
+  return result;
+}
 
 function parseDateFilter(date?: string) {
   if (!date) return null;
@@ -20,6 +48,12 @@ function parseDateFilter(date?: string) {
   const end = new Date(`${date}T23:59:59.999`);
   return { gte: start, lte: end };
 }
+
+type TripRow = Awaited<ReturnType<typeof fetchTrips>>[number];
+type PackageRow = Awaited<ReturnType<typeof fetchPackagePosts>>[number];
+type SortableRow =
+  | { kind: "offer"; sortDate: Date | null; trip: TripRow }
+  | { kind: "package"; sortDate: Date | null; packagePost: PackageRow };
 
 // Selected on every poster below -- year and universityName feed the
 // card's real "university 'YY" stats-line segment (see resolvePosterStats
@@ -50,6 +84,20 @@ function fetchTrips(where: NonNullable<Parameters<typeof prisma.trip.findMany>[0
       traveler: { select: posterSelect },
     },
     orderBy: { departureDate: "asc" },
+  });
+}
+
+function fetchPackagePosts(
+  where: NonNullable<Parameters<typeof prisma.packagePost.findMany>[0]>["where"],
+) {
+  return prisma.packagePost.findMany({
+    where,
+    include: {
+      originCity: { include: { region: true } },
+      destinationCity: { include: { region: true } },
+      postedBy: { select: posterSelect },
+    },
+    orderBy: { createdAt: "desc" },
   });
 }
 
@@ -91,13 +139,18 @@ function buildPoster<T extends PosterRow>(user: T, stats: Map<string, PosterStat
   };
 }
 
-// Browse active Trip posts from OTHER users -- travelerId exclusions mirror
-// the ownership pattern already used by /my-posts and the trip detail page.
-// Cancelled/completed/expired posts are excluded (tripDisplayStatus, the
-// same derived-at-read-time helper /my-posts uses -- nothing here is
-// persisted as "expired"). Package posts aren't included: every card field
-// this page shows (origin/destination/date/time/seats) is ride-shaped, so
-// package browsing is out of scope for this feature, not an oversight.
+// Browse Trip offer posts and PackagePost listings from OTHER users --
+// travelerId/postedById exclusions mirror the ownership pattern already
+// used by /my-posts and the trip/package-post detail pages. Cancelled/
+// completed/expired posts are excluded (tripDisplayStatus, the same
+// derived-at-read-time helper /my-posts uses -- nothing here is persisted
+// as "expired"; PackagePost has no such derived state, `status: "open"`
+// alone is the DB-level filter). The `view` query param (see
+// ExploreViewTabs) picks which of the two post kinds actually render --
+// defaults to "packages", per product decision that package delivery
+// should carry the majority of this page's visual weight. There is no
+// standalone ride Request to browse -- that flow was removed entirely (see
+// Trip Categories & Package Carrying in CLAUDE.md).
 export default async function ExplorePage({
   searchParams,
 }: {
@@ -105,6 +158,7 @@ export default async function ExplorePage({
     originCityId?: string;
     destinationCityId?: string;
     date?: string;
+    view?: string;
     page?: string;
   }>;
 }) {
@@ -115,7 +169,10 @@ export default async function ExplorePage({
   // regardless of what this page renders.
   const user = await getCurrentUser();
 
-  const { originCityId, destinationCityId, date, page } = await searchParams;
+  const { originCityId, destinationCityId, date, view: rawView, page } = await searchParams;
+  const view = normalizeView(rawView);
+  const showRides = view === "rides" || view === "all";
+  const showPackages = view === "packages" || view === "all";
   const dateFilter = parseDateFilter(date);
   const hasActiveFilter = Boolean(originCityId || destinationCityId || date);
 
@@ -130,37 +187,86 @@ export default async function ExplorePage({
   const isStudent = user ? hasStudentRecord(user) : false;
   const studentsOnlyFilter = isStudent ? {} : { studentsOnly: false };
 
-  const [citiesByRegion, trips] = await Promise.all([
+  const [citiesByRegion, trips, packagePosts] = await Promise.all([
     getCitiesByRegion(),
-    fetchTrips({
-      status: "upcoming",
-      travelerId: user
-        ? { not: user.id, notIn: blockedUserIds }
-        : { notIn: blockedUserIds },
-      ...studentsOnlyFilter,
-      ...(originCityId ? { originCityId } : {}),
-      ...(destinationCityId ? { destinationCityId } : {}),
-      ...(dateFilter ? { departureDate: dateFilter } : {}),
-    }),
+    showRides
+      ? fetchTrips({
+          status: "upcoming",
+          travelerId: user
+            ? { not: user.id, notIn: blockedUserIds }
+            : { notIn: blockedUserIds },
+          ...studentsOnlyFilter,
+          ...(originCityId ? { originCityId } : {}),
+          ...(destinationCityId ? { destinationCityId } : {}),
+          ...(dateFilter ? { departureDate: dateFilter } : {}),
+        })
+      : Promise.resolve([]),
+    showPackages
+      ? fetchPackagePosts({
+          status: "open",
+          postedById: user
+            ? { not: user.id, notIn: blockedUserIds }
+            : { notIn: blockedUserIds },
+          ...studentsOnlyFilter,
+          ...(originCityId ? { originCityId } : {}),
+          ...(destinationCityId ? { destinationCityId } : {}),
+          ...(dateFilter ? { date: dateFilter } : {}),
+        })
+      : Promise.resolve([]),
   ]);
 
   // Sort the full (unpaginated) set first -- pagination has to slice
-  // *after* ordering. The expensive per-post enrichments below (connection
-  // status, confirmed-rider counts, geocoded coordinates) only ever run
-  // against the resulting page-sized slice, not the full result set, so
-  // browsing page 1 of a large Explore result doesn't pay for work on posts
-  // that aren't even rendered yet.
-  const allTrips = trips
+  // *after* offers and packages are merged and ordered, since a page's 4
+  // slots can mix both kinds. The expensive per-post enrichments below
+  // (connection status, confirmed-rider counts, geocoded coordinates) only
+  // ever run against the resulting page-sized slice, not the full result
+  // set, so browsing page 1 of a large Explore result doesn't pay for work
+  // on posts that aren't even rendered yet.
+  const offerRows: SortableRow[] = trips
     .filter((trip) => tripDisplayStatus(trip) === "upcoming")
-    .sort((a, b) => a.departureDate.getTime() - b.departureDate.getTime());
+    .map((trip) => ({ kind: "offer" as const, sortDate: trip.departureDate, trip }));
+  const packageRows: SortableRow[] = packagePosts.map((p) => ({
+    kind: "package" as const,
+    sortDate: p.date,
+    packagePost: p,
+  }));
 
-  const totalPages = Math.max(1, Math.ceil(allTrips.length / PAGE_SIZE));
+  function byDateAscNullsLast(a: SortableRow, b: SortableRow) {
+    if (a.sortDate === null) return 1;
+    if (b.sortDate === null) return -1;
+    return a.sortDate.getTime() - b.sortDate.getTime();
+  }
+
+  // "all" deliberately doesn't just chronologically merge both kinds --
+  // that would let ride volume (this app's original, longer-established
+  // feature) drown out packages the same way it has for this page's entire
+  // history. A fixed 2:1 package:ride interleave keeps package delivery the
+  // majority of what's visible, matching the same package-first reweighting
+  // already applied to Home and the Post hub.
+  const allRows: SortableRow[] =
+    view === "all"
+      ? interleavePackagesAndRides(
+          packageRows.sort(byDateAscNullsLast),
+          offerRows.sort(byDateAscNullsLast),
+        )
+      : view === "packages"
+        ? packageRows.sort(byDateAscNullsLast)
+        : offerRows.sort(byDateAscNullsLast);
+
+  const totalPages = Math.max(1, Math.ceil(allRows.length / PAGE_SIZE));
   const requestedPage = parseInt(page ?? "1", 10);
   const currentPage = Math.min(
     Math.max(1, Number.isNaN(requestedPage) ? 1 : requestedPage),
     totalPages,
   );
-  const pagedTrips = allTrips.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+  const pagedRows = allRows.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
+  const pagedTrips = pagedRows
+    .filter((r): r is Extract<SortableRow, { kind: "offer" }> => r.kind === "offer")
+    .map((r) => r.trip);
+  const pagedPackages = pagedRows
+    .filter((r): r is Extract<SortableRow, { kind: "package" }> => r.kind === "package")
+    .map((r) => r.packagePost);
 
   // One batch query for the viewer's own ConnectionRequests against every
   // Trip on this *page*, rather than a per-card fetch (would be N+1). A trip
@@ -190,54 +296,110 @@ export default async function ExplorePage({
   const confirmedRiderCounts = await getConfirmedRiderCounts(pagedTrips.map((t) => t.id));
 
   // Real-world coordinates for the route map (see RouteMap.tsx), resolved
-  // once across every Trip on this page -- see resolvePostCoordinates for
-  // why this is batched rather than per-post.
-  const tripCoords = await resolvePostCoordinates(pagedTrips);
+  // once across every Trip and PackagePost on this page -- see
+  // resolvePostCoordinates for why this is batched rather than per-post.
+  const [tripCoords, packageCoords] = await Promise.all([
+    resolvePostCoordinates(pagedTrips),
+    resolvePostCoordinates(pagedPackages),
+  ]);
 
   // Real completed-trip stats for the card's poster line, batched across
   // every distinct poster on this page -- see resolvePosterStats.
-  const posterIds = [...new Set(pagedTrips.map((t) => t.traveler.id))];
+  const posterIds = [
+    ...new Set([
+      ...pagedTrips.map((t) => t.traveler.id),
+      ...pagedPackages.map((p) => p.postedBy.id),
+    ]),
+  ];
   const posterStats = await resolvePosterStats(posterIds);
 
-  const posts: ExploreCardPost[] = pagedTrips.map((trip) => ({
-    kind: "offer" as const,
-    id: trip.id,
-    title: trip.title,
-    originName: trip.originCity.name,
-    destinationName: trip.destinationCity?.name ?? trip.destinationText ?? "?",
-    originRegionName: trip.originCity.region.name,
-    destinationRegionName: trip.destinationCity?.region?.name ?? null,
-    ...tripCoords.get(trip),
-    date: trip.departureDate,
-    time: trip.departureTime,
-    flexibleTime: trip.flexibleTime,
-    seatsTotal: trip.seatsTotal,
-    seatsRemaining: trip.seatsRemaining,
-    poster: buildPoster(trip.traveler, posterStats),
-    connectionRequestStatus: connectionStatusByTripId.get(trip.id) ?? "none",
-    confirmedRiderCount: confirmedRiderCounts.get(trip.id) ?? 0,
-    studentsOnly: trip.studentsOnly,
-    note: trip.tripNotes,
-  }));
+  const posts: ExploreCardPost[] = pagedRows.map((row) => {
+    if (row.kind === "offer") {
+      const trip = row.trip;
+      return {
+        kind: "offer" as const,
+        id: trip.id,
+        title: trip.title,
+        originName: trip.originCity.name,
+        destinationName: trip.destinationCity?.name ?? trip.destinationText ?? "?",
+        originRegionName: trip.originCity.region.name,
+        destinationRegionName: trip.destinationCity?.region?.name ?? null,
+        ...tripCoords.get(trip),
+        date: trip.departureDate,
+        time: trip.departureTime,
+        flexibleTime: trip.flexibleTime,
+        seatsTotal: trip.seatsTotal,
+        seatsRemaining: trip.seatsRemaining,
+        poster: buildPoster(trip.traveler, posterStats),
+        connectionRequestStatus: connectionStatusByTripId.get(trip.id) ?? "none",
+        confirmedRiderCount: confirmedRiderCounts.get(trip.id) ?? 0,
+        studentsOnly: trip.studentsOnly,
+        note: trip.tripNotes,
+      };
+    }
+    const p = row.packagePost;
+    return {
+      kind: "package" as const,
+      id: p.id,
+      originName: p.originCity.name,
+      destinationName: p.destinationCity?.name ?? p.destinationText ?? "?",
+      originRegionName: p.originCity.region.name,
+      destinationRegionName: p.destinationCity?.region?.name ?? null,
+      ...packageCoords.get(p),
+      date: p.date,
+      time: p.time,
+      flexibleTime: p.flexibleTime,
+      poster: buildPoster(p.postedBy, posterStats),
+      studentsOnly: p.studentsOnly,
+      note: p.notes,
+    };
+  });
 
   // Preserves the active filters while only changing `page` -- page 1 is
   // the default and never appears in the URL, matching hasActiveFilter's
-  // own "only show what's non-default" convention.
+  // own "only show what's non-default" convention. Also preserves `view`
+  // (packages, the default, is never written into the URL, same convention
+  // ExploreViewTabs already follows).
   function pageHref(targetPage: number) {
     const params = new URLSearchParams();
     if (originCityId) params.set("originCityId", originCityId);
     if (destinationCityId) params.set("destinationCityId", destinationCityId);
     if (date) params.set("date", date);
+    if (view !== "packages") params.set("view", view);
     if (targetPage > 1) params.set("page", String(targetPage));
     const query = params.toString();
     return query ? `/explore?${query}` : "/explore";
   }
 
+  const heading =
+    view === "packages"
+      ? "Package deliveries"
+      : view === "rides"
+        ? "Trips"
+        : "Everything on the move";
+  const subheading =
+    view === "packages"
+      ? "Browse package space posted by the community."
+      : "Browse what the community has posted, or hover a card to see its route.";
+  const emptyMessage =
+    view === "packages"
+      ? "No package posts match your filters right now."
+      : view === "rides"
+        ? "No trips match your filters right now."
+        : "Nothing matches your filters right now.";
+
   return (
     <div>
       <span className="eyebrow">Explore</span>
-      <h1 className="heading-tight">Trips</h1>
-      <p>Browse what the community has posted, or hover a card to see its route.</p>
+      <h1 className="heading-tight">{heading}</h1>
+      <p>{subheading}</p>
+
+      <ExploreViewTabs
+        activeView={view}
+        originCityId={originCityId}
+        destinationCityId={destinationCityId}
+        date={date}
+      />
 
       <ExploreFilters
         citiesByRegion={citiesByRegion}
@@ -245,9 +407,10 @@ export default async function ExplorePage({
         destinationCityId={destinationCityId}
         date={date}
         hasActiveFilter={hasActiveFilter}
+        view={view}
       />
 
-      <ExploreMapView posts={posts} isLoggedIn={!!user} />
+      <ExploreMapView posts={posts} isLoggedIn={!!user} emptyMessage={emptyMessage} />
 
       {totalPages > 1 && (
         <div className="pagination-row">

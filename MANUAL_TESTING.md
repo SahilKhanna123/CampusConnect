@@ -17,17 +17,21 @@ Product decision: the standalone "Need a Ride"/"Need to Split an Uber"/"Need
 Something Delivered" posting flow was "essentially not useful... and
 over-complicates it" — removed entirely, along with the `Request` and
 `Review` models (Review depended on a completed Request with no Trip-based
-alternative, so it had no way to survive Request's removal). Only offering
-a ride/split/package space remains. This obsoletes the "Reviews" and
-"Request/Trip Matching Lifecycle" sections further down this file — see the
-**REMOVED** note on each.
+alternative, so it had no way to survive Request's removal), and
+`PackagePost.kind` (only `offering_space` survives, so the field carried no
+information any more). Only offering a ride/split/package space remains.
+This obsoletes the "Reviews" and "Request/Trip Matching Lifecycle" sections
+further down this file, and **supersedes the Type-filter claims** in the
+"Explore: package-first category toggle" entry directly below — the Type
+filter for both Rides and Packages was removed in this pass since neither
+view has more than one kind left to filter between.
 
 - [ ] `/post` shows exactly 3 tiles, no "Offer"/"Need" column split: "Offer
       Package Space" (large/primary), "Split an Uber/Lyft" (medium), "Offer
       a Ride (my car)" (small).
-- [ ] `/explore` shows only Trip offers — no Type filter, no ride Requests
-      mixed in. Package posts still aren't browsable here (unchanged, a
-      pre-existing gap, not new).
+- [ ] `/explore` Rides view shows only Trip offers, Packages view shows
+      package posts with no kind distinction — no Type filter in either
+      view.
 - [ ] `/my-posts` has no "Your Requests" section; Package Posts section no
       longer shows an "Offering space"/"Need delivery" label per row.
 - [ ] A Trip's detail page has no "Requests You're Fulfilling" section for
@@ -37,6 +41,44 @@ a ride/split/package space remains. This obsoletes the "Reviews" and
 - [ ] Visiting `/post/request`, `/requests/[id]`, or `/api/reviews`
       directly 404s / has no route.
 - [ ] `npm run build` and `npm test` both pass.
+
+## Explore: package-first category toggle (2026-09-11)
+
+Product decision: `/explore` was still ride-only (Trip/Request), leaving
+`PackagePost` browsable only via a direct link. Adds a category toggle
+(`ExploreViewTabs.tsx`, "All"/"Rides"/"Packages") defaulting to **Packages**,
+so package delivery gets the majority of this page's attention too, matching
+the reweighting already shipped to Home/the Post hub. "All" interleaves
+package and ride rows at a fixed 2:1 ratio rather than a plain chronological
+merge. **Note (2026-09-15)**: the Type-filter checks below describe a filter
+that has since been removed — see the entry above. The toggle itself
+(All/Rides/Packages) and the 2:1 interleave are unaffected and still apply.
+
+- [x] Visiting `/explore` with no query params defaults to the Packages tab
+      (pill highlighted black), heading reads "Package deliveries", and
+      package cards (📦 badge, "View details" link, real geocoded map pins)
+      render correctly.
+      — **Verified 2026-09-11** via live browser screenshot (2 seeded test
+      package posts, cleaned up after).
+- [x] Clicking "Rides" switches to `?view=rides` showing Trip offers (cards,
+      map, pagination).
+      — **Verified 2026-09-11** via live browser screenshot.
+- [x] Clicking "All" switches to `?view=all` and shows package rows ahead of
+      ride rows on the page (2:1 interleave) — confirmed with 2 seeded
+      packages + 4 existing rides: page 1 showed both packages first, then
+      2 rides, filling `PAGE_SIZE`.
+      — **Verified 2026-09-11** via live browser (accessibility tree +
+      screenshot).
+- [x] Origin/Destination/Date filters carry over correctly across a tab
+      switch; "Clear filters" preserves the active view instead of
+      resetting to Packages.
+      — Verified by code review (`ExploreViewTabs.tsx`/`ExploreFilters.tsx`
+      both explicitly construct the target URL from the current filter
+      props), not independently re-clicked through this pass.
+- [ ] A `studentsOnly` package post is hidden from a non-student viewer the
+      same way `studentsOnly` rides already are — reuses the exact same
+      `studentsOnlyFilter` the ride queries use, but not independently
+      re-verified with a second (non-student) test account this pass.
 
 ## UI Focus Reweighting: 50% package / 30% Uber-share / 10% rides (2026-09-10)
 

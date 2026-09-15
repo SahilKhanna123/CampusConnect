@@ -24,12 +24,18 @@ export function ExploreFilters({
   destinationCityId,
   date,
   hasActiveFilter,
+  view,
 }: {
   citiesByRegion: CityGroup[];
   originCityId?: string;
   destinationCityId?: string;
   date?: string;
   hasActiveFilter: boolean;
+  // "packages" is the default view (see ExploreViewTabs) and is never
+  // written into the URL, so it's passed through as a hidden field only
+  // when non-default -- otherwise a filter change here would silently drop
+  // an explicit ?view=rides/all back to the default.
+  view: "all" | "rides" | "packages";
 }) {
   const router = useRouter();
 
@@ -57,10 +63,11 @@ export function ExploreFilters({
   // forces React to remount it (and every field inside) fresh whenever
   // they change for any reason, which is what actually resets the visible
   // selections back to the new defaultValue.
-  const formKey = `${originCityId ?? ""}-${destinationCityId ?? ""}-${date ?? ""}`;
+  const formKey = `${originCityId ?? ""}-${destinationCityId ?? ""}-${date ?? ""}-${view}`;
 
   return (
     <form key={formKey} method="get" className="explore-filters" onChange={handleChange}>
+      {view !== "packages" && <input type="hidden" name="view" value={view} />}
       <div>
         <label htmlFor="originCityId">Origin</label>
         <select id="originCityId" name="originCityId" defaultValue={originCityId ?? ""}>
@@ -108,10 +115,15 @@ export function ExploreFilters({
               confirmed live (URL changed, but the filter bar and results
               didn't). router.replace() -- the same call every other filter
               change in this component already uses -- always goes through
-              a real navigation instead of a cached prefetch. */}
+              a real navigation instead of a cached prefetch. Preserves the
+              active view (clearing filters shouldn't also kick the viewer
+              out of the section they're browsing).
+          */}
           <button
             type="button"
-            onClick={() => router.replace("/explore")}
+            onClick={() =>
+              router.replace(view === "packages" ? "/explore" : `/explore?view=${view}`)
+            }
             className="btn-secondary"
           >
             Clear filters
