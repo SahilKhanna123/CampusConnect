@@ -14,8 +14,8 @@ import { prisma } from "@/lib/prisma";
 // "students should eventually be able to edit non-verification
 // information"); university and verification badges are always read-only,
 // derived from VerificationRecord -- never accepted by PATCH /api/profile.
-// Rating/trip-history aggregation from Review/Request is intentionally not
-// built here yet (out of scope for this feature, tracked separately).
+// Trip-history aggregation is intentionally not built here yet (out of
+// scope for this feature, tracked separately).
 export default async function ProfilePage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");

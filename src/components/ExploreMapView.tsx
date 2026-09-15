@@ -15,24 +15,26 @@ const RouteMap = dynamic(
 // Client wrapper around the results grid + real route map on /explore. The
 // page itself stays a server component (data-fetching and the filter <form>
 // are unchanged, plain server-rendered GET navigation) -- this only owns the
-// hover-linking state between a trip/request card and its route on the map.
-// Keyed on the same `${kind}-${id}` composite already used everywhere else
-// in this codebase (JSX keys, connectionStatusByTripId), not a bare post id
-// -- a Trip and a Request live in separate id spaces and could otherwise
-// collide and cross-highlight.
+// hover-linking state between a trip card and its route on the map.
 export function ExploreMapView({
   posts,
   isLoggedIn,
+  emptyMessage = "No trips match your filters right now.",
 }: {
   posts: ExploreCardPost[];
   isLoggedIn: boolean;
+  // Explore's view toggle (All/Rides/Packages) means an empty grid can mean
+  // three different things -- the caller passes the message that matches
+  // whichever category is actually being browsed, rather than this
+  // component guessing from the post list (which is empty either way).
+  emptyMessage?: string;
 }) {
   const [hoveredKey, setHoveredKey] = useState<string | null>(null);
 
   if (posts.length === 0) {
     return (
       <div className="explore-panel">
-        <p>No trips or ride requests match your filters right now.</p>
+        <p>{emptyMessage}</p>
       </div>
     );
   }

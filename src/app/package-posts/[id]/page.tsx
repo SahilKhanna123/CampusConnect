@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { getCurrentUser, hasStudentRecord } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -10,17 +10,18 @@ import { ReportButton } from "@/components/ReportButton";
 import { BlockButton } from "@/components/BlockButton";
 import { isBlockedBetween } from "@/lib/blocks";
 
-// PackagePost detail -- mirrors the shape of /trips/[id] and /requests/[id]
-// (public preview for a logged-out visitor, studentsOnly 404 gate, owner
-// actions, Report/Block) but with none of the seat/connection machinery --
-// the only interaction here is PackageMessageForm, since there's no formal
-// accept handshake for a package post at all (per product decision).
+// PackagePost detail -- mirrors the shape of /trips/[id] (gated for a
+// logged-out visitor, studentsOnly 404 gate, owner actions, Report/Block)
+// but with none of the seat/connection machinery -- the only interaction
+// here is PackageMessageForm, since there's no formal accept handshake for
+// a package post at all (per product decision).
 export default async function PackagePostDetailPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
   const user = await getCurrentUser();
+  if (!user) redirect("/sign-up");
 
   const { id } = await params;
   const found = await prisma.packagePost.findUnique({
@@ -44,21 +45,18 @@ export default async function PackagePostDetailPage({
   });
   if (!found) notFound();
 
-  const isOwner = user ? found.postedById === user.id : false;
-  if (found.studentsOnly && !isOwner && !(user && hasStudentRecord(user))) {
+  const isOwner = found.postedById === user.id;
+  if (found.studentsOnly && !isOwner && !hasStudentRecord(user)) {
     notFound();
   }
-  const initialBlocked =
-    isOwner || !user ? false : await isBlockedBetween(user.id, found.postedById);
+  const initialBlocked = isOwner ? false : await isBlockedBetween(user.id, found.postedById);
   const destinationLabel = found.destinationCity?.name ?? found.destinationText;
 
   return (
     <div>
       <div className="detail-header">
         {found.studentsOnly && <span className="badge-students-only">🎓 Students only</span>}
-        <span className="eyebrow">
-          {found.kind === "offering_space" ? "Package space offered" : "Delivery needed"}
-        </span>
+        <span className="eyebrow">Package space offered</span>
         <h1 className="heading-tight detail-route-headline">
           {found.originCity.name} → {destinationLabel}
         </h1>
@@ -87,7 +85,7 @@ export default async function PackagePostDetailPage({
           <PosterBadge poster={found.postedBy} />
         </Link>
       </div>
-      {!isOwner && user && (
+      {!isOwner && (
         <div className="button-row">
           <ReportButton
             reportedUserId={found.postedBy.id}
@@ -114,14 +112,9 @@ export default async function PackagePostDetailPage({
           />
         </div>
       )}
-      {!isOwner &&
-        (user ? (
-          found.status === "open" && <PackageMessageForm packagePostId={found.id} />
-        ) : (
-          <Link href="/sign-up" className="connection-request-button btn-primary">
-            Message about this post
-          </Link>
-        ))}
+      {!isOwner && found.status === "open" && (
+        <PackageMessageForm packagePostId={found.id} />
+      )}
     </div>
   );
 }

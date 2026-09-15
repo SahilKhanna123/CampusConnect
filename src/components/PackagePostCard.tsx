@@ -3,7 +3,7 @@ import { PosterBadge, type Poster } from "@/components/ExploreCard";
 
 // A PackagePost-shaped sibling to ExploreCard -- reuses the exact same
 // shell classes (.explore-card, .explore-card-top, etc.) so a package
-// card's *size* on Home matches a Trip/Request card exactly. The 50/30/10
+// card's *size* on Home matches a Trip card exactly. The 50/30/10
 // visual-prominence weighting between package/Uber-share/personal-car
 // content is carried entirely by section-level order/count/heading on the
 // page that renders these cards, not by giving this card its own size.
@@ -43,7 +43,6 @@ function formatCardDate(date: Date | null): string {
 
 export type PackagePostCardPost = {
   id: string;
-  kind: "offering_space" | "needing_delivery";
   originName: string;
   destinationName: string;
   originRegionName?: string | null;
@@ -58,7 +57,6 @@ export type PackagePostCardPost = {
 
 export function PackagePostCard({ post }: { post: PackagePostCardPost }) {
   const href = `/package-posts/${post.id}`;
-  const kindLabel = post.kind === "offering_space" ? "📦 Offering space" : "📦 Need delivery";
 
   return (
     <div className="explore-card">
@@ -69,7 +67,7 @@ export function PackagePostCard({ post }: { post: PackagePostCardPost }) {
             <RouteArrow />
             <span>{post.destinationName}</span>
           </div>
-          <span className="explore-card-seats-badge">{kindLabel}</span>
+          <span className="explore-card-seats-badge">📦 Package space</span>
         </div>
 
         {post.studentsOnly && (

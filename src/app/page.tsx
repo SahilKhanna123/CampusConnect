@@ -1,8 +1,9 @@
 import Link from "next/link";
+import type { TripStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser, hasStudentRecord } from "@/lib/auth";
 import { getFeaturedRoutePairs, getCitiesByRegion } from "@/lib/geo";
-import { tripDisplayStatus, requestDisplayStatus } from "@/lib/postStatus";
+import { tripDisplayStatus } from "@/lib/postStatus";
 import { ExploreCard, type ExploreCardPost } from "@/components/ExploreCard";
 import type { ConnectionStatus } from "@/components/ConnectionRequestButton";
 import { getBlockedCounterpartIds } from "@/lib/blocks";
@@ -18,6 +19,83 @@ import { PackagePostCard, type PackagePostCardPost } from "@/components/PackageP
 const PACKAGE_PREVIEW_LIMIT = 6;
 const UBER_PREVIEW_LIMIT = 4;
 const TRIP_PREVIEW_LIMIT = 2;
+
+const YOUR_TRIPS_LIMIT = 6;
+
+// "Your Upcoming Trips" on the signed-in Home page -- a personal glance
+// section, separate from the featured-route discovery feed below it.
+// Combines both ways a trip can be "yours": you're driving it (travelerId),
+// or you have a confirmed seat on someone else's (an accepted
+// ConnectionRequest or SeatOffer with seatConfirmedAt set -- see the Trip
+// Participants/Seat Offers sections of CLAUDE.md). The two sets can never
+// overlap, since neither mechanism lets you hold a seat on your own trip.
+// Cancelled/completed/expired trips are excluded via tripDisplayStatus, the
+// same derived-at-read-time helper every other page uses.
+type YourUpcomingTrip = {
+  trip: {
+    id: string;
+    title: string | null;
+    status: TripStatus;
+    departureDate: Date;
+    departureTime: string | null;
+    originCity: { name: string };
+    destinationCity: { name: string } | null;
+    destinationText: string | null;
+  };
+  role: "driving" | "riding";
+};
+
+async function getYourUpcomingTrips(userId: string): Promise<YourUpcomingTrip[]> {
+  const tripSelect = {
+    id: true,
+    title: true,
+    status: true,
+    departureDate: true,
+    departureTime: true,
+    originCity: { select: { name: true } },
+    destinationCity: { select: { name: true } },
+    destinationText: true,
+  } as const;
+
+  const [drivingTrips, confirmedConnections, confirmedSeatOffers] = await Promise.all([
+    prisma.trip.findMany({
+      where: { travelerId: userId, status: "upcoming" },
+      select: tripSelect,
+    }),
+    prisma.connectionRequest.findMany({
+      where: { requesterId: userId, seatConfirmedAt: { not: null } },
+      select: { tripId: true },
+    }),
+    prisma.seatOffer.findMany({
+      where: { recipientId: userId, seatConfirmedAt: { not: null } },
+      select: { tripId: true },
+    }),
+  ]);
+
+  const ridingTripIds = [
+    ...new Set([
+      ...confirmedConnections.map((c) => c.tripId),
+      ...confirmedSeatOffers.map((s) => s.tripId),
+    ]),
+  ];
+  const ridingTrips =
+    ridingTripIds.length > 0
+      ? await prisma.trip.findMany({
+          where: { id: { in: ridingTripIds }, status: "upcoming" },
+          select: tripSelect,
+        })
+      : [];
+
+  const combined: YourUpcomingTrip[] = [
+    ...drivingTrips.map((trip) => ({ trip, role: "driving" as const })),
+    ...ridingTrips.map((trip) => ({ trip, role: "riding" as const })),
+  ];
+
+  return combined
+    .filter(({ trip }) => tripDisplayStatus(trip) === "upcoming")
+    .sort((a, b) => a.trip.departureDate.getTime() - b.trip.departureDate.getTime())
+    .slice(0, YOUR_TRIPS_LIMIT);
+}
 
 function timeOfDayGreeting(): string {
   const hour = new Date().getHours();
@@ -133,12 +211,10 @@ function HomeHeroIllustration() {
 
 // Home -- the narrow "surfaces the featured corridor prominently" glance
 // view (plan doc: Home features the active RouteCommunity by default,
-// Explore/search surface trips across any city pair). Ride-only, same
-// "package browsing is separate, out of scope" precedent /explore already
-// set -- not an oversight. Reuses Explore's exact Trip/Request query shape
-// (see src/app/explore/page.tsx) with an added region-pair filter and no
-// filter form/pagination; own posts and blocked users are excluded the
-// same way.
+// Explore/search surface trips across any city pair). Reuses Explore's
+// exact Trip query shape (see src/app/explore/page.tsx) with an added
+// region-pair filter and no filter form/pagination; own posts and blocked
+// users are excluded the same way.
 //
 // A logged-out visitor gets LandingPage() instead (see below) -- this used
 // to redirect("/login") unconditionally, which CLAUDE.md's own Home Page
@@ -165,7 +241,7 @@ export default async function HomePage() {
             See everything on Explore
           </Link>
           <Link href="/post" className="btn-secondary">
-            Post a trip or request
+            Post a trip
           </Link>
         </div>
       </div>
@@ -174,8 +250,9 @@ export default async function HomePage() {
 
   const citiesByRegion = await getCitiesByRegion();
   const blockedUserIds = await getBlockedCounterpartIds(user.id);
+  const yourUpcomingTrips = await getYourUpcomingTrips(user.id);
   // Same studentsOnly visibility rule Explore enforces -- see the schema
-  // comment on Request.studentsOnly.
+  // comment on Trip.studentsOnly.
   const isStudent = hasStudentRecord(user);
   const studentsOnlyFilter = isStudent ? {} : { studentsOnly: false };
 
@@ -199,7 +276,7 @@ export default async function HomePage() {
     ]),
   };
 
-  const [trips, requests, packagePosts] = await Promise.all([
+  const [trips, packagePosts] = await Promise.all([
     prisma.trip.findMany({
       where: {
         status: "upcoming",
@@ -224,32 +301,6 @@ export default async function HomePage() {
         },
       },
       orderBy: { departureDate: "asc" },
-    }),
-    prisma.request.findMany({
-      where: {
-        tripId: null,
-        status: "pending",
-        postedById: { not: user.id, notIn: blockedUserIds },
-        ...studentsOnlyFilter,
-        ...regionPairFilter,
-      },
-      include: {
-        originCity: { include: { region: true } },
-        destinationCity: { include: { region: true } },
-        postedBy: {
-          select: {
-            id: true,
-            name: true,
-            photoUrl: true,
-            signedUpAsParent: true,
-            verifications: {
-              where: { status: "verified" },
-              select: { type: true, status: true },
-            },
-          },
-        },
-      },
-      orderBy: { createdAt: "desc" },
     }),
     prisma.packagePost.findMany({
       where: {
@@ -323,30 +374,9 @@ export default async function HomePage() {
     };
   }
 
-  function requestToCardPost(r: (typeof requests)[number]): { sortDate: Date | null; post: ExploreCardPost } {
-    return {
-      sortDate: r.neededDate,
-      post: {
-        kind: "request" as const,
-        id: r.id,
-        originName: r.originCity?.name ?? "?",
-        destinationName: r.destinationCity?.name ?? r.destinationText ?? "?",
-        originRegionName: r.originCity?.region?.name ?? null,
-        destinationRegionName: r.destinationCity?.region?.name ?? null,
-        date: r.neededDate,
-        time: r.neededTime,
-        flexibleTime: r.flexibleTime,
-        seatsRequested: r.seatsRequested ?? 1,
-        poster: r.postedBy,
-        studentsOnly: r.studentsOnly,
-      },
-    };
-  }
-
   function packagePostToCardPost(p: (typeof packagePosts)[number]): PackagePostCardPost {
     return {
       id: p.id,
-      kind: p.kind,
       originName: p.originCity.name,
       destinationName: p.destinationCity?.name ?? p.destinationText ?? "?",
       originRegionName: p.originCity.region.name,
@@ -367,7 +397,6 @@ export default async function HomePage() {
   }
 
   const upcomingTrips = trips.filter((trip) => tripDisplayStatus(trip) === "upcoming");
-  const pendingRequests = requests.filter((r) => requestDisplayStatus(r) === "pending");
 
   // 3 weighted, independently-capped buckets carrying the 50% package /
   // 30% Uber-share / 10% personal-car visual-prominence split -- see the
@@ -378,18 +407,16 @@ export default async function HomePage() {
     .slice(0, PACKAGE_PREVIEW_LIMIT)
     .map(({ post }) => post);
 
-  const uberPreviewPosts: ExploreCardPost[] = [
-    ...upcomingTrips.filter((t) => t.category === "uber_share").map(tripToCardPost),
-    ...pendingRequests.filter((r) => r.category === "uber_share").map(requestToCardPost),
-  ]
+  const uberPreviewPosts: ExploreCardPost[] = upcomingTrips
+    .filter((t) => t.category === "uber_share")
+    .map(tripToCardPost)
     .sort(byDateAscNullsLast)
     .slice(0, UBER_PREVIEW_LIMIT)
     .map(({ post }) => post);
 
-  const tripPreviewPosts: ExploreCardPost[] = [
-    ...upcomingTrips.filter((t) => t.category === "personal_car").map(tripToCardPost),
-    ...pendingRequests.filter((r) => r.category === "personal_car").map(requestToCardPost),
-  ]
+  const tripPreviewPosts: ExploreCardPost[] = upcomingTrips
+    .filter((t) => t.category === "personal_car")
+    .map(tripToCardPost)
     .sort(byDateAscNullsLast)
     .slice(0, TRIP_PREVIEW_LIMIT)
     .map(({ post }) => post);
@@ -399,14 +426,13 @@ export default async function HomePage() {
     .join(", ");
 
   // A real, honest count -- not a fabricated trust stat -- of how many of
-  // the trips/requests/package posts just fetched above were actually
-  // created in the last 7 days. Computed from the raw Prisma rows (which
-  // carry createdAt) rather than the normalized card-post shapes, since
-  // those deliberately don't carry createdAt.
+  // the trips/package posts just fetched above were actually created in
+  // the last 7 days. Computed from the raw Prisma rows (which carry
+  // createdAt) rather than the normalized card-post shapes, since those
+  // deliberately don't carry createdAt.
   const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
   const postsThisWeekCount =
     trips.filter((t) => t.createdAt >= weekAgo).length +
-    requests.filter((r) => r.createdAt >= weekAgo).length +
     packagePosts.filter((p) => p.createdAt >= weekAgo).length;
 
   const firstName = user.name.split(" ")[0];
@@ -468,6 +494,37 @@ export default async function HomePage() {
         </div>
       </section>
 
+      {yourUpcomingTrips.length > 0 && (
+        <section className="section-shift-white home-results">
+          <div className="home-results-header">
+            <h2 className="heading-tight">Your Upcoming Trips</h2>
+            <Link href="/my-posts" className="btn-secondary">
+              Manage your posts
+            </Link>
+          </div>
+          <div className="list-section">
+            {yourUpcomingTrips.map(({ trip, role }) => (
+              <div key={trip.id} className="list-card">
+                <div className="list-card-top">
+                  <Link href={`/trips/${trip.id}`} className="list-card-title">
+                    {trip.originCity.name} →{" "}
+                    {trip.destinationCity?.name ?? trip.destinationText}
+                  </Link>
+                  <span className="trip-status-label trip-status-label-upcoming">
+                    {role === "driving" ? "Driving" : "Riding"}
+                  </span>
+                </div>
+                <div className="list-card-meta">
+                  {trip.title && `${trip.title} — `}
+                  {trip.departureDate.toLocaleDateString()}
+                  {trip.departureTime && ` at ${trip.departureTime}`}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
       <section className="section-shift-white home-results">
         <div className="home-results-header">
           <h2 className="heading-tight">Upcoming near you</h2>
@@ -482,7 +539,7 @@ export default async function HomePage() {
           <div className="empty-state">
             <p>Nothing on your route right now.</p>
             <Link href="/post" className="btn-secondary">
-              Post a trip or request
+              Post a trip
             </Link>
           </div>
         ) : (
@@ -575,7 +632,7 @@ async function LandingPage() {
     // gets (see src/app/explore/page.tsx) -- an anonymous visitor is never
     // a student. No self-exclusion/blocked-user filtering -- there's no
     // viewer identity to exclude.
-    const [trips, requests, packagePosts] = await Promise.all([
+    const [trips, packagePosts] = await Promise.all([
       prisma.trip.findMany({
         where: { status: "upcoming", studentsOnly: false, ...regionPairFilter },
         include: {
@@ -595,31 +652,6 @@ async function LandingPage() {
           },
         },
         orderBy: { departureDate: "asc" },
-      }),
-      prisma.request.findMany({
-        where: {
-          tripId: null,
-          status: "pending",
-          studentsOnly: false,
-          ...regionPairFilter,
-        },
-        include: {
-          originCity: { include: { region: true } },
-          destinationCity: { include: { region: true } },
-          postedBy: {
-            select: {
-              id: true,
-              name: true,
-              photoUrl: true,
-              signedUpAsParent: true,
-              verifications: {
-                where: { status: "verified" },
-                select: { type: true, status: true },
-              },
-            },
-          },
-        },
-        orderBy: { createdAt: "desc" },
       }),
       prisma.packagePost.findMany({
         where: { status: "open", studentsOnly: false, ...packagePairFilter },
@@ -679,39 +711,14 @@ async function LandingPage() {
         },
       }));
 
-    const requestPosts: { sortDate: Date | null; post: ExploreCardPost; category: string }[] = requests
-      .filter((r) => requestDisplayStatus(r) === "pending")
-      .map((r) => ({
-        sortDate: r.neededDate,
-        category: r.category,
-        post: {
-          kind: "request" as const,
-          id: r.id,
-          originName: r.originCity?.name ?? "?",
-          destinationName: r.destinationCity?.name ?? r.destinationText ?? "?",
-          originRegionName: r.originCity?.region?.name ?? null,
-          destinationRegionName: r.destinationCity?.region?.name ?? null,
-          date: r.neededDate,
-          time: r.neededTime,
-          flexibleTime: r.flexibleTime,
-          seatsRequested: r.seatsRequested ?? 1,
-          poster: r.postedBy,
-          studentsOnly: r.studentsOnly,
-        },
-      }));
-
-    uberPreviewPosts = [
-      ...offerPosts.filter((o) => o.category === "uber_share"),
-      ...requestPosts.filter((r) => r.category === "uber_share"),
-    ]
+    uberPreviewPosts = offerPosts
+      .filter((o) => o.category === "uber_share")
       .sort(byDateAscNullsLast)
       .slice(0, UBER_PREVIEW_LIMIT)
       .map(({ post }) => post);
 
-    tripPreviewPosts = [
-      ...offerPosts.filter((o) => o.category === "personal_car"),
-      ...requestPosts.filter((r) => r.category === "personal_car"),
-    ]
+    tripPreviewPosts = offerPosts
+      .filter((o) => o.category === "personal_car")
       .sort(byDateAscNullsLast)
       .slice(0, TRIP_PREVIEW_LIMIT)
       .map(({ post }) => post);
@@ -721,7 +728,6 @@ async function LandingPage() {
         sortDate: p.date,
         post: {
           id: p.id,
-          kind: p.kind,
           originName: p.originCity.name,
           destinationName: p.destinationCity?.name ?? p.destinationText ?? "?",
           originRegionName: p.originCity.region.name,

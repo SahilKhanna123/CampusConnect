@@ -644,87 +644,238 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   font: inherit;
 }
 
-.message-thread {
-  list-style: none;
-  margin: 0 0 1rem;
-  padding: 0;
+/* Conversation thread page (/messages/[id]) -- a dedicated, narrower
+   centered column (like .form-page, but wide enough for a comfortable chat
+   column) rather than stretching to the site's full 1600px width, which
+   read as a few stray lines of text floating in a huge empty page. */
+.chat-page {
+  max-width: 860px;
+  margin: 0 auto;
+  /* Fills the viewport below the sticky header instead of leaving the
+     chat panel to hug its own content height and strand a wall of blank
+     page underneath it -- 120px approximates .site-header's height plus
+     .site-main's top/bottom padding. .chat-panel below grows to fill
+     whatever's left after the safety notice and header take their own
+     natural height. */
+  min-height: calc(100vh - 120px);
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
 }
 
-.message-bubble {
-  max-width: 75%;
-  padding: 0.5rem 0.75rem;
-  border-radius: 8px;
-  background: #fff;
-  border: 1px solid #e5e5e5;
+.chat-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1rem;
+  border: 1.5px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-white);
+}
+
+.chat-header-identity {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.chat-header-avatar {
+  width: 2.75rem;
+  height: 2.75rem;
+  font-size: 1.0625rem;
+  flex-shrink: 0;
+}
+
+.chat-header-name {
+  font-size: 1.125rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.chat-header-route {
+  display: block;
+  color: var(--color-gray-body);
+  font-size: 0.8125rem;
+  text-decoration: none;
+  margin-top: 0.125rem;
+}
+
+.chat-header-route:hover {
+  color: var(--color-blue);
+}
+
+.chat-header-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.chat-header-actions .report-button,
+.chat-header-actions .block-button {
+  padding: 0.375rem 0.75rem;
+  font-size: 0.8125rem;
+}
+
+/* The single unified "chat card" -- message history, the seat-request row,
+   and the composer all live inside one bordered container so the page
+   reads as one cohesive app surface instead of a loose stack of unrelated
+   elements with no visual grouping at all. */
+.chat-panel {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  border: 1.5px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-white);
+  overflow: hidden;
+}
+
+.message-thread {
+  list-style: none;
+  margin: 0;
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+  flex: 1;
+  min-height: 12rem;
+  overflow-y: auto;
+}
+
+.message-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.5rem;
+  max-width: min(70%, 32rem);
   align-self: flex-start;
 }
 
-.message-bubble-self {
+.message-row-self {
   align-self: flex-end;
-  background: #e8f0fe;
-  border-color: #cfe0fd;
+  flex-direction: row-reverse;
+}
+
+.message-row-avatar {
+  width: 1.75rem;
+  height: 1.75rem;
+  font-size: 0.6875rem;
+  flex-shrink: 0;
+}
+
+.message-bubble {
+  padding: 0.5rem 0.75rem;
+  border-radius: 14px 14px 14px 4px;
+  background: var(--color-gray-section);
+  color: var(--color-black);
+  min-width: 0;
+}
+
+.message-bubble-self {
+  border-radius: 14px 14px 4px 14px;
+  background: var(--color-blue);
+  color: var(--color-white);
 }
 
 .message-body {
   font-size: 0.9375rem;
+  line-height: 1.4;
   white-space: pre-wrap;
+  overflow-wrap: break-word;
 }
 
 .message-meta {
   margin-top: 0.25rem;
-  font-size: 0.75rem;
-  color: #666;
+  font-size: 0.6875rem;
+  color: var(--color-gray-meta);
 }
 
+.message-bubble-self .message-meta {
+  color: rgba(255, 255, 255, 0.75);
+}
+
+/* Aligned like a regular message bubble (left for the recipient, right for
+   the owner who sent it -- see seat-offer-bubble-self) rather than centered
+   in the middle of the thread, which read as a floating, disconnected
+   widget once the chat panel got wider. */
 .seat-offer-bubble {
-  align-self: center;
-  max-width: 90%;
+  align-self: flex-start;
+  max-width: min(70%, 32rem);
   padding: 0.625rem 0.875rem;
-  border: 1px solid #cfe0fd;
-  border-radius: 8px;
-  background: #f4f8ff;
+  border: 1.5px solid var(--color-blue);
+  border-radius: 14px 14px 14px 4px;
+  background: var(--color-blue-bg);
+  text-align: center;
+}
+
+.seat-offer-bubble-self {
+  align-self: flex-end;
+  border-radius: 14px 14px 4px 14px;
 }
 
 .seat-offer-bubble-text {
   font-weight: 600;
-  font-size: 0.9375rem;
+  font-size: 0.875rem;
+  color: var(--color-black);
 }
 
 .seat-offer-bubble-actions {
-  margin-top: 0.375rem;
+  margin-top: 0.5rem;
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
 }
 
 .seat-offer-send-row {
-  margin-bottom: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.75rem 1.25rem;
+  border-top: 1.5px solid var(--color-border);
+  background: var(--color-gray-section);
 }
 
 .message-compose {
   display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  max-width: 480px;
+  align-items: flex-end;
+  gap: 0.625rem;
+  padding: 0.875rem 1.25rem;
+  border-top: 1.5px solid var(--color-border);
+  background: var(--color-white);
 }
 
 .message-compose textarea {
-  min-height: 4rem;
+  flex: 1;
+  min-height: 2.75rem;
+  max-height: 8rem;
   font: inherit;
-  padding: 0.625rem 0.75rem;
+  font-size: 0.9375rem;
+  padding: 0.625rem 0.875rem;
   border: 1.5px solid var(--color-border);
-  border-radius: 8px;
-  resize: vertical;
+  border-radius: 18px;
+  background: var(--color-gray-section);
+  resize: none;
 }
 
 .message-compose textarea:focus {
-  outline: 2px solid var(--color-blue);
-  outline-offset: -1px;
+  outline: none;
   border-color: var(--color-blue);
+  background: var(--color-white);
 }
 
 .message-compose button[type="submit"] {
-  align-self: flex-start;
+  flex-shrink: 0;
+  border-radius: 999px;
+  padding: 0.625rem 1.375rem;
+}
+
+.message-compose-error {
+  margin: 0;
+  padding: 0 1.25rem 0.875rem;
+  font-size: 0.8125rem;
+  color: #b42318;
 }
 
 .conversation-list {
@@ -856,11 +1007,17 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
 }
 
 .chat-safety-notice {
-  padding: 0.75rem 1rem;
-  border: 1px solid #f0d58c;
-  border-radius: 8px;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  max-width: 860px;
+  margin: 0 auto 1rem;
+  padding: 0.625rem 0.875rem;
+  border: 1.5px solid #f0d58c;
+  border-radius: 10px;
   background: #fff8e1;
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
+  line-height: 1.45;
   color: #6b5300;
 }
 
@@ -1688,34 +1845,18 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
 
 /* Post hub */
 
-.post-hub-groups {
-  display: flex;
-  gap: 2rem;
-  margin-top: 1.5rem;
-  flex-wrap: wrap;
-}
-
-.post-hub-panel {
-  flex: 1;
-  min-width: 220px;
-}
-
 .post-hub-panel-title {
   font-size: 0.9375rem;
   font-weight: 700;
   margin: 0 0 0.75rem;
 }
 
-.post-hub-divider {
-  width: 1px;
-  background: var(--color-border);
-  align-self: stretch;
-}
-
 .post-hub-tiles {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+  margin-top: 1.5rem;
+  max-width: 420px;
 }
 
 .post-hub-tile {
@@ -1738,7 +1879,7 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   transform: translateY(-2px);
 }
 
-/* Visual-prominence weighting for the /post hub -- all 6 actions are
+/* Visual-prominence weighting for the /post hub -- all 3 actions are
    equally functional, only their visual size/emphasis differs (per product
    decision: package delivery featured, Uber-sharing secondary, driving-
    your-own-car smallest). See POST_ACTIONS in src/app/post/page.tsx. */
@@ -1758,16 +1899,6 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
 
 .post-hub-footer {
   margin-top: 1.5rem;
-}
-
-@media (max-width: 640px) {
-  .post-hub-groups {
-    flex-direction: column;
-  }
-
-  .post-hub-divider {
-    display: none;
-  }
 }
 
 /* ---- Redesign: shared primitives (Round 2 -- list/form pages) ---- */
@@ -1806,6 +1937,15 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   font-weight: 600;
   color: var(--color-gray-body);
   text-decoration: none;
+  /* .subtab was originally only ever applied to a <Link> (Upcoming/History,
+     Received/Sent, Inbox/Archived) -- ExploreViewTabs is the first caller to
+     put it on a real <button> (needed there for router.replace(), not a
+     plain navigation, see its own comment), so this resets the UA default
+     button chrome (face color, font, cursor) these three properties would
+     otherwise bring in. Harmless no-ops on the existing <Link> usages. */
+  background: none;
+  font-family: inherit;
+  cursor: pointer;
 }
 
 .subtab:hover {
@@ -1887,7 +2027,7 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
 }
 
 /* Forms -- applied via className="app-form" on a bare <form> so every
-   create/edit/auth form in the app (TripPostForm, RequestPostForm,
+   create/edit/auth form in the app (TripPostForm, PackagePostForm,
    ProfileEditForm, login, sign-up, verify, InviteParentForm,
    ConnectStudentClient, ...) gets consistent field/button styling without
    having to hand-edit every individual label/input pair. Deliberately
@@ -1903,12 +2043,13 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   margin: 0 auto;
 }
 
-/* Wraps the eyebrow+heading+form on a single-form page (create/edit Trip,
-   Request, PackagePost, onboarding) so the heading lines up directly above
-   the centered .app-form below it, rather than staying flush against the
-   page's left edge while the form centers underneath it. Not used on
-   multi-section pages like /profile or /family, where other content
-   still wants the full page width. */
+/* Wraps the eyebrow+heading+form (or, on /post, eyebrow+heading+tile list)
+   on a single-column page (create/edit Trip/PackagePost, onboarding, the
+   /post hub) so the heading lines up directly above the centered content
+   below it, rather than staying flush against the page's left edge while
+   the content centers underneath it. Not used on multi-section pages like
+   /profile or /family, where other content still wants the full page
+   width. */
 .form-page {
   max-width: 32rem;
   margin: 0 auto;

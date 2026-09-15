@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { getCurrentUser, hasStudentRecord } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -12,21 +12,17 @@ import { PosterBadge } from "@/components/ExploreCard";
 import { ReportButton } from "@/components/ReportButton";
 import { BlockButton } from "@/components/BlockButton";
 import { isBlockedBetween } from "@/lib/blocks";
-import { MarkRequestCompleteButton } from "@/components/MarkRequestCompleteButton";
 
 export default async function TripDetailPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
-  // Deliberately not gated: an unauthenticated visitor gets a read-only
-  // preview of a trip's detail page (public browse, per product decision).
-  // Every owner-only / account-only section below already branches on
-  // isOwner or an explicit `user` check, so a null user naturally falls
-  // through to the same read-only view a logged-in non-owner would see,
-  // minus the report/block controls and with the interactive buttons
-  // replaced by sign-up links.
+  // Gated, unlike /explore's own card grid (which stays a public preview
+  // by product decision) -- a logged-out visitor who clicks into a specific
+  // trip's full details is sent straight to sign-up instead of seeing them.
   const user = await getCurrentUser();
+  if (!user) redirect("/sign-up");
 
   const { id } = await params;
   const trip = await prisma.trip.findUnique({
@@ -50,18 +46,16 @@ export default async function TripDetailPage({
   });
   if (!trip) notFound();
 
-  const isOwner = user ? trip.travelerId === user.id : false;
+  const isOwner = trip.travelerId === user.id;
   // studentsOnly trips are invisible to a non-student, non-owner viewer --
   // 404 rather than a "not allowed" message, matching this app's existing
   // don't-leak-existence idiom for private content (e.g. a Conversation a
   // non-participant hits directly). See the schema comment on
-  // Request.studentsOnly for the full enforcement list. An anonymous
-  // visitor is treated the same as any other non-student.
-  if (trip.studentsOnly && !isOwner && !(user && hasStudentRecord(user))) {
+  // Trip.studentsOnly for the full enforcement list.
+  if (trip.studentsOnly && !isOwner && !hasStudentRecord(user)) {
     notFound();
   }
-  const initialBlocked =
-    isOwner || !user ? false : await isBlockedBetween(user.id, trip.travelerId);
+  const initialBlocked = isOwner ? false : await isBlockedBetween(user.id, trip.travelerId);
   const destinationLabel = trip.destinationCity?.name ?? trip.destinationText;
   const displayStatus = tripDisplayStatus(trip);
   // "upcoming" is the only editable/cancellable/completable state -- an
@@ -74,20 +68,19 @@ export default async function TripDetailPage({
   // Only queried for non-owners -- the latest ConnectionRequest (if any)
   // decides the button state; see the "revert to actionable after
   // declined/cancelled" reasoning on ConnectionRequestButton.
-  const myConnectionRequest =
-    isOwner || !user
-      ? null
-      : await prisma.connectionRequest.findFirst({
-          where: { tripId: trip.id, requesterId: user.id },
-          orderBy: { createdAt: "desc" },
-        });
+  const myConnectionRequest = isOwner
+    ? null
+    : await prisma.connectionRequest.findFirst({
+        where: { tripId: trip.id, requesterId: user.id },
+        orderBy: { createdAt: "desc" },
+      });
   const connectionRequestStatus: ConnectionStatus =
     (myConnectionRequest?.status as ConnectionStatus) ?? "none";
   // Only fetched when accepted -- a single detail page can afford this
   // extra query; Explore's card grid deliberately skips it (see
   // ConnectionRequestButton's conversationId comment).
   const acceptedConversation =
-    connectionRequestStatus === "accepted" && user
+    connectionRequestStatus === "accepted"
       ? await prisma.conversation.findFirst({
           where: {
             tripId: trip.id,
@@ -176,33 +169,6 @@ export default async function TripDetailPage({
   // in-progress management detail, not a public fact about the trip).
   const confirmedRiders = participantRows.filter((row) => row.seatConfirmedAt);
 
-  // Owner-only: standalone Requests this trip has been matched to via POST
-  // /api/requests/[id]/accept -- a separate mechanism from ConnectionRequest
-  // (the Participants section above), but drawing from the same
-  // seatsRemaining pool, so it's shown here for the same "relevant trip
-  // information" reason. Both accepted and completed are shown (history
-  // stays visible), same pattern as Participants/ConfirmSeatButton.
-  const fulfillingRequests = isOwner
-    ? await prisma.request.findMany({
-        where: { tripId: trip.id, status: { in: ["accepted", "completed"] } },
-        include: {
-          postedBy: {
-            select: {
-              id: true,
-              name: true,
-              photoUrl: true,
-              signedUpAsParent: true,
-              verifications: {
-                where: { status: "verified" },
-                select: { type: true, status: true },
-              },
-            },
-          },
-        },
-        orderBy: { respondedAt: "asc" },
-      })
-    : [];
-
   return (
     <div>
       <div className="detail-header">
@@ -243,10 +209,7 @@ export default async function TripDetailPage({
           <PosterBadge poster={trip.traveler} />
         </Link>
       </div>
-      {/* Reporting/blocking inherently requires an account -- there's no
-          useful "preview" of either action, so they're simply absent for an
-          anonymous viewer rather than linking to sign-up. */}
-      {!isOwner && user && (
+      {!isOwner && (
         <div className="button-row">
           <ReportButton
             reportedUserId={trip.traveler.id}
@@ -326,30 +289,6 @@ export default async function TripDetailPage({
         </section>
       )}
 
-      {isOwner && fulfillingRequests.length > 0 && (
-        <section className="profile-section">
-          <h2 className="profile-section-title">Requests You&apos;re Fulfilling</h2>
-          <div className="trip-participant-list">
-            {fulfillingRequests.map((r) => (
-              <div key={r.id} className="trip-participant-row">
-                <Link href={`/requests/${r.id}`} className="plain-link">
-                  <PosterBadge poster={r.postedBy} />
-                </Link>
-                <span>
-                  {r.category === "uber_share" ? "Uber-share" : "Ride"},{" "}
-                  {r.seatsRequested ?? 1} seat(s)
-                </span>
-                {r.status === "accepted" ? (
-                  <MarkRequestCompleteButton requestId={r.id} />
-                ) : (
-                  <span className="seat-confirmed-badge-none">Completed</span>
-                )}
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
       {/* An already-accepted connection keeps its "Connected — View
           messages" link even once the trip stops being upcoming (cancelled
           or completed) -- only a FRESH request is blocked, per the "prevent
@@ -358,20 +297,11 @@ export default async function TripDetailPage({
       {!isOwner && (connectionRequestStatus === "accepted" || isUpcoming) && (
         <>
           <div className="button-row">
-            {user ? (
-              <ConnectionRequestButton
-                tripId={trip.id}
-                initialStatus={connectionRequestStatus}
-                conversationId={acceptedConversation?.id}
-              />
-            ) : (
-              // Same label as the real button, but a plain link to sign-up --
-              // clicking it takes a logged-out visitor straight there rather
-              // than opening the note composer, per product decision.
-              <Link href="/sign-up" className="connection-request-button btn-primary">
-                Request to Connect
-              </Link>
-            )}
+            <ConnectionRequestButton
+              tripId={trip.id}
+              initialStatus={connectionRequestStatus}
+              conversationId={acceptedConversation?.id}
+            />
           </div>
           {myConnectionRequest?.seatConfirmedAt && (
             <p className="seat-confirmed-badge">
@@ -384,13 +314,7 @@ export default async function TripDetailPage({
       {!isOwner && isUpcoming && (
         <div>
           {trip.seatsRemaining > 0 ? (
-            user ? (
-              <RegisterInterestForm tripId={trip.id} />
-            ) : (
-              <Link href="/sign-up" className="connection-request-button btn-secondary">
-                Register for a seat
-              </Link>
-            )
+            <RegisterInterestForm tripId={trip.id} />
           ) : (
             <p>No seats available right now.</p>
           )}

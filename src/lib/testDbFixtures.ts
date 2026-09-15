@@ -6,7 +6,6 @@ import type {
   SupportedUniversityDomain,
   StudentRecord,
   Trip,
-  Request,
   ConnectionRequest,
   SeatOffer,
   Conversation,
@@ -134,25 +133,6 @@ export async function createTrip(
   });
 }
 
-export async function createRequest(
-  overrides: Partial<Request> = {},
-  deps: { postedBy?: User; beneficiary?: User; trip?: Trip } = {},
-): Promise<Request> {
-  const postedBy = deps.postedBy ?? (await createUser());
-  const beneficiary = deps.beneficiary ?? postedBy;
-  return prisma.request.create({
-    data: {
-      category: "personal_car",
-      postedById: postedBy.id,
-      beneficiaryId: beneficiary.id,
-      tripId: deps.trip?.id ?? null,
-      destinationText: "Test Destination",
-      status: "pending",
-      ...overrides,
-    },
-  });
-}
-
 export async function createPackagePost(
   overrides: Partial<PackagePost> = {},
   deps: { postedBy?: User; originCity?: City } = {},
@@ -161,7 +141,6 @@ export async function createPackagePost(
   const originCity = deps.originCity ?? (await createCity());
   return prisma.packagePost.create({
     data: {
-      kind: "offering_space",
       postedById: postedBy.id,
       originCityId: originCity.id,
       destinationText: "Test Destination",

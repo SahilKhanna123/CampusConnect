@@ -4,29 +4,25 @@ const WINDOW_HOURS = 12;
 const MAX_POSTS_PER_WINDOW = 10;
 
 /**
- * Anti-spam cap: at most MAX_POSTS_PER_WINDOW combined Trip + Request +
- * PackagePost creations per user per rolling WINDOW_HOURS window -- one
- * shared budget across all 3 post categories (Trips, Uber-sharing is just
- * a Trip category, and Package carrying), not a separate cap per category.
- * Call this before creating any of the three; throw/return false to reject
- * the write.
+ * Anti-spam cap: at most MAX_POSTS_PER_WINDOW combined Trip + PackagePost
+ * creations per user per rolling WINDOW_HOURS window -- one shared budget
+ * across both post categories (Trips, Uber-sharing is just a Trip category,
+ * and Package carrying), not a separate cap per category. Call this before
+ * creating either, throw/return false to reject the write.
  */
 export async function canCreatePost(userId: string): Promise<boolean> {
   const windowStart = new Date(Date.now() - WINDOW_HOURS * 60 * 60 * 1000);
 
-  const [tripCount, requestCount, packagePostCount] = await Promise.all([
+  const [tripCount, packagePostCount] = await Promise.all([
     prisma.trip.count({
       where: { travelerId: userId, createdAt: { gte: windowStart } },
-    }),
-    prisma.request.count({
-      where: { postedById: userId, createdAt: { gte: windowStart } },
     }),
     prisma.packagePost.count({
       where: { postedById: userId, createdAt: { gte: windowStart } },
     }),
   ]);
 
-  return tripCount + requestCount + packagePostCount < MAX_POSTS_PER_WINDOW;
+  return tripCount + packagePostCount < MAX_POSTS_PER_WINDOW;
 }
 
 const MESSAGE_WINDOW_MINUTES = 10;

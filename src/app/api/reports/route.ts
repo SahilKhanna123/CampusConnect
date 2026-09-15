@@ -21,7 +21,7 @@ const createSchema = z
     reportedUserId: z.string().min(1),
     reason: z.enum(REPORT_REASONS),
     detail: z.string().trim().max(1000).optional(),
-    contextType: z.enum(["trip", "request", "package", "message", "profile"]).optional(),
+    contextType: z.enum(["trip", "package", "message", "profile"]).optional(),
     contextId: z.string().min(1).optional(),
   })
   .refine(
@@ -44,7 +44,7 @@ const createSchema = z
 // reporterId is always derived from the authenticated caller, never trusted
 // from the body, same non-spoofable pattern as POST /api/connection-requests.
 // contextId is deliberately never validated against the underlying
-// Trip/Request/Message -- those rows can legitimately be cancelled/deleted
+// Trip/Package/Message -- those rows can legitimately be cancelled/deleted
 // later and a report should still stand as history, and validating three
 // different entity types for what's currently just free-text context for a
 // moderator who doesn't exist yet isn't worth it.

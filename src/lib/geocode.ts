@@ -10,7 +10,7 @@ const NOMINATIM_URL = "https://nominatim.openstreetmap.org/search";
 const USER_AGENT = "CampusConnect/1.0 (student ride-share marketplace, contact via app)";
 
 // Resolves a free-text place name (e.g. a City.name, or a write-in
-// Trip/Request.destinationText like "SFO Airport") to real-world
+// Trip/PackagePost.destinationText like "SFO Airport") to real-world
 // coordinates via OpenStreetMap's Nominatim geocoder, backed by
 // GeocodeCache (prisma/schema.prisma) so the same place is never
 // re-resolved twice -- both for our own performance and because Nominatim's
@@ -93,8 +93,6 @@ export async function resolveManyCoordinates(
 
 type CityLike = { name: string; latitude: number | null; longitude: number | null };
 type GeocodablePost = {
-  // Nullable because Request.originCityId is (unlike Trip's, which is
-  // required) -- see the schema comment on Request.originCityId.
   originCity: CityLike | null;
   destinationCity: CityLike | null;
   destinationText: string | null;
@@ -107,15 +105,15 @@ export type PostCoordinates = {
 };
 
 // Resolves origin/destination coordinates for a batch of already-fetched
-// Trip or Request rows in one pass -- used by /explore and Home (both the
-// signed-in feed and the logged-out preview) so the Explore route map
+// Trip or PackagePost rows in one pass -- used by /explore and Home (both
+// the signed-in feed and the logged-out preview) so the Explore route map
 // (RouteMap.tsx) can plot real positions. Every write-in destinationText
 // across the whole batch is deduped and resolved together via
 // resolveManyCoordinates (the one place Nominatim's rate limit actually
 // matters here); a destination or origin backed by a City almost always
 // resolves instantly from City.latitude/longitude (see getCityCoordinates)
 // with no network call at all. Keyed by object identity (the exact row
-// objects passed in), which works cleanly across Trip and Request's
+// objects passed in), which works cleanly across Trip and PackagePost's
 // different shapes without needing a synthetic id.
 export async function resolvePostCoordinates<T extends GeocodablePost>(
   items: T[],

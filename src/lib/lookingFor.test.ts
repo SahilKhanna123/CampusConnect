@@ -17,7 +17,7 @@ describe("isLookingForValue", () => {
 describe("lookingForLabel", () => {
   it("returns the matching label for a known value", () => {
     expect(lookingForLabel("offer_ride")).toBe("Offer a Ride");
-    expect(lookingForLabel("need_delivery")).toBe("Need Delivery");
+    expect(lookingForLabel("offer_package_space")).toBe("Offer Package Space");
   });
 
   it("falls back to echoing the raw value when it isn't recognized", () => {

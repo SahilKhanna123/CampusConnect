@@ -69,37 +69,55 @@ export default async function ConversationPage({
     : false;
 
   return (
-    <div>
+    <div className="chat-page">
       {/* Shown every time a chat is opened, before the thread itself --
           this app has no payment/escrow infrastructure (see CLAUDE.md,
           "No payment fields"), so any money changing hands is strictly an
           in-person, off-platform arrangement between the two riders. */}
       <p className="chat-safety-notice">
-        ⚠️ Safety notice: Handle any payment (gas money, delivery fees, etc.)
-        in person, at the time of the ride or pickup. CampusConnect doesn't
-        process payments and can't help recover money sent to someone here.
+        <span aria-hidden="true">⚠️</span>
+        <span>
+          Handle any payment (gas money, delivery fees, etc.) in person, at
+          the time of the ride or pickup. CampusConnect doesn&apos;t process
+          payments and can&apos;t help recover money sent to someone here.
+        </span>
       </p>
-      <div className="detail-header">
-        <Link href={routeHref} className="detail-route-subtitle">
-          {originName} → {destinationLabel}
-        </Link>
-        <h1 className="heading-tight detail-route-headline">
-          {counterpart?.name ?? "Conversation"}
-        </h1>
-      </div>
-      {counterpart && (
-        <div className="button-row">
-          <ReportButton
-            reportedUserId={counterpart.id}
-            contextType="message"
-            contextId={conversation.id}
-          />
-          <BlockButton
-            blockedUserId={counterpart.id}
-            initialBlocked={initialBlocked}
-          />
+
+      <div className="chat-header">
+        <div className="chat-header-identity">
+          {counterpart?.photoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={counterpart.photoUrl}
+              alt=""
+              className="avatar-circle chat-header-avatar"
+            />
+          ) : (
+            <span className="avatar-circle chat-header-avatar" aria-hidden="true">
+              {(counterpart?.name ?? "?").slice(0, 1).toUpperCase()}
+            </span>
+          )}
+          <div>
+            <h1 className="chat-header-name">{counterpart?.name ?? "Conversation"}</h1>
+            <Link href={routeHref} className="chat-header-route">
+              {originName} → {destinationLabel}
+            </Link>
+          </div>
         </div>
-      )}
+        {counterpart && (
+          <div className="chat-header-actions">
+            <ReportButton
+              reportedUserId={counterpart.id}
+              contextType="message"
+              contextId={conversation.id}
+            />
+            <BlockButton
+              blockedUserId={counterpart.id}
+              initialBlocked={initialBlocked}
+            />
+          </div>
+        )}
+      </div>
 
       {counterpart && (
         <MessageThread

@@ -39,11 +39,8 @@ export async function hasConfirmedSeatOnTrip(
  * N+1 -- used by /explore and Home's per-card counts). Combines both
  * mechanisms that can hold a seat: ConnectionRequest.seatConfirmedAt and
  * SeatOffer.seatConfirmedAt (see the Trip Participants and Seat Offers
- * sections of CLAUDE.md) -- deliberately does NOT include standalone
- * Requests matched via POST /api/requests/[id]/accept, a separate
- * mechanism with its own "Requests You're Fulfilling" section that stays
- * owner-only; this helper is specifically about the public "who's riding"
- * concept the Participants roster already represents.
+ * sections of CLAUDE.md) -- the public "who's riding" concept the
+ * Participants roster already represents.
  */
 export async function getConfirmedRiderCounts(
   tripIds: string[],

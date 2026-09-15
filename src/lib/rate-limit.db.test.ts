@@ -33,7 +33,7 @@ describe("canCreatePost", () => {
     expect(await canCreatePost(owner.id)).toBe(false);
   });
 
-  it("counts a PackagePost toward the same combined cap as Trip/Request", async () => {
+  it("counts a PackagePost toward the same combined cap as Trip", async () => {
     const owner = await createUser();
     const city = await createCity();
 

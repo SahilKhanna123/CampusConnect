@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 // Next.js App Router convention: the app-wide fallback for notFound() calls
-// (e.g. /trips/[id], /requests/[id]) that don't hit a more specific
+// (e.g. /trips/[id], /package-posts/[id]) that don't hit a more specific
 // not-found.tsx of their own, and for any URL that matches no route at all.
 // Renders inside the root layout, so the header/nav still show.
 export default function NotFound() {

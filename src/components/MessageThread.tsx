@@ -215,34 +215,51 @@ export function MessageThread({
   ].sort((a, b) => new Date(a.sortKey).getTime() - new Date(b.sortKey).getTime());
 
   return (
-    <div>
+    <div className="chat-panel">
       <ul className="message-thread">
-        {items.map((item) =>
-          item.kind === "message" ? (
+        {items.map((item) => {
+          if (item.kind === "seatOffer") {
+            return (
+              <SeatOfferBubble
+                key={`seat-offer-${item.offer.id}`}
+                offer={item.offer}
+                currentUserId={currentUserId}
+                isOwner={isOwner}
+                onUpdate={updateSeatOffer}
+              />
+            );
+          }
+          const isSelf = item.message.senderId === currentUserId;
+          return (
             <li
               key={`message-${item.message.id}`}
-              className={
-                item.message.senderId === currentUserId
-                  ? "message-bubble message-bubble-self"
-                  : "message-bubble"
-              }
+              className={isSelf ? "message-row message-row-self" : "message-row"}
             >
-              <div className="message-body">{item.message.body}</div>
-              <div className="message-meta">
-                {item.message.senderId === currentUserId ? "You" : item.message.sender.name} ·{" "}
-                {new Date(item.message.sentAt).toLocaleString()}
+              {!isSelf &&
+                (item.message.sender.photoUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={item.message.sender.photoUrl}
+                    alt=""
+                    className="avatar-circle message-row-avatar"
+                  />
+                ) : (
+                  <span className="avatar-circle message-row-avatar" aria-hidden="true">
+                    {item.message.sender.name.slice(0, 1).toUpperCase()}
+                  </span>
+                ))}
+              <div className={isSelf ? "message-bubble message-bubble-self" : "message-bubble"}>
+                <div className="message-body">{item.message.body}</div>
+                <div className="message-meta">
+                  {new Date(item.message.sentAt).toLocaleTimeString([], {
+                    hour: "numeric",
+                    minute: "2-digit",
+                  })}
+                </div>
               </div>
             </li>
-          ) : (
-            <SeatOfferBubble
-              key={`seat-offer-${item.offer.id}`}
-              offer={item.offer}
-              currentUserId={currentUserId}
-              isOwner={isOwner}
-              onUpdate={updateSeatOffer}
-            />
-          ),
-        )}
+          );
+        })}
       </ul>
 
       {isOwner && canSendNewOffer && (
@@ -256,7 +273,7 @@ export function MessageThread({
             {sendingOffer ? "Sending…" : "Send Seat Request"}
           </button>
           {!seatsAvailable && (
-            <span className="seat-confirmed-badge-none"> No seats remaining</span>
+            <span className="seat-confirmed-badge-none">No seats remaining</span>
           )}
           {offerError && <p role="alert">{offerError}</p>}
         </div>
@@ -268,12 +285,17 @@ export function MessageThread({
           onChange={(e) => setDraft(e.target.value)}
           placeholder="Write a message…"
           maxLength={2000}
+          rows={1}
         />
-        {error && <p role="alert">{error}</p>}
         <button type="submit" disabled={sending || !draft.trim()} className="btn-primary">
           {sending ? "Sending…" : "Send"}
         </button>
       </form>
+      {error && (
+        <p role="alert" className="message-compose-error">
+          {error}
+        </p>
+      )}
     </div>
   );
 }

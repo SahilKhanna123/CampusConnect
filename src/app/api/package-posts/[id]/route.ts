@@ -6,7 +6,7 @@ import { packagePostFieldsSchema } from "@/lib/postSchemas";
 // GET /api/package-posts/:id
 // Requires auth (401 otherwise) and applies the same studentsOnly gate the
 // page route (/package-posts/[id]) already enforces -- same pattern as
-// GET /api/trips/:id and GET /api/requests/:id.
+// GET /api/trips/:id.
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> },
@@ -92,7 +92,6 @@ export async function PATCH(
   await prisma.packagePost.update({
     where: { id },
     data: {
-      kind: data.kind,
       originCityId: data.originCityId,
       destinationCityId: data.destinationCityId ?? null,
       destinationText: data.destinationText ?? null,
