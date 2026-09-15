@@ -61,7 +61,7 @@ export default async function AcceptFamilyInvitePage({
   }
 
   // Derived, never persisted from here -- same "compute at read time"
-  // convention as tripDisplayStatus/requestDisplayStatus in postStatus.ts.
+  // convention as tripDisplayStatus in postStatus.ts.
   // POST /api/family/invite/accept is what actually flips status to
   // "expired" in the DB, the first time someone tries to accept past
   // expiresAt -- this page just needs to show the right thing meanwhile.

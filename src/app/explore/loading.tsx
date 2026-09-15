@@ -4,5 +4,5 @@ import { PageLoading } from "@/components/PageLoading";
 // async Server Component work (Prisma queries) is in flight, on both the
 // first load and a filter-form navigation.
 export default function ExploreLoading() {
-  return <PageLoading title="Explore" message="Loading trips and ride requests…" />;
+  return <PageLoading title="Explore" message="Loading trips…" />;
 }

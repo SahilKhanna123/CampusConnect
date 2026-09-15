@@ -62,18 +62,6 @@ export function notificationLink(notification: {
     // visible right there on /trips/[id] (see the trip detail page).
     case "trip_seat_confirmed":
       return `/trips/${notification.relatedId}`;
-    // Both carry the Request's own id as relatedId -- deliberately NOT the
-    // same case as trip_cancelled above, since that one's relatedId is
-    // always a ConnectionRequest.id and this function has no way to tell
-    // the two apart if they shared a case.
-    case "request_accepted":
-    case "request_trip_cancelled":
-      return `/requests/${notification.relatedId}`;
-    // Same destination as the two cases above (relatedId is the Request's
-    // own id) -- kept as its own NotificationType anyway since it's a
-    // semantically different event, not a reuse for reuse's sake.
-    case "review_received":
-      return `/requests/${notification.relatedId}`;
     // No relatedId (there's no per-link page to deep-link to yet) -- the
     // parent's own /profile "Linked Students" section already shows
     // current status for every link they have.

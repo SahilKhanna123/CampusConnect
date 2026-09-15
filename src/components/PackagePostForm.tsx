@@ -4,10 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 type CityGroup = { regionName: string; cities: { id: string; name: string }[] };
-type PackagePostKind = "offering_space" | "needing_delivery";
 
 export type PackagePostFormValues = {
-  kind: PackagePostKind;
   originCityId: string;
   destinationCityId: string;
   destinationText: string;
@@ -19,15 +17,15 @@ export type PackagePostFormValues = {
 };
 
 // Sentinel <option> value that switches the "To" field from a City picker
-// to a free-text input -- same convention as TripPostForm/RequestPostForm.
+// to a free-text input -- same convention as TripPostForm.
 const WRITE_IN_DESTINATION = "__write_in__";
 
-// Create or edit a PackagePost. Edit mode is triggered by passing
-// packagePostId -- same form, PATCH instead of POST. Deliberately minimal
-// per product decision: no structured description/size fields, no
-// seat/capacity concept -- just route + rough timing. Anything more
-// specific than the short optional `notes` field is meant to happen in a
-// DM (see PackageMessageForm.tsx), not a form field.
+// Create or edit a PackagePost ("I have package space on my route"). Edit
+// mode is triggered by passing packagePostId -- same form, PATCH instead of
+// POST. Deliberately minimal per product decision: no structured
+// description/size fields, no seat/capacity concept -- just route + rough
+// timing. Anything more specific than the short optional `notes` field is
+// meant to happen in a DM (see PackageMessageForm.tsx), not a form field.
 export function PackagePostForm({
   citiesByRegion,
   packagePostId,
@@ -40,9 +38,6 @@ export function PackagePostForm({
   isStudent: boolean;
 }) {
   const router = useRouter();
-  const [kind, setKind] = useState<PackagePostKind>(
-    initialValues?.kind ?? "offering_space",
-  );
   const [originCityId, setOriginCityId] = useState(
     initialValues?.originCityId ?? "",
   );
@@ -75,7 +70,6 @@ export function PackagePostForm({
         method: packagePostId ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          kind,
           originCityId,
           destinationCityId:
             destinationCityId === WRITE_IN_DESTINATION ? undefined : destinationCityId,
@@ -108,29 +102,6 @@ export function PackagePostForm({
 
   return (
     <form onSubmit={handleSubmit} className="app-form">
-      <fieldset>
-        <legend>What do you need?</legend>
-        <label>
-          <input
-            type="radio"
-            name="kind"
-            checked={kind === "offering_space"}
-            onChange={() => setKind("offering_space")}
-          />
-          {" "}
-          I have package space
-        </label>
-        <label style={{ marginLeft: "1rem" }}>
-          <input
-            type="radio"
-            name="kind"
-            checked={kind === "needing_delivery"}
-            onChange={() => setKind("needing_delivery")}
-          />
-          {" "}
-          I need something delivered
-        </label>
-      </fieldset>
       <div>
         <label htmlFor="originCityId">From</label>
         <select

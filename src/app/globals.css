@@ -1688,34 +1688,18 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
 
 /* Post hub */
 
-.post-hub-groups {
-  display: flex;
-  gap: 2rem;
-  margin-top: 1.5rem;
-  flex-wrap: wrap;
-}
-
-.post-hub-panel {
-  flex: 1;
-  min-width: 220px;
-}
-
 .post-hub-panel-title {
   font-size: 0.9375rem;
   font-weight: 700;
   margin: 0 0 0.75rem;
 }
 
-.post-hub-divider {
-  width: 1px;
-  background: var(--color-border);
-  align-self: stretch;
-}
-
 .post-hub-tiles {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+  margin-top: 1.5rem;
+  max-width: 420px;
 }
 
 .post-hub-tile {
@@ -1738,7 +1722,7 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   transform: translateY(-2px);
 }
 
-/* Visual-prominence weighting for the /post hub -- all 6 actions are
+/* Visual-prominence weighting for the /post hub -- all 3 actions are
    equally functional, only their visual size/emphasis differs (per product
    decision: package delivery featured, Uber-sharing secondary, driving-
    your-own-car smallest). See POST_ACTIONS in src/app/post/page.tsx. */
@@ -1758,16 +1742,6 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
 
 .post-hub-footer {
   margin-top: 1.5rem;
-}
-
-@media (max-width: 640px) {
-  .post-hub-groups {
-    flex-direction: column;
-  }
-
-  .post-hub-divider {
-    display: none;
-  }
 }
 
 /* ---- Redesign: shared primitives (Round 2 -- list/form pages) ---- */
@@ -1887,7 +1861,7 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
 }
 
 /* Forms -- applied via className="app-form" on a bare <form> so every
-   create/edit/auth form in the app (TripPostForm, RequestPostForm,
+   create/edit/auth form in the app (TripPostForm, PackagePostForm,
    ProfileEditForm, login, sign-up, verify, InviteParentForm,
    ConnectStudentClient, ...) gets consistent field/button styling without
    having to hand-edit every individual label/input pair. Deliberately

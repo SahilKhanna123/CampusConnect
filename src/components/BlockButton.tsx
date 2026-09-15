@@ -3,7 +3,7 @@
 import { useState } from "react";
 
 // Shared "Block user" control, mounted alongside ReportButton from the same
-// four places (/profile/[userId], /trips/[id], /requests/[id],
+// four places (/profile/[userId], /trips/[id], /package-posts/[id],
 // /messages/[id]) -- each server component computes `initialBlocked` via
 // isBlockedBetween (src/lib/blocks.ts) so this renders in the right state
 // (Block vs. Unblock) without a client-side fetch. Unlike ReportButton,

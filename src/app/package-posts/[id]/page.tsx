@@ -10,11 +10,11 @@ import { ReportButton } from "@/components/ReportButton";
 import { BlockButton } from "@/components/BlockButton";
 import { isBlockedBetween } from "@/lib/blocks";
 
-// PackagePost detail -- mirrors the shape of /trips/[id] and /requests/[id]
-// (public preview for a logged-out visitor, studentsOnly 404 gate, owner
-// actions, Report/Block) but with none of the seat/connection machinery --
-// the only interaction here is PackageMessageForm, since there's no formal
-// accept handshake for a package post at all (per product decision).
+// PackagePost detail -- mirrors the shape of /trips/[id] (public preview
+// for a logged-out visitor, studentsOnly 404 gate, owner actions,
+// Report/Block) but with none of the seat/connection machinery -- the only
+// interaction here is PackageMessageForm, since there's no formal accept
+// handshake for a package post at all (per product decision).
 export default async function PackagePostDetailPage({
   params,
 }: {
@@ -56,9 +56,7 @@ export default async function PackagePostDetailPage({
     <div>
       <div className="detail-header">
         {found.studentsOnly && <span className="badge-students-only">🎓 Students only</span>}
-        <span className="eyebrow">
-          {found.kind === "offering_space" ? "Package space offered" : "Delivery needed"}
-        </span>
+        <span className="eyebrow">Package space offered</span>
         <h1 className="heading-tight detail-route-headline">
           {found.originCity.name} → {destinationLabel}
         </h1>

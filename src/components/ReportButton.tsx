@@ -12,7 +12,7 @@ const REPORT_REASON_OPTIONS = [
 ] as const;
 
 // Shared "Report user" control mounted from /profile/[userId], /trips/[id],
-// /requests/[id], and /messages/[id] -- each page passes a different
+// /package-posts/[id], and /messages/[id] -- each page passes a different
 // contextType/contextId pair (see POST /api/reports). Same reveal-on-click
 // composer shape as ConnectionRequestButton, but no confirm() dialog:
 // submitting isn't destructive to the reporter and has zero automated
@@ -27,7 +27,7 @@ export function ReportButton({
   contextId,
 }: {
   reportedUserId: string;
-  contextType?: "trip" | "request" | "package" | "message" | "profile";
+  contextType?: "trip" | "package" | "message" | "profile";
   contextId?: string;
 }) {
   const [phase, setPhase] = useState<"idle" | "composing" | "submitted">("idle");

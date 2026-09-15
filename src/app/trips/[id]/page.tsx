@@ -12,7 +12,6 @@ import { PosterBadge } from "@/components/ExploreCard";
 import { ReportButton } from "@/components/ReportButton";
 import { BlockButton } from "@/components/BlockButton";
 import { isBlockedBetween } from "@/lib/blocks";
-import { MarkRequestCompleteButton } from "@/components/MarkRequestCompleteButton";
 
 export default async function TripDetailPage({
   params,
@@ -55,7 +54,7 @@ export default async function TripDetailPage({
   // 404 rather than a "not allowed" message, matching this app's existing
   // don't-leak-existence idiom for private content (e.g. a Conversation a
   // non-participant hits directly). See the schema comment on
-  // Request.studentsOnly for the full enforcement list. An anonymous
+  // Trip.studentsOnly for the full enforcement list. An anonymous
   // visitor is treated the same as any other non-student.
   if (trip.studentsOnly && !isOwner && !(user && hasStudentRecord(user))) {
     notFound();
@@ -176,33 +175,6 @@ export default async function TripDetailPage({
   // in-progress management detail, not a public fact about the trip).
   const confirmedRiders = participantRows.filter((row) => row.seatConfirmedAt);
 
-  // Owner-only: standalone Requests this trip has been matched to via POST
-  // /api/requests/[id]/accept -- a separate mechanism from ConnectionRequest
-  // (the Participants section above), but drawing from the same
-  // seatsRemaining pool, so it's shown here for the same "relevant trip
-  // information" reason. Both accepted and completed are shown (history
-  // stays visible), same pattern as Participants/ConfirmSeatButton.
-  const fulfillingRequests = isOwner
-    ? await prisma.request.findMany({
-        where: { tripId: trip.id, status: { in: ["accepted", "completed"] } },
-        include: {
-          postedBy: {
-            select: {
-              id: true,
-              name: true,
-              photoUrl: true,
-              signedUpAsParent: true,
-              verifications: {
-                where: { status: "verified" },
-                select: { type: true, status: true },
-              },
-            },
-          },
-        },
-        orderBy: { respondedAt: "asc" },
-      })
-    : [];
-
   return (
     <div>
       <div className="detail-header">
@@ -320,30 +292,6 @@ export default async function TripDetailPage({
             {confirmedRiders.map((row) => (
               <div key={`${row.kind}-${row.id}`} className="trip-participant-row">
                 <PosterBadge poster={row.poster} />
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {isOwner && fulfillingRequests.length > 0 && (
-        <section className="profile-section">
-          <h2 className="profile-section-title">Requests You&apos;re Fulfilling</h2>
-          <div className="trip-participant-list">
-            {fulfillingRequests.map((r) => (
-              <div key={r.id} className="trip-participant-row">
-                <Link href={`/requests/${r.id}`} className="plain-link">
-                  <PosterBadge poster={r.postedBy} />
-                </Link>
-                <span>
-                  {r.category === "uber_share" ? "Uber-share" : "Ride"},{" "}
-                  {r.seatsRequested ?? 1} seat(s)
-                </span>
-                {r.status === "accepted" ? (
-                  <MarkRequestCompleteButton requestId={r.id} />
-                ) : (
-                  <span className="seat-confirmed-badge-none">Completed</span>
-                )}
               </div>
             ))}
           </div>

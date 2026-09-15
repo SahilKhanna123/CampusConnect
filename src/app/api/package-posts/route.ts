@@ -4,10 +4,10 @@ import { getCurrentUser, hasStudentRecord } from "@/lib/auth";
 import { canCreatePost } from "@/lib/rate-limit";
 import { packagePostFieldsSchema } from "@/lib/postSchemas";
 
-// GET /api/package-posts?originCityId=&destinationCityId=&kind=
+// GET /api/package-posts?originCityId=&destinationCityId=
 // Filtered browse of still-open PackagePosts. Requires auth (401 otherwise)
 // and applies the same studentsOnly filter Explore/Home use, same pattern
-// as GET /api/trips and GET /api/requests.
+// as GET /api/trips.
 export async function GET(request: Request) {
   const user = await getCurrentUser();
   if (!user) {
@@ -17,7 +17,6 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const originCityId = searchParams.get("originCityId") ?? undefined;
   const destinationCityId = searchParams.get("destinationCityId") ?? undefined;
-  const kind = searchParams.get("kind");
   const studentsOnlyFilter = hasStudentRecord(user) ? {} : { studentsOnly: false };
 
   const packagePosts = await prisma.packagePost.findMany({
@@ -26,7 +25,6 @@ export async function GET(request: Request) {
       ...studentsOnlyFilter,
       ...(originCityId ? { originCityId } : {}),
       ...(destinationCityId ? { destinationCityId } : {}),
-      ...(kind === "offering_space" || kind === "needing_delivery" ? { kind } : {}),
     },
     include: {
       originCity: true,
@@ -84,7 +82,6 @@ export async function POST(request: Request) {
 
   const created = await prisma.packagePost.create({
     data: {
-      kind: data.kind,
       postedById: user.id,
       originCityId: data.originCityId,
       destinationCityId: data.destinationCityId ?? null,

@@ -13,7 +13,7 @@ import type { ExploreCardPost } from "@/components/ExploreCard";
 // this far already has real coordinates resolved server-side (see
 // src/app/explore/page.tsx and src/app/page.tsx): a City's own
 // City.latitude/longitude when backfilled, or a Nominatim geocode-and-cache
-// lookup otherwise (covers a write-in Trip/Request.destinationText too, e.g.
+// lookup otherwise (covers a write-in Trip.destinationText too, e.g.
 // "SFO Airport"). A post whose origin or destination couldn't be resolved
 // (Nominatim found nothing, or the network call failed) is simply not
 // plotted -- omitted, not guessed, same precedent this app uses elsewhere

@@ -2,20 +2,17 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { requestDisplayStatus, tripDisplayStatus } from "@/lib/postStatus";
+import { tripDisplayStatus } from "@/lib/postStatus";
 import { DeletePostButton } from "@/components/DeletePostButton";
 import { MarkTripCompleteButton } from "@/components/MarkTripCompleteButton";
-import { MarkRequestCompleteButton } from "@/components/MarkRequestCompleteButton";
 import { MarkPackagePostCompleteButton } from "@/components/MarkPackagePostCompleteButton";
 
-// Lists the current user's own Trip (offer) and Request (need) posts --
-// travelerId / postedById are the ownership fields the API routes enforce
-// too (see src/app/api/{trips,requests}/[id]/route.ts).
+// Lists the current user's own Trip and PackagePost posts -- travelerId /
+// postedById are the ownership fields the API routes enforce too (see
+// src/app/api/{trips,package-posts}/[id]/route.ts).
 //
-// Requests keep the original purely-date-based Upcoming/History split
-// (Request has no owner-driven "mark completed" step yet -- see CLAUDE.md,
-// requests/[id]/complete is still a stub). Trips now bucket by
-// tripDisplayStatus instead: a cancelled-but-future-dated trip used to sit
+// Trips bucket by tripDisplayStatus: a cancelled-but-future-dated trip used
+// to sit
 // under Upcoming with just a "(cancelled)" label, which is exactly the
 // muddled experience the Trip Management feature was asked to fix -- a
 // trip only counts as Upcoming while it's actually actionable
@@ -34,16 +31,11 @@ export default async function MyPostsPage({
   const { tab } = await searchParams;
   const activeTab = tab === "history" ? "history" : "upcoming";
 
-  const [trips, requests, packagePosts] = await Promise.all([
+  const [trips, packagePosts] = await Promise.all([
     prisma.trip.findMany({
       where: { travelerId: user.id },
       include: { originCity: true, destinationCity: true },
       orderBy: { departureDate: "desc" },
-    }),
-    prisma.request.findMany({
-      where: { postedById: user.id },
-      include: { originCity: true, destinationCity: true },
-      orderBy: { createdAt: "desc" },
     }),
     prisma.packagePost.findMany({
       where: { postedById: user.id },
@@ -72,19 +64,10 @@ export default async function MyPostsPage({
     countsByTrip.set(c.tripId, entry);
   }
 
-  const now = new Date();
   const upcomingTrips = trips.filter((t) => tripDisplayStatus(t) === "upcoming");
   const completedTrips = trips.filter((t) => tripDisplayStatus(t) === "completed");
   const cancelledTrips = trips.filter((t) => tripDisplayStatus(t) === "cancelled");
   const expiredTrips = trips.filter((t) => tripDisplayStatus(t) === "expired");
-
-  const pastRequests = requests.filter(
-    (r) => r.neededDate !== null && r.neededDate < now
-  );
-  const upcomingRequests = requests.filter(
-    (r) => r.neededDate === null || r.neededDate >= now
-  );
-  const shownRequests = activeTab === "history" ? pastRequests : upcomingRequests;
 
   const openPackagePosts = packagePosts.filter((p) => p.status === "open");
   const closedPackagePosts = packagePosts.filter((p) => p.status !== "open");
@@ -143,7 +126,7 @@ export default async function MyPostsPage({
       <div className="page-header">
         <div>
           <span className="eyebrow">My Posts</span>
-          <h1 className="heading-tight">Your trips &amp; requests</h1>
+          <h1 className="heading-tight">Your trips &amp; posts</h1>
         </div>
         <div className="page-header-actions">
           <Link href="/post" className="btn-primary">
@@ -212,42 +195,6 @@ export default async function MyPostsPage({
       </div>
 
       <div className="list-section">
-        <h2 className="list-section-title">Your Requests</h2>
-        {shownRequests.length === 0 ? (
-          <p>
-            {activeTab === "history"
-              ? "No past requests."
-              : "No upcoming requests posted yet."}
-          </p>
-        ) : (
-          shownRequests.map((r) => (
-            <div key={r.id} className="list-card">
-              <div className="list-card-top">
-                <Link href={`/requests/${r.id}`} className="list-card-title">
-                  {r.studentsOnly && "🎓 "}
-                  {r.category === "uber_share" ? "Uber-share" : "Ride"}:{" "}
-                  {r.originCity?.name ?? "?"} → {r.destinationCity?.name ?? r.destinationText ?? "?"}
-                </Link>
-                <span
-                  className={`connection-status-label connection-status-label-${requestDisplayStatus(r)}`}
-                >
-                  {requestDisplayStatus(r)}
-                </span>
-              </div>
-              {r.neededDate && (
-                <div className="list-card-meta">{r.neededDate.toLocaleDateString()}</div>
-              )}
-              {r.status === "accepted" && (
-                <div className="list-card-actions">
-                  <MarkRequestCompleteButton requestId={r.id} />
-                </div>
-              )}
-            </div>
-          ))
-        )}
-      </div>
-
-      <div className="list-section">
         <h2 className="list-section-title">Package Posts</h2>
         {shownPackagePosts.length === 0 ? (
           <p>
@@ -261,8 +208,7 @@ export default async function MyPostsPage({
               <div className="list-card-top">
                 <Link href={`/package-posts/${p.id}`} className="list-card-title">
                   {p.studentsOnly && "🎓 "}
-                  {p.kind === "offering_space" ? "Offering space" : "Need delivery"}:{" "}
-                  {p.originCity.name} → {p.destinationCity?.name ?? p.destinationText}
+                  📦 {p.originCity.name} → {p.destinationCity?.name ?? p.destinationText}
                 </Link>
                 <span className={`trip-status-label trip-status-label-${p.status}`}>
                   {p.status}

@@ -39,21 +39,6 @@ describe("notificationLink", () => {
     );
   });
 
-  it("routes request_accepted and request_trip_cancelled to the request detail page", () => {
-    expect(
-      notificationLink({ type: "request_accepted", relatedId: "req-1" }),
-    ).toBe("/requests/req-1");
-    expect(
-      notificationLink({ type: "request_trip_cancelled", relatedId: "req-2" }),
-    ).toBe("/requests/req-2");
-  });
-
-  it("routes review_received to the request detail page", () => {
-    expect(notificationLink({ type: "review_received", relatedId: "req-3" })).toBe(
-      "/requests/req-3",
-    );
-  });
-
   it("routes parent_link_approved to /profile regardless of relatedId", () => {
     expect(notificationLink({ type: "parent_link_approved", relatedId: null })).toBe(
       "/profile",

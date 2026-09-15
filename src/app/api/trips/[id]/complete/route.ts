@@ -3,10 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 
 // POST /api/trips/:id/complete
-// Owner-only, only reachable from "upcoming". A distinct, simpler thing
-// from the still-unimplemented POST /api/requests/[id]/complete stub --
-// that one is the Request/Trip MATCHING lifecycle's completion step (gated
-// on both participants, unbuilt); this is just the trip owner declaring
+// Owner-only, only reachable from "upcoming" -- the trip owner declaring
 // their own Trip done, no counterpart negotiation involved. Existing
 // ConnectionRequest rows (pending or accepted) are left untouched -- unlike
 // cancel, completing a trip doesn't invalidate anything, per product

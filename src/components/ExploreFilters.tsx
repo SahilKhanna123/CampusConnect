@@ -23,14 +23,12 @@ export function ExploreFilters({
   originCityId,
   destinationCityId,
   date,
-  kind,
   hasActiveFilter,
 }: {
   citiesByRegion: CityGroup[];
   originCityId?: string;
   destinationCityId?: string;
   date?: string;
-  kind?: string;
   hasActiveFilter: boolean;
 }) {
   const router = useRouter();
@@ -59,7 +57,7 @@ export function ExploreFilters({
   // forces React to remount it (and every field inside) fresh whenever
   // they change for any reason, which is what actually resets the visible
   // selections back to the new defaultValue.
-  const formKey = `${originCityId ?? ""}-${destinationCityId ?? ""}-${date ?? ""}-${kind ?? ""}`;
+  const formKey = `${originCityId ?? ""}-${destinationCityId ?? ""}-${date ?? ""}`;
 
   return (
     <form key={formKey} method="get" className="explore-filters" onChange={handleChange}>
@@ -100,14 +98,6 @@ export function ExploreFilters({
       <div>
         <label htmlFor="date">Date</label>
         <input id="date" type="date" name="date" defaultValue={date ?? ""} />
-      </div>
-      <div>
-        <label htmlFor="kind">Type</label>
-        <select id="kind" name="kind" defaultValue={kind ?? ""}>
-          <option value="">Offers &amp; requests</option>
-          <option value="offer">Offering a ride</option>
-          <option value="request">Needs a ride</option>
-        </select>
       </div>
       {hasActiveFilter && (
         <div>

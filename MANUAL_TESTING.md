@@ -11,6 +11,33 @@ functions — see the Automated Tests section of CLAUDE.md. Everything else
 automated coverage yet, so this file remains the actual test coverage for
 those.
 
+## Remove Standalone Request ("Need") Flow + Reviews (2026-09-15)
+
+Product decision: the standalone "Need a Ride"/"Need to Split an Uber"/"Need
+Something Delivered" posting flow was "essentially not useful... and
+over-complicates it" — removed entirely, along with the `Request` and
+`Review` models (Review depended on a completed Request with no Trip-based
+alternative, so it had no way to survive Request's removal). Only offering
+a ride/split/package space remains. This obsoletes the "Reviews" and
+"Request/Trip Matching Lifecycle" sections further down this file — see the
+**REMOVED** note on each.
+
+- [ ] `/post` shows exactly 3 tiles, no "Offer"/"Need" column split: "Offer
+      Package Space" (large/primary), "Split an Uber/Lyft" (medium), "Offer
+      a Ride (my car)" (small).
+- [ ] `/explore` shows only Trip offers — no Type filter, no ride Requests
+      mixed in. Package posts still aren't browsable here (unchanged, a
+      pre-existing gap, not new).
+- [ ] `/my-posts` has no "Your Requests" section; Package Posts section no
+      longer shows an "Offering space"/"Need delivery" label per row.
+- [ ] A Trip's detail page has no "Requests You're Fulfilling" section for
+      the owner, and no Review UI in a `completed` state.
+- [ ] Creating a package post (`/post/package`) has no kind picker — it's
+      always an offer.
+- [ ] Visiting `/post/request`, `/requests/[id]`, or `/api/reviews`
+      directly 404s / has no route.
+- [ ] `npm run build` and `npm test` both pass.
+
 ## UI Focus Reweighting: 50% package / 30% Uber-share / 10% rides (2026-09-10)
 
 Product decision: visual prominence across the 3 post categories should
@@ -760,6 +787,10 @@ Found by a security audit (three parallel code-reading passes over authorization
 
 ## Reviews (2026-08-27)
 
+**REMOVED (2026-09-15)**: the `Review` model and this whole feature were
+deleted along with the standalone `Request` model below — nothing in this
+section applies anymore. Kept as historical record only.
+
 - [ ] Continuing from a completed Request... `/requests/[id]` shows a
       rating `<select>`... — not independently verified (UI form check;
       the underlying create/duplicate/validation logic is verified below).
@@ -803,6 +834,10 @@ Found by a security audit (three parallel code-reading passes over authorization
       (Parent Link Approval section) showed no review-related content.
 
 ## Request/Trip Matching Lifecycle (2026-08-26)
+
+**REMOVED (2026-09-15)**: the standalone `Request` model and this whole
+feature were deleted per direct product decision — nothing in this section
+applies anymore. Kept as historical record only.
 
 - [x] As User A, post a standalone ride Request needing 2 seats... Confirm
       it shows `status: pending`... — **Verified earlier this session**
@@ -851,6 +886,10 @@ Found by a security audit (three parallel code-reading passes over authorization
       (would need a fresh same-user request+trip pair).
 
 ## Request/Trip Matching Lifecycle (2026-08-26)
+
+**REMOVED (2026-09-15)**: the standalone `Request` model and this whole
+feature were deleted per direct product decision — nothing in this section
+applies anymore. Kept as historical record only.
 
 - [ ] As User A, post a standalone ride Request needing 2 seats
       (`/post/request`). Confirm it shows `status: pending` on `/requests/[id]`

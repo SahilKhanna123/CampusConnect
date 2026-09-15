@@ -15,11 +15,7 @@ const RouteMap = dynamic(
 // Client wrapper around the results grid + real route map on /explore. The
 // page itself stays a server component (data-fetching and the filter <form>
 // are unchanged, plain server-rendered GET navigation) -- this only owns the
-// hover-linking state between a trip/request card and its route on the map.
-// Keyed on the same `${kind}-${id}` composite already used everywhere else
-// in this codebase (JSX keys, connectionStatusByTripId), not a bare post id
-// -- a Trip and a Request live in separate id spaces and could otherwise
-// collide and cross-highlight.
+// hover-linking state between a trip card and its route on the map.
 export function ExploreMapView({
   posts,
   isLoggedIn,
@@ -32,7 +28,7 @@ export function ExploreMapView({
   if (posts.length === 0) {
     return (
       <div className="explore-panel">
-        <p>No trips or ride requests match your filters right now.</p>
+        <p>No trips match your filters right now.</p>
       </div>
     );
   }

@@ -8,14 +8,13 @@ export type Poster = {
   signedUpAsParent: boolean;
   verifications: { type: string; status: string }[];
   // Real-data enrichment for the card's stats line (university/year,
-  // average rating, completed-trip count) -- all optional/undefined
-  // wherever a caller (e.g. /connections' own PosterBadge reuse) hasn't
-  // computed them, in which case that piece is simply omitted from the
-  // line rather than showing a placeholder. Populated by /explore's own
-  // batched queries -- see resolvePosterStats in src/app/explore/page.tsx.
+  // completed-trip count) -- all optional/undefined wherever a caller
+  // (e.g. /connections' own PosterBadge reuse) hasn't computed them, in
+  // which case that piece is simply omitted from the line rather than
+  // showing a placeholder. Populated by /explore's own batched queries --
+  // see resolvePosterStats in src/app/explore/page.tsx.
   year?: string | null;
   universityName?: string | null;
-  averageRating?: number | null;
   completedTripCount?: number;
 };
 
@@ -114,19 +113,6 @@ export function PosterBadge({ poster }: { poster: Poster }) {
               <span>{schoolYear}</span>
             </>
           )}
-          {poster.averageRating != null && (
-            <>
-              <span className="explore-card-poster-role-sep" aria-hidden="true">
-                ·
-              </span>
-              <span className="explore-card-poster-stat">
-                <svg width="9" height="9" viewBox="0 0 9 9" fill="currentColor" opacity="0.5" aria-hidden="true">
-                  <path d="M4.5 1l1.1 2.3 2.5.4-1.8 1.7.4 2.5L4.5 6.8 2.3 7.9l.4-2.5L1 3.7l2.5-.4L4.5 1z" />
-                </svg>
-                {poster.averageRating.toFixed(1)}
-              </span>
-            </>
-          )}
           {!!poster.completedTripCount && (
             <>
               <span className="explore-card-poster-role-sep" aria-hidden="true">
@@ -154,16 +140,12 @@ function formatCardDate(date: Date | null): string {
 }
 
 // The top-right seats badge -- always the same neutral gray, matching the
-// reference exactly: an offer with only one seat left doesn't turn the
-// badge amber, it appends " · Last seat" onto the date/time line instead
-// (see .explore-card-last-seat below), same place the reference puts that
-// urgency signal. Offer-vs-request reads through wording alone here.
+// reference exactly: a post with only one seat left doesn't turn the badge
+// amber, it appends " · Last seat" onto the date/time line instead (see
+// .explore-card-last-seat below).
 function seatsBadgeText(post: ExploreCardPost): string {
-  if (post.kind === "offer") {
-    if (post.seatsRemaining <= 0) return "Full";
-    return `${post.seatsRemaining} seat${post.seatsRemaining === 1 ? "" : "s"} left`;
-  }
-  return `${post.seatsRequested} seat${post.seatsRequested === 1 ? "" : "s"} needed`;
+  if (post.seatsRemaining <= 0) return "Full";
+  return `${post.seatsRemaining} seat${post.seatsRemaining === 1 ? "" : "s"} left`;
 }
 
 // The reference design's small chevron-arrow icon between the two city
@@ -221,9 +203,7 @@ export type TripCardPost = {
   poster: Poster;
   // The viewer's own latest ConnectionRequest status for this Trip ("none"
   // if they've never requested, or a fresh request is allowed again after
-  // a decline/cancel -- see the ConnectionRequest schema comment). Only
-  // ever set for offer posts -- a Request has no "trip owner" to connect
-  // with in this feature's scope.
+  // a decline/cancel -- see the ConnectionRequest schema comment).
   connectionRequestStatus: ConnectionStatus;
   // How many people have a confirmed seat on this trip (ConnectionRequest
   // + SeatOffer, see getConfirmedRiderCounts in src/lib/tripParticipants.ts)
@@ -231,7 +211,7 @@ export type TripCardPost = {
   // clicking through to /trips/[id]'s own public Riders roster, per product
   // decision. Optional/undefined wherever a caller hasn't computed it.
   confirmedRiderCount?: number;
-  // See the schema comment on Request.studentsOnly -- this card only ever
+  // See the schema comment on Trip.studentsOnly -- this card only ever
   // renders for a viewer who's actually allowed to see it (the query that
   // builds this post already excludes it otherwise), so this is purely a
   // "🎓 Students only" label, not an access check.
@@ -244,36 +224,14 @@ export type TripCardPost = {
   note?: string | null;
 };
 
-export type RequestCardPost = {
-  kind: "request";
-  id: string;
-  originName: string;
-  destinationName: string;
-  originRegionName?: string | null;
-  destinationRegionName?: string | null;
-  originLat?: number | null;
-  originLng?: number | null;
-  destinationLat?: number | null;
-  destinationLng?: number | null;
-  date: Date | null;
-  time: string | null;
-  flexibleTime: boolean;
-  seatsRequested: number;
-  poster: Poster;
-  studentsOnly: boolean;
-  // Request.notes -- same treatment as TripCardPost.note above.
-  note?: string | null;
-};
+export type ExploreCardPost = TripCardPost;
 
-export type ExploreCardPost = TripCardPost | RequestCardPost;
-
-// One card renders either a Trip (offer) or a standalone Request (need) --
-// used by the Explore page's grid. Clicking the card body opens the same
-// detail page My Posts already links to (/trips/[id], /requests/[id]). The
-// card is a <div> wrapping an inner <Link> (not a <Link> itself) so an
-// offer card's ConnectionRequestButton can sit as a sibling, not nested
-// inside the anchor -- HTML disallows interactive content (a <button>)
-// inside an <a>, and nesting them would also make clicks ambiguous.
+// Renders a Trip offer -- used by the Explore page's grid. Clicking the
+// card body opens /trips/[id]. The card is a <div> wrapping an inner <Link>
+// (not a <Link> itself) so the card's ConnectionRequestButton can sit as a
+// sibling, not nested inside the anchor -- HTML disallows interactive
+// content (a <button>) inside an <a>, and nesting them would also make
+// clicks ambiguous.
 export function ExploreCard({
   post,
   isLoggedIn = true,
@@ -285,8 +243,8 @@ export function ExploreCard({
   // logged-out public-preview visitors.
   isLoggedIn?: boolean;
 }) {
-  const href = post.kind === "offer" ? `/trips/${post.id}` : `/requests/${post.id}`;
-  const isLastSeat = post.kind === "offer" && post.seatsRemaining === 1;
+  const href = `/trips/${post.id}`;
+  const isLastSeat = post.seatsRemaining === 1;
 
   return (
     <div className="explore-card">
@@ -304,9 +262,7 @@ export function ExploreCard({
           <div className="explore-card-students-only">🎓 Students only</div>
         )}
 
-        {post.kind === "offer" && post.title && (
-          <div className="explore-card-title">{post.title}</div>
-        )}
+        {post.title && <div className="explore-card-title">{post.title}</div>}
 
         {(post.originRegionName || post.destinationRegionName) && (
           <div className="explore-card-route-subtitle">
@@ -324,7 +280,7 @@ export function ExploreCard({
           {isLastSeat && <span className="explore-card-last-seat"> · Last seat</span>}
         </div>
 
-        {post.kind === "offer" && !!post.confirmedRiderCount && (
+        {!!post.confirmedRiderCount && (
           <div className="explore-card-riders">
             🎫 {post.confirmedRiderCount} confirmed rider
             {post.confirmedRiderCount === 1 ? "" : "s"}
@@ -337,29 +293,17 @@ export function ExploreCard({
       <div className="explore-card-footer">
         <PosterBadge poster={post.poster} />
         <div className="explore-card-actions">
-          {post.kind === "offer" ? (
-            isLoggedIn ? (
-              <ConnectionRequestButton
-                tripId={post.id}
-                initialStatus={post.connectionRequestStatus}
-              />
-            ) : (
-              // Same label as the real button, but a plain link to sign-up
-              // -- clicking it takes a logged-out visitor straight there
-              // rather than opening the note composer, per product
-              // decision.
-              <Link href="/sign-up" className="connection-request-button btn-primary">
-                Request to Connect
-              </Link>
-            )
+          {isLoggedIn ? (
+            <ConnectionRequestButton
+              tripId={post.id}
+              initialStatus={post.connectionRequestStatus}
+            />
           ) : (
-            // A standalone Request has no trip-owner action to take from
-            // this card (fulfilling one happens via FulfillRequestForm on
-            // /requests/[id] itself) -- this plain link just fills the same
-            // footer slot the mockup's "View trip" button occupies, for
-            // visual consistency with offer cards.
-            <Link href={href} className="btn-secondary">
-              View request
+            // Same label as the real button, but a plain link to sign-up --
+            // clicking it takes a logged-out visitor straight there rather
+            // than opening the note composer, per product decision.
+            <Link href="/sign-up" className="connection-request-button btn-primary">
+              Request to Connect
             </Link>
           )}
         </div>

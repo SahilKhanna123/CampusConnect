@@ -1,6 +1,6 @@
 // CampusConnect database schema.
 // Mirrors the approved architecture plan at C:\Users\sahil\.claude\plans\i-am-building-a-wise-sutton.md
-// Do not "simplify" the nullable Request.tripId, the composable VerificationRecord.type,
+// Do not "simplify" the composable VerificationRecord.type,
 // the StudentRecord/ParentStudentLink duplicate-prevention pattern, or the
 // three-state ParentStudentLinkStatus (otp_verified/approved/revoked, which
 // deliberately revises an earlier "no capability until approved" decision —
@@ -51,10 +51,9 @@ enum ParentStudentLinkStatus {
   revoked
 }
 
-// Shared by Trip and Request -- the one vocabulary for "what kind of ride
-// this is," matched on both the offer side (Trip.category) and the need
-// side (Request.category). personal_car is today's original "I'm driving
-// my own car, offering seats" feature; uber_share is a deliberate reversal
+// What kind of ride this is (Trip.category). personal_car is today's
+// original "I'm driving my own car, offering seats" feature; uber_share is
+// a deliberate reversal
 // of this project's earlier "not a group-Uber-splitting feature" MVP
 // exclusion (see the removed line in the "Explicitly Not MVP" list in
 // CLAUDE.md) -- students coordinate and split the cost of a real Uber/Lyft
@@ -64,14 +63,6 @@ enum ParentStudentLinkStatus {
 enum TripCategory {
   personal_car
   uber_share
-}
-
-enum RequestStatus {
-  pending
-  accepted
-  declined
-  completed
-  cancelled
 }
 
 // Renamed from an earlier `active` (see git history) to match the product's
@@ -117,26 +108,6 @@ enum NotificationType {
   // later, unlike the parent-initiated OTP flow. See the Family Linking
   // section of CLAUDE.md and POST /api/family/invite/accept.
   family_invite_accepted
-  // Sent to a standalone Request's postedById when a Trip owner accepts it
-  // via POST /api/requests/[id]/accept -- see the Request/Trip Matching
-  // Lifecycle section of CLAUDE.md.
-  request_accepted
-  // Sent to a Request's postedById when the Trip it's accepted-and-attached
-  // to (Request.tripId) gets cancelled by its owner -- the Request-side
-  // analogue of trip_cancelled. Kept as a distinct type rather than reusing
-  // trip_cancelled because notificationLink() has no way to tell a
-  // ConnectionRequest.id apart from a Request.id sharing the same
-  // type/relatedId shape, and the two need different destination URLs.
-  request_trip_cancelled
-  // Sent to a Request's reviewee (the other participant) when the caller
-  // leaves a Review via POST /api/reviews. relatedId is the Request's own
-  // id, same shape as request_accepted/request_trip_cancelled -- kept as
-  // its own distinct value even though the destination URL happens to
-  // match, since it's a semantically different event and
-  // notificationLink() dispatches purely on `type`. Both participants can
-  // each trigger this once (one per reviewer, per Review's
-  // @@unique([requestId, reviewerId])), so it can fire twice per request.
-  review_received
   // Sent to a ParentStudentLink's parent when the student explicitly
   // approves it via POST /api/family/link/[id]/approve (otp_verified ->
   // approved). relatedId is unused (null) -- there's no per-link page to
@@ -193,7 +164,7 @@ model User {
   homeRegionId          String?
   homeRegion            Region?   @relation(fields: [homeRegionId], references: [id])
   // The profile/onboarding feature's home-area field. City-level (not just
-  // Region-level) so it lines up with how Trip/Request already key
+  // Region-level) so it lines up with how Trip/PackagePost already key
   // origin/destination off City -- a "general home area" for display is
   // just city.name, and it doubles as an input to future trip-matching that
   // Region-level granularity couldn't support.
@@ -244,8 +215,6 @@ model User {
 
   verifications              VerificationRecord[]
   tripsAsTraveler            Trip[]                    @relation("TripTraveler")
-  requestsPosted             Request[]                 @relation("RequestPostedBy")
-  requestsBeneficiary        Request[]                 @relation("RequestBeneficiary")
   // A User's own StudentRecord, if they signed up (or later claimed) with a
   // supported university email. Nullable -- parents/alumni/travelers never
   // have one. The reverse of StudentRecord.userId.
@@ -258,8 +227,6 @@ model User {
   connectionRequestsSent     ConnectionRequest[]       @relation("ConnectionRequestRequester")
   connectionRequestsReceived ConnectionRequest[]       @relation("ConnectionRequestRecipient")
   seatOffersReceived         SeatOffer[]               @relation("SeatOfferRecipient")
-  reviewsGiven               Review[]                  @relation("ReviewReviewer")
-  reviewsReceived            Review[]                  @relation("ReviewReviewee")
   reportsFiled               Report[]                  @relation("ReportReporter")
   reportsAgainst             Report[]                  @relation("ReportReported")
   blocksInitiated            Block[]                   @relation("BlockBlocker")
@@ -470,7 +437,7 @@ model City {
   // Nullable on purpose -- a City can exist (and be posted against) before
   // anyone's resolved its real-world coordinates. Backfilled for the seeded
   // cities in prisma/seed.ts; any City missing these falls back to the same
-  // on-demand geocode-and-cache path a write-in Trip/Request.destinationText
+  // on-demand geocode-and-cache path a write-in Trip/PackagePost.destinationText
   // uses (see src/lib/geocode.ts's resolveCoordinates), just keyed on
   // City.name instead of free text -- this column is purely a fast-path
   // cache to skip that network call for the common cities, not a second
@@ -480,8 +447,6 @@ model City {
 
   tripsAsOrigin             Trip[]        @relation("TripOrigin")
   tripsAsDestination        Trip[]        @relation("TripDestination")
-  requestsAsOrigin          Request[]     @relation("RequestOrigin")
-  requestsAsDestination     Request[]     @relation("RequestDestination")
   usersAsHomeCity           User[]        @relation("UserHomeCity")
   packagePostsAsOrigin      PackagePost[] @relation("PackagePostOrigin")
   packagePostsAsDestination PackagePost[] @relation("PackagePostDestination")
@@ -491,7 +456,7 @@ model City {
 
 // Caches a free-text place name -> real-world coordinates lookup against
 // OpenStreetMap's Nominatim geocoder (see src/lib/geocode.ts) -- backs the
-// Explore route map's real markers for a write-in Trip/Request.destinationText
+// Explore route map's real markers for a write-in Trip/PackagePost.destinationText
 // (e.g. "SFO Airport") that has no City row to carry City.latitude/longitude
 // on. `query` is the normalized (trimmed, lowercased) input text, not the
 // raw display string, so "SFO Airport" and "sfo airport " share one row.
@@ -507,8 +472,8 @@ model GeocodeCache {
 }
 
 // A RouteCommunity being `active` controls what Home *features* by default
-// (Bay Area <-> UCI at launch). It does NOT gate what Trip/Request can be
-// created against — that's determined purely by City selection.
+// (Bay Area <-> UCI at launch). It does NOT gate what Trip/PackagePost can
+// be created against — that's determined purely by City selection.
 model RouteCommunity {
   id        String  @id @default(uuid())
   regionAId String
@@ -573,15 +538,30 @@ model Trip {
   // Free text describing the TRIP (e.g. "driving my own car" vs. "organizing
   // a shared ride") — never a contribution/gas-money/payment field.
   tripNotes            String?
-  // Restricts this post's visibility to other students only -- see the
-  // matching comment on Request.studentsOnly below for the full rationale
-  // (definition of "a student," enforcement points, and why this is a
-  // per-post choice rather than a User-level setting).
+  // When true, this post is only discoverable/viewable by other students --
+  // "a student" here means an account with a claimed StudentRecord
+  // (hasStudentRecord() in src/lib/auth.ts), i.e. someone who signed up
+  // with (or later verified) an actual university email, not just anyone
+  // who didn't sign up as a parent. Settable only by a poster who is
+  // themselves a student (enforced server-side in POST/PATCH /api/trips,
+  // not just hidden in the form) -- a parent or unverified alumni/traveler
+  // account can't create or flip a post into this state. Enforced at every
+  // read/write surface that matters: Explore and Home's queries exclude
+  // studentsOnly posts for a non-student viewer, the detail pages 404 for a
+  // non-student non-owner (matches this app's existing "don't leak
+  // existence" idiom for private content, e.g. Conversation), and the
+  // interaction entry points a non-student could otherwise reach directly --
+  // POST /api/connection-requests and POST /api/conversations -- reject a
+  // non-student against a studentsOnly Trip server-side too. Deliberately a
+  // per-post flag, not a User-level setting: the same account may want some
+  // posts open to everyone and others restricted, and role already lives on
+  // the action everywhere else in this schema (see the "Role lives on the
+  // action" design principle). PackagePost.studentsOnly below follows the
+  // same rationale.
   studentsOnly         Boolean      @default(false)
   status               TripStatus   @default(upcoming)
   createdAt            DateTime     @default(now())
 
-  requests           Request[]
   conversations      Conversation[]
   connectionRequests ConnectionRequest[]
   seatOffers         SeatOffer[]
@@ -696,105 +676,19 @@ model SeatOffer {
   @@index([conversationId])
 }
 
-// A standalone "need a ride" post. tripId is nullable so a "requester
-// posts first" flow (need a ride before any matching trip exists) is
-// representable without a second model; it's set once a trip owner
-// fulfills this request (see POST /api/requests/[id]/accept). Package
-// requests moved out entirely to the standalone PackagePost model, which
-// has no equivalent "match to a trip" concept at all.
-model Request {
-  id       String       @id @default(uuid())
-  // Mirrors Trip.category -- lets this standalone request specify whether
-  // it wants a personal-car trip or wants to split an Uber, matched later
-  // via POST /api/requests/[id]/accept (which can optionally reject a
-  // mismatched category -- see that route). Reuses TripCategory rather
-  // than a parallel enum: there is exactly one vocabulary for "what kind
-  // of ride," on both sides of the match.
-  category TripCategory @default(personal_car)
-  tripId   String?
-  trip     Trip?        @relation(fields: [tripId], references: [id])
-
-  // Only used when tripId is null (standalone request).
-  originCityId      String?
-  originCity        City?     @relation("RequestOrigin", fields: [originCityId], references: [id])
-  // Mirrors Trip.destinationText -- a poster can pick a listed City OR type
-  // a destination that isn't in the seeded list. Exactly one of
-  // destinationCityId/destinationText is required for a standalone request,
-  // enforced by requestFieldsSchema's refine.
-  destinationCityId String?
-  destinationCity   City?     @relation("RequestDestination", fields: [destinationCityId], references: [id])
-  destinationText   String?
-  neededDate        DateTime?
-  neededTime        String?
-  // Mirrors Trip.flexibleTime -- purely descriptive, no matching/search
-  // logic reads this yet.
-  flexibleTime      Boolean   @default(false)
-  notes             String?
-  // When true, this post is only discoverable/viewable by other students --
-  // "a student" here means an account with a claimed StudentRecord
-  // (hasStudentRecord() in src/lib/auth.ts), i.e. someone who signed up
-  // with (or later verified) an actual university email, not just anyone
-  // who didn't sign up as a parent. Settable only by a poster who is
-  // themselves a student (enforced server-side in POST/PATCH
-  // /api/trips and /api/requests, not just hidden in the form) -- a
-  // parent or unverified alumni/traveler account can't create or flip a
-  // post into this state. Enforced at every read/write surface that
-  // matters: Explore and Home's queries exclude studentsOnly posts for a
-  // non-student viewer, the detail pages 404 for a non-student
-  // non-owner (matches this app's existing "don't leak existence"
-  // idiom for private content, e.g. Conversation), and the interaction
-  // entry points a non-student could otherwise reach directly --
-  // POST /api/connection-requests, POST /api/conversations, and
-  // POST /api/requests/[id]/accept -- reject a non-student against a
-  // studentsOnly Trip/Request server-side too. Deliberately a per-post
-  // flag, not a User-level setting: the same account may want some posts
-  // open to everyone (e.g. a parent-adjacent package request) and others
-  // restricted, and role already lives on the action everywhere else in
-  // this schema (see the "Role lives on the action" design principle).
-  studentsOnly      Boolean   @default(false)
-
-  postedById    String
-  postedBy      User   @relation("RequestPostedBy", fields: [postedById], references: [id])
-  beneficiaryId String
-  beneficiary   User   @relation("RequestBeneficiary", fields: [beneficiaryId], references: [id])
-
-  status RequestStatus @default(pending)
-
-  seatsRequested       Int?
-  // uber_share only, optional even then -- a rider asking "does anyone
-  // have an Uber to X" may not have a number in mind yet. Purely
-  // descriptive, never enforced against Trip.estimatedFarePerSeat at
-  // accept time.
-  estimatedFarePerSeat Decimal? @db.Decimal(6, 2)
-
-  createdAt   DateTime  @default(now())
-  respondedAt DateTime?
-  completedAt DateTime?
-
-  conversation Conversation?
-  reviews      Review[]
-
-  @@index([postedById])
-  @@index([beneficiaryId])
-  @@index([tripId])
-}
-
 // Scoped to (trip, counterpart) so a prospective requester can ask questions
-// before a formal Request exists. requestId is attached once one is created.
-// tripId is nullable and paired with packagePostId below -- exactly one of
-// the two is required, enforced app-level in findOrCreateConversationForPost
-// (src/lib/messaging.ts), never a DB constraint -- the same "exactly one of
-// X/Y" convention already used for Trip/Request's destinationCityId vs.
-// destinationText. A PackagePost conversation never has a tripId, and vice
-// versa.
+// before committing to a formal connection. tripId is nullable and paired
+// with packagePostId below -- exactly one of the two is required, enforced
+// app-level in findOrCreateConversationForPost (src/lib/messaging.ts), never
+// a DB constraint -- the same "exactly one of X/Y" convention already used
+// for Trip/PackagePost's destinationCityId vs. destinationText. A
+// PackagePost conversation never has a tripId, and vice versa.
 model Conversation {
   id            String       @id @default(uuid())
   tripId        String?
   trip          Trip?        @relation(fields: [tripId], references: [id])
   packagePostId String?
   packagePost   PackagePost? @relation(fields: [packagePostId], references: [id])
-  requestId     String?      @unique
-  request       Request?     @relation(fields: [requestId], references: [id])
   createdAt     DateTime     @default(now())
 
   participants ConversationParticipant[]
@@ -803,11 +697,6 @@ model Conversation {
 
   @@index([tripId])
   @@index([packagePostId])
-}
-
-enum PackagePostKind {
-  offering_space
-  needing_delivery
 }
 
 enum PackagePostStatus {
@@ -823,21 +712,20 @@ enum PackagePostStatus {
 // Conversation/Message system (see findOrCreateConversationForPost in
 // src/lib/messaging.ts and PackageMessageForm.tsx), the same way
 // RegisterInterestForm already lets a prospective rider message a Trip
-// owner with no formal request first. offering_space ("I have room for a
-// package on my route") and needing_delivery ("I need something carried")
-// share every field except kind -- kept as one lean model rather than two,
-// since only the framing differs between the two sides.
+// owner with no formal request first. Always "I have room for a package on
+// my route" -- the standalone "I need something carried" counterpart
+// (needing_delivery) was removed along with the rest of the "Need" posting
+// flow, so there is only one framing left and no `kind` field to carry it.
 model PackagePost {
-  id         String          @id @default(uuid())
-  kind       PackagePostKind
+  id         String @id @default(uuid())
   postedById String
-  postedBy   User            @relation("PackagePostPostedBy", fields: [postedById], references: [id])
+  postedBy   User   @relation("PackagePostPostedBy", fields: [postedById], references: [id])
 
   originCityId      String
   originCity        City    @relation("PackagePostOrigin", fields: [originCityId], references: [id])
   // Mirrors Trip.destinationText -- exactly one of destinationCityId/
   // destinationText required, enforced by packagePostFieldsSchema's
-  // refine, same convention as Trip and Request.
+  // refine, same convention as Trip.
   destinationCityId String?
   destinationCity   City?   @relation("PackagePostDestination", fields: [destinationCityId], references: [id])
   destinationText   String?
@@ -882,7 +770,7 @@ model ConversationParticipant {
   // participant who set it -- the other side's view is untouched.
   archivedAt     DateTime?
   // Per-user "remove from my conversation list entirely" (DELETE
-  // /api/conversations/[id]) -- unlike a Trip/Request soft-cancel, this
+  // /api/conversations/[id]) -- unlike a Trip soft-cancel, this
   // never affects the shared Conversation/Message rows or the other
   // participant's own view at all, since a Conversation is jointly owned
   // by both participants and one person hiding it shouldn't destroy the
@@ -921,31 +809,13 @@ model Message {
   @@index([conversationId, sentAt])
 }
 
-// Fraud-resistant by construction: only on a completed Request, only its
-// participants, one review per (request, reviewer) pair.
-model Review {
-  id         String   @id @default(uuid())
-  requestId  String
-  request    Request  @relation(fields: [requestId], references: [id])
-  reviewerId String
-  reviewer   User     @relation("ReviewReviewer", fields: [reviewerId], references: [id])
-  revieweeId String
-  reviewee   User     @relation("ReviewReviewee", fields: [revieweeId], references: [id])
-  rating     Int
-  comment    String?
-  createdAt  DateTime @default(now())
-
-  @@unique([requestId, reviewerId])
-  @@index([revieweeId])
-}
-
 model Report {
   id             String       @id @default(uuid())
   reporterId     String
   reporter       User         @relation("ReportReporter", fields: [reporterId], references: [id])
   reportedUserId String
   reportedUser   User         @relation("ReportReported", fields: [reportedUserId], references: [id])
-  contextType    String? // "trip" | "request" | "message" | "profile"
+  contextType    String? // "trip" | "package" | "message" | "profile"
   contextId      String?
   reason         String
   detail         String?

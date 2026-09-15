@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { tripDisplayStatus, requestDisplayStatus } from "./postStatus";
+import { tripDisplayStatus } from "./postStatus";
 
 const NOW = new Date("2026-08-29T12:00:00.000Z");
 
@@ -41,41 +41,5 @@ describe("tripDisplayStatus", () => {
     expect(
       tripDisplayStatus({ status: "cancelled", departureDate: new Date("2020-01-01") }),
     ).not.toBe("expired");
-  });
-});
-
-describe("requestDisplayStatus", () => {
-  it("returns the underlying status for a terminal state regardless of date", () => {
-    expect(
-      requestDisplayStatus({ status: "completed", neededDate: new Date("2020-01-01") }),
-    ).toBe("completed");
-    expect(
-      requestDisplayStatus({ status: "cancelled", neededDate: new Date("2020-01-01") }),
-    ).toBe("cancelled");
-    expect(
-      requestDisplayStatus({ status: "declined", neededDate: new Date("2020-01-01") }),
-    ).toBe("declined");
-  });
-
-  it("returns 'pending' for a non-terminal request with no neededDate", () => {
-    expect(requestDisplayStatus({ status: "pending", neededDate: null })).toBe("pending");
-  });
-
-  it("returns 'pending' for a non-terminal request whose neededDate hasn't passed", () => {
-    expect(
-      requestDisplayStatus({ status: "pending", neededDate: new Date("2026-09-01") }),
-    ).toBe("pending");
-    expect(
-      requestDisplayStatus({ status: "accepted", neededDate: new Date("2026-09-01") }),
-    ).toBe("accepted");
-  });
-
-  it("returns 'expired' for a non-terminal request whose neededDate has passed", () => {
-    expect(
-      requestDisplayStatus({ status: "pending", neededDate: new Date("2020-01-01") }),
-    ).toBe("expired");
-    expect(
-      requestDisplayStatus({ status: "accepted", neededDate: new Date("2020-01-01") }),
-    ).toBe("expired");
   });
 });

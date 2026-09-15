@@ -29,7 +29,6 @@ export default async function EditPackagePostPage({
         packagePostId={found.id}
         isStudent={hasStudentRecord(user)}
         initialValues={{
-          kind: found.kind,
           originCityId: found.originCityId,
           destinationCityId: found.destinationCityId ?? "",
           destinationText: found.destinationText ?? "",
