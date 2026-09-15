@@ -644,87 +644,218 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   font: inherit;
 }
 
-.message-thread {
-  list-style: none;
-  margin: 0 0 1rem;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+/* Conversation thread page (/messages/[id]) -- a dedicated, narrower
+   centered column (like .form-page, but wide enough for a comfortable chat
+   column) rather than stretching to the site's full 1600px width, which
+   read as a few stray lines of text floating in a huge empty page. */
+.chat-page {
+  max-width: 640px;
+  margin: 0 auto;
 }
 
-.message-bubble {
-  max-width: 75%;
-  padding: 0.5rem 0.75rem;
-  border-radius: 8px;
-  background: #fff;
-  border: 1px solid #e5e5e5;
+.chat-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1rem;
+  border: 1.5px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-white);
+}
+
+.chat-header-identity {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.chat-header-avatar {
+  width: 2.75rem;
+  height: 2.75rem;
+  font-size: 1.0625rem;
+  flex-shrink: 0;
+}
+
+.chat-header-name {
+  font-size: 1.125rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.chat-header-route {
+  display: block;
+  color: var(--color-gray-body);
+  font-size: 0.8125rem;
+  text-decoration: none;
+  margin-top: 0.125rem;
+}
+
+.chat-header-route:hover {
+  color: var(--color-blue);
+}
+
+.chat-header-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.chat-header-actions .report-button,
+.chat-header-actions .block-button {
+  padding: 0.375rem 0.75rem;
+  font-size: 0.8125rem;
+}
+
+/* The single unified "chat card" -- message history, the seat-request row,
+   and the composer all live inside one bordered container so the page
+   reads as one cohesive app surface instead of a loose stack of unrelated
+   elements with no visual grouping at all. */
+.chat-panel {
+  display: flex;
+  flex-direction: column;
+  border: 1.5px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-white);
+  overflow: hidden;
+}
+
+.message-thread {
+  list-style: none;
+  margin: 0;
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+  max-height: 55vh;
+  min-height: 12rem;
+  overflow-y: auto;
+}
+
+.message-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.5rem;
+  max-width: 78%;
   align-self: flex-start;
 }
 
-.message-bubble-self {
+.message-row-self {
   align-self: flex-end;
-  background: #e8f0fe;
-  border-color: #cfe0fd;
+  flex-direction: row-reverse;
+}
+
+.message-row-avatar {
+  width: 1.75rem;
+  height: 1.75rem;
+  font-size: 0.6875rem;
+  flex-shrink: 0;
+}
+
+.message-bubble {
+  padding: 0.5rem 0.75rem;
+  border-radius: 14px 14px 14px 4px;
+  background: var(--color-gray-section);
+  color: var(--color-black);
+  min-width: 0;
+}
+
+.message-bubble-self {
+  border-radius: 14px 14px 4px 14px;
+  background: var(--color-blue);
+  color: var(--color-white);
 }
 
 .message-body {
   font-size: 0.9375rem;
+  line-height: 1.4;
   white-space: pre-wrap;
+  overflow-wrap: break-word;
 }
 
 .message-meta {
   margin-top: 0.25rem;
-  font-size: 0.75rem;
-  color: #666;
+  font-size: 0.6875rem;
+  color: var(--color-gray-meta);
+}
+
+.message-bubble-self .message-meta {
+  color: rgba(255, 255, 255, 0.75);
 }
 
 .seat-offer-bubble {
   align-self: center;
   max-width: 90%;
   padding: 0.625rem 0.875rem;
-  border: 1px solid #cfe0fd;
-  border-radius: 8px;
-  background: #f4f8ff;
+  border: 1.5px solid var(--color-blue);
+  border-radius: 12px;
+  background: var(--color-blue-bg);
+  text-align: center;
 }
 
 .seat-offer-bubble-text {
   font-weight: 600;
-  font-size: 0.9375rem;
+  font-size: 0.875rem;
+  color: var(--color-black);
 }
 
 .seat-offer-bubble-actions {
-  margin-top: 0.375rem;
+  margin-top: 0.5rem;
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
 }
 
 .seat-offer-send-row {
-  margin-bottom: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.75rem 1.25rem;
+  border-top: 1.5px solid var(--color-border);
+  background: var(--color-gray-section);
 }
 
 .message-compose {
   display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  max-width: 480px;
+  align-items: flex-end;
+  gap: 0.625rem;
+  padding: 0.875rem 1.25rem;
+  border-top: 1.5px solid var(--color-border);
+  background: var(--color-white);
 }
 
 .message-compose textarea {
-  min-height: 4rem;
+  flex: 1;
+  min-height: 2.75rem;
+  max-height: 8rem;
   font: inherit;
-  padding: 0.625rem 0.75rem;
+  font-size: 0.9375rem;
+  padding: 0.625rem 0.875rem;
   border: 1.5px solid var(--color-border);
-  border-radius: 8px;
-  resize: vertical;
+  border-radius: 18px;
+  background: var(--color-gray-section);
+  resize: none;
 }
 
 .message-compose textarea:focus {
-  outline: 2px solid var(--color-blue);
-  outline-offset: -1px;
+  outline: none;
   border-color: var(--color-blue);
+  background: var(--color-white);
 }
 
 .message-compose button[type="submit"] {
-  align-self: flex-start;
+  flex-shrink: 0;
+  border-radius: 999px;
+  padding: 0.625rem 1.375rem;
+}
+
+.message-compose-error {
+  margin: 0;
+  padding: 0 1.25rem 0.875rem;
+  font-size: 0.8125rem;
+  color: #b42318;
 }
 
 .conversation-list {
@@ -856,11 +987,17 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
 }
 
 .chat-safety-notice {
-  padding: 0.75rem 1rem;
-  border: 1px solid #f0d58c;
-  border-radius: 8px;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  max-width: 640px;
+  margin: 0 auto 1rem;
+  padding: 0.625rem 0.875rem;
+  border: 1.5px solid #f0d58c;
+  border-radius: 10px;
   background: #fff8e1;
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
+  line-height: 1.45;
   color: #6b5300;
 }
 
