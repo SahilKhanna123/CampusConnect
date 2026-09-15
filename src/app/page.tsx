@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { TripStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser, hasStudentRecord } from "@/lib/auth";
 import { getFeaturedRoutePairs, getCitiesByRegion } from "@/lib/geo";
@@ -18,6 +19,83 @@ import { PackagePostCard, type PackagePostCardPost } from "@/components/PackageP
 const PACKAGE_PREVIEW_LIMIT = 6;
 const UBER_PREVIEW_LIMIT = 4;
 const TRIP_PREVIEW_LIMIT = 2;
+
+const YOUR_TRIPS_LIMIT = 6;
+
+// "Your Upcoming Trips" on the signed-in Home page -- a personal glance
+// section, separate from the featured-route discovery feed below it.
+// Combines both ways a trip can be "yours": you're driving it (travelerId),
+// or you have a confirmed seat on someone else's (an accepted
+// ConnectionRequest or SeatOffer with seatConfirmedAt set -- see the Trip
+// Participants/Seat Offers sections of CLAUDE.md). The two sets can never
+// overlap, since neither mechanism lets you hold a seat on your own trip.
+// Cancelled/completed/expired trips are excluded via tripDisplayStatus, the
+// same derived-at-read-time helper every other page uses.
+type YourUpcomingTrip = {
+  trip: {
+    id: string;
+    title: string | null;
+    status: TripStatus;
+    departureDate: Date;
+    departureTime: string | null;
+    originCity: { name: string };
+    destinationCity: { name: string } | null;
+    destinationText: string | null;
+  };
+  role: "driving" | "riding";
+};
+
+async function getYourUpcomingTrips(userId: string): Promise<YourUpcomingTrip[]> {
+  const tripSelect = {
+    id: true,
+    title: true,
+    status: true,
+    departureDate: true,
+    departureTime: true,
+    originCity: { select: { name: true } },
+    destinationCity: { select: { name: true } },
+    destinationText: true,
+  } as const;
+
+  const [drivingTrips, confirmedConnections, confirmedSeatOffers] = await Promise.all([
+    prisma.trip.findMany({
+      where: { travelerId: userId, status: "upcoming" },
+      select: tripSelect,
+    }),
+    prisma.connectionRequest.findMany({
+      where: { requesterId: userId, seatConfirmedAt: { not: null } },
+      select: { tripId: true },
+    }),
+    prisma.seatOffer.findMany({
+      where: { recipientId: userId, seatConfirmedAt: { not: null } },
+      select: { tripId: true },
+    }),
+  ]);
+
+  const ridingTripIds = [
+    ...new Set([
+      ...confirmedConnections.map((c) => c.tripId),
+      ...confirmedSeatOffers.map((s) => s.tripId),
+    ]),
+  ];
+  const ridingTrips =
+    ridingTripIds.length > 0
+      ? await prisma.trip.findMany({
+          where: { id: { in: ridingTripIds }, status: "upcoming" },
+          select: tripSelect,
+        })
+      : [];
+
+  const combined: YourUpcomingTrip[] = [
+    ...drivingTrips.map((trip) => ({ trip, role: "driving" as const })),
+    ...ridingTrips.map((trip) => ({ trip, role: "riding" as const })),
+  ];
+
+  return combined
+    .filter(({ trip }) => tripDisplayStatus(trip) === "upcoming")
+    .sort((a, b) => a.trip.departureDate.getTime() - b.trip.departureDate.getTime())
+    .slice(0, YOUR_TRIPS_LIMIT);
+}
 
 function timeOfDayGreeting(): string {
   const hour = new Date().getHours();
@@ -172,6 +250,7 @@ export default async function HomePage() {
 
   const citiesByRegion = await getCitiesByRegion();
   const blockedUserIds = await getBlockedCounterpartIds(user.id);
+  const yourUpcomingTrips = await getYourUpcomingTrips(user.id);
   // Same studentsOnly visibility rule Explore enforces -- see the schema
   // comment on Trip.studentsOnly.
   const isStudent = hasStudentRecord(user);
@@ -414,6 +493,37 @@ export default async function HomePage() {
           <HomeHeroIllustration />
         </div>
       </section>
+
+      {yourUpcomingTrips.length > 0 && (
+        <section className="section-shift-white home-results">
+          <div className="home-results-header">
+            <h2 className="heading-tight">Your Upcoming Trips</h2>
+            <Link href="/my-posts" className="btn-secondary">
+              Manage your posts
+            </Link>
+          </div>
+          <div className="list-section">
+            {yourUpcomingTrips.map(({ trip, role }) => (
+              <div key={trip.id} className="list-card">
+                <div className="list-card-top">
+                  <Link href={`/trips/${trip.id}`} className="list-card-title">
+                    {trip.originCity.name} →{" "}
+                    {trip.destinationCity?.name ?? trip.destinationText}
+                  </Link>
+                  <span className="trip-status-label trip-status-label-upcoming">
+                    {role === "driving" ? "Driving" : "Riding"}
+                  </span>
+                </div>
+                <div className="list-card-meta">
+                  {trip.title && `${trip.title} — `}
+                  {trip.departureDate.toLocaleDateString()}
+                  {trip.departureTime && ` at ${trip.departureTime}`}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       <section className="section-shift-white home-results">
         <div className="home-results-header">
