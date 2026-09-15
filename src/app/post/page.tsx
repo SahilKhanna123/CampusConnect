@@ -37,7 +37,7 @@ const POST_ACTIONS = [
 
 export default function PostPage() {
   return (
-    <div>
+    <div className="form-page">
       <span className="eyebrow">Post</span>
       <h1 className="heading-tight">What do you want to post?</h1>
       <div className="post-hub-tiles">
