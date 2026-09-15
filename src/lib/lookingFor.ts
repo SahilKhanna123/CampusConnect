@@ -1,12 +1,12 @@
 // Shared between the profile edit form (client), the PATCH /api/profile
 // validator, and the public profile display (both server) -- reuses the
-// Post page's own category vocabulary (Offer a Ride / Need a Ride / Offer
-// Package Space / Need Delivery) rather than inventing new ones.
+// Post page's own category vocabulary (Offer a Ride / Offer Package Space).
+// The "Need a Ride"/"Need Delivery" options were removed along with the
+// rest of the "Need" posting flow (see Trip Categories & Package Carrying
+// in CLAUDE.md) -- offer-only here too, for consistency.
 export const LOOKING_FOR_OPTIONS = [
   { value: "offer_ride", label: "Offer a Ride" },
-  { value: "need_ride", label: "Need a Ride" },
   { value: "offer_package_space", label: "Offer Package Space" },
-  { value: "need_delivery", label: "Need Delivery" },
 ] as const;
 
 export type LookingForValue = (typeof LOOKING_FOR_OPTIONS)[number]["value"];
