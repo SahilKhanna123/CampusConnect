@@ -24,7 +24,7 @@ export type Poster = {
 // class-standing word, or a year outside a sane range) is shown as-is
 // rather than mangled by a substring operation that assumes a specific
 // format.
-function formatYearLabel(year: string): string {
+export function formatYearLabel(year: string): string {
   return /^(19|20)\d{2}$/.test(year) ? `'${year.slice(2)}` : year;
 }
 
@@ -35,7 +35,7 @@ function formatYearLabel(year: string): string {
 // any other university name (there's only ever been one in this app's
 // real data, but a future domain could add more) is shown exactly as
 // stored rather than guessed at.
-function shortenUniversityName(name: string): string {
+export function shortenUniversityName(name: string): string {
   const ucMatch = name.match(/^University of California,?\s+(.+)$/i);
   return ucMatch ? `UC ${ucMatch[1]}` : name;
 }
@@ -50,11 +50,75 @@ function posterRoleLabel(poster: Poster): string {
   return poster.signedUpAsParent ? "Parent" : "Student";
 }
 
+// Deterministic per-user avatar color for the initials placeholder (no
+// photoUrl) -- same person always gets the same color everywhere they
+// appear, without needing to store a color on User. Palette deliberately
+// excludes green, which the rest of the app reserves for verified/trust
+// signals (badge-verified, the "confirmed rider" line) -- see the
+// HomeHeroIllustration comment in src/app/page.tsx for the same rule
+// applied to decorative art.
+const AVATAR_PALETTE: { bg: string; text: string }[] = [
+  { bg: "#EFF6FF", text: "#1D6FFF" },
+  { bg: "#FFF1E6", text: "#C2570C" },
+  { bg: "#F3EEFE", text: "#7C3AED" },
+  { bg: "#FDEEF1", text: "#E11D48" },
+  { bg: "#FEF3C7", text: "#B45309" },
+  { bg: "#EEF0FE", text: "#4F46E5" },
+];
+
+function avatarColorFor(id: string): { bg: string; text: string } {
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) {
+    hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
+  }
+  return AVATAR_PALETTE[hash % AVATAR_PALETTE.length];
+}
+
 function posterIsVerified(poster: Poster): boolean {
   return poster.verifications.some(
     (v) =>
       (v.type === "university" || v.type === "parent_relationship") &&
       v.status === "verified",
+  );
+}
+
+// Exported -- lets a caller that needs just the circular photo/initials
+// (e.g. the trip detail page's larger sidebar avatar) reuse the exact same
+// photo-or-colored-initials logic as PosterBadge below, at a different
+// size, without duplicating it.
+export function PosterAvatar({
+  poster,
+  size = 34,
+  className = "",
+}: {
+  poster: Pick<Poster, "id" | "name" | "photoUrl">;
+  size?: number;
+  className?: string;
+}) {
+  return poster.photoUrl ? (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={poster.photoUrl}
+      alt=""
+      width={size}
+      height={size}
+      className={`explore-card-avatar avatar-circle ${className}`}
+      style={{ width: size, height: size }}
+    />
+  ) : (
+    <span
+      className={`explore-card-avatar avatar-circle explore-card-avatar-placeholder ${className}`}
+      style={{
+        width: size,
+        height: size,
+        background: avatarColorFor(poster.id).bg,
+        color: avatarColorFor(poster.id).text,
+        borderColor: "transparent",
+      }}
+      aria-hidden="true"
+    >
+      {poster.name.slice(0, 1).toUpperCase()}
+    </span>
   );
 }
 
@@ -74,23 +138,7 @@ export function PosterBadge({ poster }: { poster: Poster }) {
 
   return (
     <div className="explore-card-poster">
-      {poster.photoUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={poster.photoUrl}
-          alt=""
-          width={34}
-          height={34}
-          className="explore-card-avatar avatar-circle"
-        />
-      ) : (
-        <span
-          className="explore-card-avatar avatar-circle explore-card-avatar-placeholder"
-          aria-hidden="true"
-        >
-          {poster.name.slice(0, 1).toUpperCase()}
-        </span>
-      )}
+      <PosterAvatar poster={poster} />
       <div className="explore-card-poster-info">
         <div className="explore-card-poster-name-row">
           <span className="explore-card-poster-name">{poster.name}</span>

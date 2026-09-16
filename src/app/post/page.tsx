@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { FadeIn } from "@/components/FadeIn";
 
 // Post — 3 distinct sections (Trips, Uber-sharing, Package carrying), each
 // with its own form, per product decision to stop bundling ride and package
@@ -38,24 +39,28 @@ const POST_ACTIONS = [
 export default function PostPage() {
   return (
     <div className="form-page">
-      <span className="eyebrow">Post</span>
-      <h1 className="heading-tight">What do you want to post?</h1>
-      <div className="post-hub-tiles">
-        {POST_ACTIONS.map((action) => (
-          <Link
-            key={action.key}
-            href={action.href}
-            className={`post-hub-tile post-hub-tile-${action.weight}`}
-          >
-            {action.label}
+      <FadeIn mode="mount" delay={0}>
+        <span className="eyebrow">Post</span>
+        <h1 className="heading-tight">What do you want to post?</h1>
+      </FadeIn>
+      <FadeIn mode="mount" delay={90}>
+        <div className="post-hub-tiles">
+          {POST_ACTIONS.map((action) => (
+            <Link
+              key={action.key}
+              href={action.href}
+              className={`post-hub-tile post-hub-tile-${action.weight}`}
+            >
+              {action.label}
+            </Link>
+          ))}
+        </div>
+        <p className="post-hub-footer">
+          <Link href="/my-posts" className="btn-secondary">
+            View your posts
           </Link>
-        ))}
-      </div>
-      <p className="post-hub-footer">
-        <Link href="/my-posts" className="btn-secondary">
-          View your posts
-        </Link>
-      </p>
+        </p>
+      </FadeIn>
     </div>
   );
 }

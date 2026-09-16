@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { FadeIn } from "@/components/FadeIn";
 
 type Persona = "student" | "parent" | "alumni" | "traveler";
 
@@ -157,18 +158,24 @@ export default function SignUpPage() {
   if (!persona) {
     return (
       <div className="auth-card">
-        <span className="eyebrow">Get started</span>
-        <h1 className="heading-tight">How will you use CampusConnect?</h1>
-        <div className="persona-picker">
-          {PERSONAS.map((p) => (
-            <button key={p.key} onClick={() => setPersona(p.key)}>
-              {p.label}
-            </button>
-          ))}
-        </div>
-        <p className="auth-footer">
-          Already have an account? <Link href="/login">Log in</Link>
-        </p>
+        <FadeIn mode="mount" delay={0}>
+          <span className="eyebrow">Get started</span>
+          <h1 className="heading-tight">How will you use CampusConnect?</h1>
+        </FadeIn>
+        <FadeIn mode="mount" delay={90}>
+          <div className="persona-picker">
+            {PERSONAS.map((p) => (
+              <button key={p.key} onClick={() => setPersona(p.key)}>
+                {p.label}
+              </button>
+            ))}
+          </div>
+        </FadeIn>
+        <FadeIn mode="mount" delay={180}>
+          <p className="auth-footer">
+            Already have an account? <Link href="/login">Log in</Link>
+          </p>
+        </FadeIn>
       </div>
     );
   }
@@ -176,93 +183,101 @@ export default function SignUpPage() {
   if (status === "sent" || status === "verifying") {
     return (
       <div className="auth-card">
-        <span className="eyebrow">Almost there</span>
-        <h1 className="heading-tight">Check your email</h1>
-        <p className="profile-meta">
-          We sent a confirmation link to <strong>{email}</strong> — click it,
-          or enter the code from the same email below (use the code if the
-          link doesn&apos;t work, which can happen with some university
-          email systems).
-        </p>
-        <form onSubmit={handleVerifyCode} className="app-form">
-          <div>
-            <label htmlFor="code">Verification code</label>
-            <input
-              id="code"
-              type="text"
-              inputMode="numeric"
-              pattern="[0-9]*"
-              maxLength={10}
-              required
-              value={code}
-              onChange={(e) => setCode(e.target.value)}
-            />
-          </div>
-          {error && <p role="alert">{error}</p>}
-          <button type="submit" disabled={status === "verifying"}>
-            {status === "verifying" ? "Verifying…" : "Verify code"}
-          </button>
-        </form>
+        <FadeIn mode="mount" delay={0}>
+          <span className="eyebrow">Almost there</span>
+          <h1 className="heading-tight">Check your email</h1>
+        </FadeIn>
+        <FadeIn mode="mount" delay={90}>
+          <p className="profile-meta">
+            We sent a confirmation link to <strong>{email}</strong> — click it,
+            or enter the code from the same email below (use the code if the
+            link doesn&apos;t work, which can happen with some university
+            email systems).
+          </p>
+          <form onSubmit={handleVerifyCode} className="app-form">
+            <div>
+              <label htmlFor="code">Verification code</label>
+              <input
+                id="code"
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                maxLength={10}
+                required
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+              />
+            </div>
+            {error && <p role="alert">{error}</p>}
+            <button type="submit" disabled={status === "verifying"}>
+              {status === "verifying" ? "Verifying…" : "Verify code"}
+            </button>
+          </form>
+        </FadeIn>
       </div>
     );
   }
 
   return (
     <div className="auth-card">
-      <button className="auth-back-button" onClick={() => setPersona(null)}>
-        &larr; {PERSONAS.find((p) => p.key === persona)?.label}
-      </button>
-      <span className="eyebrow">Sign up</span>
-      <h1 className="heading-tight">Create your account</h1>
-      <form onSubmit={handleSubmit} className="app-form">
-        <div>
-          <label htmlFor="name">Full name</label>
-          <input
-            id="name"
-            type="text"
-            required
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-          />
-        </div>
-        <div>
-          <label htmlFor="email">Email</label>
-          <input
-            id="email"
-            type="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-          {persona === "student" && (
-            <p className="profile-meta">
-              Using your university email (e.g. @uci.edu)? We&apos;ll
-              auto-verify it — no separate step needed.
-            </p>
-          )}
-          {persona === "parent" && (
-            <p className="profile-meta">
-              This is your own email — no confirmation needed. You&apos;ll
-              verify your student&apos;s university email in the next step.
-            </p>
-          )}
-        </div>
-        <div>
-          <label htmlFor="password">Password</label>
-          <input
-            id="password"
-            type="password"
-            required
-            minLength={8}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-        </div>
-        {error && <p role="alert">{error}</p>}
-        <button type="submit" disabled={status === "submitting"}>
-          {status === "submitting" ? "Creating account…" : "Sign up"}
+      <FadeIn mode="mount" delay={0}>
+        <button className="auth-back-button" onClick={() => setPersona(null)}>
+          &larr; {PERSONAS.find((p) => p.key === persona)?.label}
         </button>
-      </form>
+        <span className="eyebrow">Sign up</span>
+        <h1 className="heading-tight">Create your account</h1>
+      </FadeIn>
+      <FadeIn mode="mount" delay={90}>
+        <form onSubmit={handleSubmit} className="app-form">
+          <div>
+            <label htmlFor="name">Full name</label>
+            <input
+              id="name"
+              type="text"
+              required
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
+          </div>
+          <div>
+            <label htmlFor="email">Email</label>
+            <input
+              id="email"
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+            {persona === "student" && (
+              <p className="profile-meta">
+                Using your university email (e.g. @uci.edu)? We&apos;ll
+                auto-verify it — no separate step needed.
+              </p>
+            )}
+            {persona === "parent" && (
+              <p className="profile-meta">
+                This is your own email — no confirmation needed. You&apos;ll
+                verify your student&apos;s university email in the next step.
+              </p>
+            )}
+          </div>
+          <div>
+            <label htmlFor="password">Password</label>
+            <input
+              id="password"
+              type="password"
+              required
+              minLength={8}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+          </div>
+          {error && <p role="alert">{error}</p>}
+          <button type="submit" disabled={status === "submitting"}>
+            {status === "submitting" ? "Creating account…" : "Sign up"}
+          </button>
+        </form>
+      </FadeIn>
     </div>
   );
 }

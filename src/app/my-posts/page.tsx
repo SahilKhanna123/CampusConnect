@@ -6,6 +6,7 @@ import { tripDisplayStatus } from "@/lib/postStatus";
 import { DeletePostButton } from "@/components/DeletePostButton";
 import { MarkTripCompleteButton } from "@/components/MarkTripCompleteButton";
 import { MarkPackagePostCompleteButton } from "@/components/MarkPackagePostCompleteButton";
+import { FadeIn } from "@/components/FadeIn";
 
 // Lists the current user's own Trip and PackagePost posts -- travelerId /
 // postedById are the ownership fields the API routes enforce too (see
@@ -87,37 +88,39 @@ export default async function MyPostsPage({
 
   function tripCard(trip: (typeof trips)[number], statusKey: string, statusLabel: string) {
     return (
-      <div key={trip.id} className="list-card">
-        <div className="list-card-top">
-          <Link href={`/trips/${trip.id}`} className="list-card-title">
-            {trip.studentsOnly && "🎓 "}
-            {trip.title || "Untitled trip"}
-          </Link>
-          <span className={`trip-status-label trip-status-label-${statusKey}`}>
-            {statusLabel}
-          </span>
-        </div>
-        <div className="list-card-meta">
-          {trip.originCity.name} → {trip.destinationCity?.name ?? trip.destinationText} —{" "}
-          {trip.departureDate.toLocaleDateString()}
-          {countsByTrip.get(trip.id) && " · "}
-          {connectionSummary(trip.id)}
-        </div>
-        {(statusKey === "upcoming" || statusKey === "expired") && (
-          <div className="list-card-actions">
-            <Link href={`/trips/${trip.id}/edit`} className="btn-secondary">
-              Edit
+      <FadeIn key={trip.id} mode="viewport">
+        <div className="list-card">
+          <div className="list-card-top">
+            <Link href={`/trips/${trip.id}`} className="list-card-title">
+              {trip.studentsOnly && "🎓 "}
+              {trip.title || "Untitled trip"}
             </Link>
-            <MarkTripCompleteButton tripId={trip.id} />
-            <DeletePostButton
-              deleteUrl={`/api/trips/${trip.id}`}
-              redirectTo="/my-posts"
-              actionLabel="Cancel Trip"
-              confirmMessage="Cancel this trip? Anyone with a pending or accepted connection request will be notified. This can't be undone."
-            />
+            <span className={`trip-status-label trip-status-label-${statusKey}`}>
+              {statusLabel}
+            </span>
           </div>
-        )}
-      </div>
+          <div className="list-card-meta">
+            {trip.originCity.name} → {trip.destinationCity?.name ?? trip.destinationText} —{" "}
+            {trip.departureDate.toLocaleDateString()}
+            {countsByTrip.get(trip.id) && " · "}
+            {connectionSummary(trip.id)}
+          </div>
+          {(statusKey === "upcoming" || statusKey === "expired") && (
+            <div className="list-card-actions">
+              <Link href={`/trips/${trip.id}/edit`} className="btn-secondary">
+                Edit
+              </Link>
+              <MarkTripCompleteButton tripId={trip.id} />
+              <DeletePostButton
+                deleteUrl={`/api/trips/${trip.id}`}
+                redirectTo="/my-posts"
+                actionLabel="Cancel Trip"
+                confirmMessage="Cancel this trip? Anyone with a pending or accepted connection request will be notified. This can't be undone."
+              />
+            </div>
+          )}
+        </div>
+      </FadeIn>
     );
   }
 
@@ -125,8 +128,12 @@ export default async function MyPostsPage({
     <div>
       <div className="page-header">
         <div>
-          <span className="eyebrow">My Posts</span>
-          <h1 className="heading-tight">Your trips &amp; posts</h1>
+          <FadeIn mode="mount" delay={0}>
+            <span className="eyebrow">My Posts</span>
+          </FadeIn>
+          <FadeIn mode="mount" delay={90}>
+            <h1 className="heading-tight">Your trips &amp; posts</h1>
+          </FadeIn>
         </div>
         <div className="page-header-actions">
           <Link href="/post" className="btn-primary">
@@ -152,6 +159,7 @@ export default async function MyPostsPage({
         </Link>
       </div>
 
+      <FadeIn mode="viewport">
       <div className="list-section">
         <h2 className="list-section-title">Trips You&apos;re Offering</h2>
         {activeTab === "upcoming" ? (
@@ -193,7 +201,9 @@ export default async function MyPostsPage({
           </>
         )}
       </div>
+      </FadeIn>
 
+      <FadeIn mode="viewport">
       <div className="list-section">
         <h2 className="list-section-title">Package Posts</h2>
         {shownPackagePosts.length === 0 ? (
@@ -204,37 +214,40 @@ export default async function MyPostsPage({
           </p>
         ) : (
           shownPackagePosts.map((p) => (
-            <div key={p.id} className="list-card">
-              <div className="list-card-top">
-                <Link href={`/package-posts/${p.id}`} className="list-card-title">
-                  {p.studentsOnly && "🎓 "}
-                  📦 {p.originCity.name} → {p.destinationCity?.name ?? p.destinationText}
-                </Link>
-                <span className={`trip-status-label trip-status-label-${p.status}`}>
-                  {p.status}
-                </span>
-              </div>
-              {p.date && (
-                <div className="list-card-meta">{p.date.toLocaleDateString()}</div>
-              )}
-              {p.status === "open" && (
-                <div className="list-card-actions">
-                  <Link href={`/package-posts/${p.id}/edit`} className="btn-secondary">
-                    Edit
+            <FadeIn key={p.id} mode="viewport">
+              <div className="list-card">
+                <div className="list-card-top">
+                  <Link href={`/package-posts/${p.id}`} className="list-card-title">
+                    {p.studentsOnly && "🎓 "}
+                    📦 {p.originCity.name} → {p.destinationCity?.name ?? p.destinationText}
                   </Link>
-                  <MarkPackagePostCompleteButton packagePostId={p.id} />
-                  <DeletePostButton
-                    deleteUrl={`/api/package-posts/${p.id}`}
-                    redirectTo="/my-posts"
-                    actionLabel="Cancel post"
-                    confirmMessage="Cancel this post? This can't be undone."
-                  />
+                  <span className={`trip-status-label trip-status-label-${p.status}`}>
+                    {p.status}
+                  </span>
                 </div>
-              )}
-            </div>
+                {p.date && (
+                  <div className="list-card-meta">{p.date.toLocaleDateString()}</div>
+                )}
+                {p.status === "open" && (
+                  <div className="list-card-actions">
+                    <Link href={`/package-posts/${p.id}/edit`} className="btn-secondary">
+                      Edit
+                    </Link>
+                    <MarkPackagePostCompleteButton packagePostId={p.id} />
+                    <DeletePostButton
+                      deleteUrl={`/api/package-posts/${p.id}`}
+                      redirectTo="/my-posts"
+                      actionLabel="Cancel post"
+                      confirmMessage="Cancel this post? This can't be undone."
+                    />
+                  </div>
+                )}
+              </div>
+            </FadeIn>
           ))
         )}
       </div>
+      </FadeIn>
     </div>
   );
 }

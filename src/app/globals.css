@@ -287,6 +287,96 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   border-color: var(--color-blue);
 }
 
+/* CityAutocomplete -- a text input + absolutely-positioned results menu.
+   Self-contained styling (not relying on ambient .app-form/.explore-filters
+   input rules) so it looks right in every context it's dropped into. */
+.city-autocomplete {
+  position: relative;
+}
+
+.city-autocomplete input[type="text"] {
+  width: 100%;
+  padding: 0.625rem 0.75rem;
+  border: 1.5px solid var(--color-border);
+  border-radius: 8px;
+  font-size: 0.9375rem;
+  font-family: inherit;
+  color: var(--color-black);
+  background: var(--color-white);
+}
+
+.city-autocomplete input[type="text"]:focus {
+  outline: 2px solid var(--color-blue);
+  outline-offset: -1px;
+  border-color: var(--color-blue);
+}
+
+.city-autocomplete-menu {
+  position: absolute;
+  top: calc(100% + 0.25rem);
+  left: 0;
+  right: 0;
+  z-index: 50;
+  margin: 0;
+  padding: 0.25rem;
+  list-style: none;
+  background: var(--color-white);
+  border: 1.5px solid var(--color-border);
+  border-radius: 8px;
+  box-shadow: var(--shadow-hover);
+  max-height: 16rem;
+  overflow-y: auto;
+}
+
+.city-autocomplete-option {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.5rem 0.625rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9375rem;
+}
+
+.city-autocomplete-option-active,
+.city-autocomplete-option:hover {
+  background: var(--color-gray-section);
+}
+
+.city-autocomplete-region {
+  color: var(--color-gray-body);
+  font-size: 0.8125rem;
+  flex-shrink: 0;
+}
+
+.city-autocomplete-empty {
+  padding: 0.5rem 0.625rem;
+  color: var(--color-gray-body);
+  font-size: 0.875rem;
+}
+
+/* Plain blue text-link button -- used for the small "Type a destination
+   instead" / "Pick a city instead" toggles next to CityAutocomplete, same
+   visual weight as .detail-back-link on the trip detail page. */
+.btn-link {
+  display: inline-block;
+  margin-top: 0.375rem;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--color-blue);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.btn-link:hover {
+  text-decoration: underline;
+}
+
 /* The gray backdrop the results grid + map sit inside (per a reference
    mockup) -- gives the white cards and the map panel visible breathing
    room/separation instead of floating directly on the page's own white
@@ -1158,6 +1248,11 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   border: 1px solid #e5e5e5;
   border-radius: 8px;
   background: #fff;
+  transition: box-shadow 0.15s ease;
+}
+
+.trip-participant-row:hover {
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.06);
 }
 
 .confirm-seat-control {
@@ -1841,6 +1936,218 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   display: block;
   color: inherit;
   text-decoration: none;
+}
+
+/* Trip detail page (/trips/[id]) redesign -- a two-column layout (route/
+   facts/riders in a wide left column, a sticky poster+actions card on the
+   right) built from a small set of reusable pieces rather than one mega
+   card. Scoped entirely to new classes below -- .detail-header/.detail-facts
+   /.detail-poster-row/.trip-status-label stay untouched and keep powering
+   package-posts/[id] and the Home "Driving/Riding" labels exactly as
+   before. */
+.trip-detail-layout {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 2rem;
+  align-items: start;
+}
+
+@media (max-width: 860px) {
+  .trip-detail-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.trip-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  position: sticky;
+  top: 1.5rem;
+}
+
+/* Generic white bordered card -- the shared surface for the facts card,
+   the riders card, and the sidebar poster card, matching .explore-card's
+   own border/radius/shadow language (see the reference-design comment
+   above that rule) so the detail page reads as a continuation of the list
+   card's visual system. */
+.detail-card {
+  padding: 1.25rem 1.5rem;
+  border: 1.5px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-white);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.detail-back-link {
+  display: inline-block;
+  color: var(--color-blue);
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-decoration: none;
+  margin-bottom: 0.75rem;
+}
+
+.detail-back-link:hover {
+  text-decoration: underline;
+}
+
+.trip-status-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.1875rem 0.625rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: capitalize;
+  margin-top: 0.5rem;
+}
+
+.trip-status-pill-upcoming,
+.trip-status-pill-open {
+  background: var(--color-blue-bg);
+  color: var(--color-blue);
+}
+
+.trip-status-pill-completed {
+  background: var(--color-green-bg);
+  color: var(--color-green);
+}
+
+.trip-status-pill-cancelled {
+  background: var(--color-gray-section);
+  color: var(--color-gray-body);
+}
+
+.trip-status-pill-expired {
+  background: #fef3c7;
+  color: #8a6d00;
+}
+
+/* Decorative light-blue route banner, illustrative (not geographically
+   accurate) -- same "campus/road/vehicle" motif and restricted black/white
+   /blue palette as HomeHeroIllustration (src/app/page.tsx), no green (see
+   that component's own comment for why). */
+.trip-route-banner {
+  padding: 14px 20px;
+  border-radius: 14px;
+  background: var(--color-blue-bg);
+  margin: 1rem 0 1.5rem;
+}
+
+.trip-fact-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+  margin-bottom: 1.5rem;
+}
+
+.trip-fact-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  font-size: 0.9375rem;
+  color: var(--color-black);
+}
+
+.trip-fact-icon {
+  flex-shrink: 0;
+  color: var(--color-gray-meta);
+  margin-top: 0.125rem;
+}
+
+.trip-fact-primary {
+  font-weight: 600;
+}
+
+.trip-fact-secondary {
+  font-size: 0.8125rem;
+  color: var(--color-gray-body);
+  margin-top: 0.125rem;
+}
+
+.rider-chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.25rem 1.5rem;
+}
+
+.rider-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: var(--color-black);
+}
+
+.sidebar-poster-top {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.875rem;
+}
+
+.sidebar-poster-avatar {
+  width: 56px;
+  height: 56px;
+  font-size: 1.125rem;
+}
+
+.sidebar-poster-name {
+  font-weight: 700;
+  font-size: 1.0625rem;
+}
+
+.sidebar-poster-role {
+  font-size: 0.8125rem;
+  color: var(--color-gray-body);
+  margin-top: 0.125rem;
+}
+
+.sidebar-poster-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  margin-bottom: 0.875rem;
+}
+
+.sidebar-poster-bio {
+  font-size: 0.875rem;
+  color: var(--color-gray-body);
+  line-height: 1.5;
+  margin-bottom: 0.875rem;
+}
+
+.sidebar-poster-stats {
+  font-size: 0.8125rem;
+  color: var(--color-gray-meta);
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--color-gray-section);
+}
+
+.sidebar-poster-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+}
+
+.sidebar-poster-actions .btn-primary,
+.sidebar-poster-actions .btn-secondary,
+.sidebar-poster-actions .connection-request-button,
+.sidebar-poster-actions .connection-status,
+.sidebar-poster-actions .register-interest-form {
+  width: 100%;
+  text-align: center;
+}
+
+.sidebar-poster-actions form.register-interest-form {
+  max-width: none;
+}
+
+.trip-sidebar .chat-safety-notice {
+  margin: 0;
 }
 
 /* Post hub */

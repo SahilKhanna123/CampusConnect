@@ -3,8 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { LOOKING_FOR_OPTIONS } from "@/lib/lookingFor";
-
-type CityGroup = { regionName: string; cities: { id: string; name: string }[] };
+import { CityAutocomplete, type SelectedCity } from "@/components/CityAutocomplete";
 
 // Shared by the student onboarding page, step 0 of the parent
 // /family/connect-student wizard, and self-editing on /profile -- all three
@@ -17,7 +16,7 @@ export function ProfileEditForm({
   initialName,
   initialPhotoUrl,
   initialHomeCityId,
-  citiesByRegion,
+  initialHomeCity,
   isParent,
   initialMajor,
   initialYear,
@@ -32,7 +31,12 @@ export function ProfileEditForm({
   initialName: string;
   initialPhotoUrl: string | null;
   initialHomeCityId: string | null;
-  citiesByRegion: CityGroup[];
+  // Pre-filled display value for the home-city CityAutocomplete field --
+  // citiesByRegion is gone (the seeded city list is too large for a plain
+  // <select> now), so a page rendering this form must resolve the user's
+  // current home City row itself and pass it here for the search box to
+  // display, same convention as TripPostForm's initialOriginCity.
+  initialHomeCity?: SelectedCity;
   isParent: boolean;
   initialMajor: string | null;
   initialYear: string | null;
@@ -47,6 +51,7 @@ export function ProfileEditForm({
   const router = useRouter();
   const [name, setName] = useState(initialName);
   const [homeCityId, setHomeCityId] = useState(initialHomeCityId ?? "");
+  const [homeCity, setHomeCity] = useState<SelectedCity>(initialHomeCity ?? null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(
     initialPhotoUrl,
   );
@@ -146,25 +151,16 @@ export function ProfileEditForm({
       </div>
       <div>
         <label htmlFor="homeCityId">Home city / area</label>
-        <select
+        <CityAutocomplete
           id="homeCityId"
+          value={homeCity}
+          onChange={(city) => {
+            setHomeCity(city);
+            setHomeCityId(city?.id ?? "");
+          }}
           required
-          value={homeCityId}
-          onChange={(e) => setHomeCityId(e.target.value)}
-        >
-          <option value="" disabled>
-            Select a city
-          </option>
-          {citiesByRegion.map((group) => (
-            <optgroup key={group.regionName} label={group.regionName}>
-              {group.cities.map((city) => (
-                <option key={city.id} value={city.id}>
-                  {city.name}
-                </option>
-              ))}
-            </optgroup>
-          ))}
-        </select>
+          placeholder="Search for a city"
+        />
       </div>
 
       {isParent ? (

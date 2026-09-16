@@ -1,8 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-
-type CityGroup = { regionName: string; cities: { id: string; name: string }[] };
+import { useState } from "react";
+import { CityAutocomplete, type SelectedCity } from "./CityAutocomplete";
 
 // Explore's filter bar -- auto-submits the moment any field changes instead
 // of requiring an explicit "Apply filters" click, per product decision (the
@@ -18,15 +18,29 @@ type CityGroup = { regionName: string; cities: { id: string; name: string }[] };
 // change event via React's normal event bubbling, so this stays one small
 // client-only island rather than needing per-field handlers or controlled
 // state for every input.
+//
+// Origin/Destination are CityAutocomplete now (search-as-you-type over the
+// full, no-longer-small city list -- see CityAutocomplete.tsx), which is a
+// controlled component: selecting a city updates it via onChange, not a
+// bubbling native "change" event the form-level handler above can read off
+// FormData the same way it reads the plain <input type="date">. So those two
+// fields get their own state + their own direct router.replace() on
+// selection, built with the same param logic as everywhere else in this
+// file (handleChange/"Clear filters"). Each still renders a hidden
+// name="..." input (via CityAutocomplete's `name` prop) so the shared
+// handleChange below keeps including the current city ids when some *other*
+// field (date) changes.
 export function ExploreFilters({
-  citiesByRegion,
+  initialOriginCity,
+  initialDestinationCity,
   originCityId,
   destinationCityId,
   date,
   hasActiveFilter,
   view,
 }: {
-  citiesByRegion: CityGroup[];
+  initialOriginCity: SelectedCity;
+  initialDestinationCity: SelectedCity;
   originCityId?: string;
   destinationCityId?: string;
   date?: string;
@@ -38,6 +52,8 @@ export function ExploreFilters({
   view: "all" | "rides" | "packages";
 }) {
   const router = useRouter();
+  const [originCity, setOriginCity] = useState<SelectedCity>(initialOriginCity);
+  const [destinationCity, setDestinationCity] = useState<SelectedCity>(initialDestinationCity);
 
   function handleChange(e: React.ChangeEvent<HTMLFormElement>) {
     const params = new URLSearchParams();
@@ -48,21 +64,36 @@ export function ExploreFilters({
     router.replace(query ? `/explore?${query}` : "/explore");
   }
 
-  // Every field below is an uncontrolled input (defaultValue, not value) --
-  // deliberately, so typing/selecting doesn't need controlled state for
-  // four fields just to submit them via FormData on change. The tradeoff:
-  // React only applies defaultValue on a field's *initial* mount, never on
-  // a later re-render -- so when the URL's filters change from *outside*
-  // this component's own onChange (e.g. "Clear filters" navigating to a
-  // bare /explore, or the browser back/forward buttons), the already-
-  // mounted <select>/<input> elements silently keep showing their old
-  // selections even though the page's actual results correctly updated.
-  // Confirmed live: clicking "Clear filters" removed the query string and
-  // the button itself correctly disappeared, but the Origin dropdown kept
-  // showing the old city. Keying the form on the current filter values
-  // forces React to remount it (and every field inside) fresh whenever
+  // Mirrors handleChange's param-building, but driven directly from state
+  // (origin/destination) plus the current `date`/`view` props, since a
+  // CityAutocomplete selection doesn't hand us a form to read FormData off.
+  function navigateWithCities(nextOrigin: SelectedCity, nextDestination: SelectedCity) {
+    const params = new URLSearchParams();
+    if (nextOrigin) params.set("originCityId", nextOrigin.id);
+    if (nextDestination) params.set("destinationCityId", nextDestination.id);
+    if (date) params.set("date", date);
+    if (view !== "packages") params.set("view", view);
+    const query = params.toString();
+    router.replace(query ? `/explore?${query}` : "/explore");
+  }
+
+  // The date field below is an uncontrolled input (defaultValue, not
+  // value) -- deliberately, so typing doesn't need controlled state just to
+  // submit it via FormData on change. The tradeoff: React only applies
+  // defaultValue on a field's *initial* mount, never on a later re-render --
+  // so when the URL's filters change from *outside* this component's own
+  // onChange (e.g. "Clear filters" navigating to a bare /explore, or the
+  // browser back/forward buttons), the already-mounted <input> would
+  // silently keep showing its old value even though the page's actual
+  // results correctly updated. Confirmed live: clicking "Clear filters"
+  // removed the query string and the button itself correctly disappeared,
+  // but the Origin dropdown (a <select> at the time) kept showing the old
+  // city. Keying the form on the current filter values forces React to
+  // remount it (and every field inside, origin/destination's controlled
+  // state included -- their useState above only takes its initial value
+  // from initialOriginCity/initialDestinationCity on mount) fresh whenever
   // they change for any reason, which is what actually resets the visible
-  // selections back to the new defaultValue.
+  // selections back to the current filters.
   const formKey = `${originCityId ?? ""}-${destinationCityId ?? ""}-${date ?? ""}-${view}`;
 
   return (
@@ -70,37 +101,29 @@ export function ExploreFilters({
       {view !== "packages" && <input type="hidden" name="view" value={view} />}
       <div>
         <label htmlFor="originCityId">Origin</label>
-        <select id="originCityId" name="originCityId" defaultValue={originCityId ?? ""}>
-          <option value="">Any origin</option>
-          {citiesByRegion.map((group) => (
-            <optgroup key={group.regionName} label={group.regionName}>
-              {group.cities.map((city) => (
-                <option key={city.id} value={city.id}>
-                  {city.name}
-                </option>
-              ))}
-            </optgroup>
-          ))}
-        </select>
+        <CityAutocomplete
+          id="originCityId"
+          name="originCityId"
+          value={originCity}
+          onChange={(city) => {
+            setOriginCity(city);
+            navigateWithCities(city, destinationCity);
+          }}
+          placeholder="Any origin"
+        />
       </div>
       <div>
         <label htmlFor="destinationCityId">Destination</label>
-        <select
+        <CityAutocomplete
           id="destinationCityId"
           name="destinationCityId"
-          defaultValue={destinationCityId ?? ""}
-        >
-          <option value="">Any destination</option>
-          {citiesByRegion.map((group) => (
-            <optgroup key={group.regionName} label={group.regionName}>
-              {group.cities.map((city) => (
-                <option key={city.id} value={city.id}>
-                  {city.name}
-                </option>
-              ))}
-            </optgroup>
-          ))}
-        </select>
+          value={destinationCity}
+          onChange={(city) => {
+            setDestinationCity(city);
+            navigateWithCities(originCity, city);
+          }}
+          placeholder="Any destination"
+        />
       </div>
       <div>
         <label htmlFor="date">Date</label>

@@ -2,8 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-
-type CityGroup = { regionName: string; cities: { id: string; name: string }[] };
+import { CityAutocomplete, type SelectedCity } from "@/components/CityAutocomplete";
 
 export type PackagePostFormValues = {
   originCityId: string;
@@ -27,23 +26,27 @@ const WRITE_IN_DESTINATION = "__write_in__";
 // timing. Anything more specific than the short optional `notes` field is
 // meant to happen in a DM (see PackageMessageForm.tsx), not a form field.
 export function PackagePostForm({
-  citiesByRegion,
   packagePostId,
   initialValues,
+  initialOriginCity = null,
+  initialDestinationCity = null,
   isStudent,
 }: {
-  citiesByRegion: CityGroup[];
   packagePostId?: string;
   initialValues?: Partial<PackagePostFormValues>;
+  initialOriginCity?: SelectedCity;
+  initialDestinationCity?: SelectedCity;
   isStudent: boolean;
 }) {
   const router = useRouter();
   const [originCityId, setOriginCityId] = useState(
     initialValues?.originCityId ?? "",
   );
+  const [originCity, setOriginCity] = useState<SelectedCity>(initialOriginCity);
   const [destinationCityId, setDestinationCityId] = useState(
     initialValues?.destinationText ? WRITE_IN_DESTINATION : initialValues?.destinationCityId ?? "",
   );
+  const [destinationCity, setDestinationCity] = useState<SelectedCity>(initialDestinationCity);
   const [destinationText, setDestinationText] = useState(
     initialValues?.destinationText ?? "",
   );
@@ -104,58 +107,61 @@ export function PackagePostForm({
     <form onSubmit={handleSubmit} className="app-form">
       <div>
         <label htmlFor="originCityId">From</label>
-        <select
+        <CityAutocomplete
           id="originCityId"
+          value={originCity}
+          onChange={(city) => {
+            setOriginCity(city);
+            setOriginCityId(city?.id ?? "");
+          }}
           required
-          value={originCityId}
-          onChange={(e) => setOriginCityId(e.target.value)}
-        >
-          <option value="" disabled>
-            Select a city
-          </option>
-          {citiesByRegion.map((group) => (
-            <optgroup key={group.regionName} label={group.regionName}>
-              {group.cities.map((city) => (
-                <option key={city.id} value={city.id}>
-                  {city.name}
-                </option>
-              ))}
-            </optgroup>
-          ))}
-        </select>
+          placeholder="Search for a city"
+        />
       </div>
       <div>
         <label htmlFor="destinationCityId">To</label>
-        <select
-          id="destinationCityId"
-          required
-          value={destinationCityId}
-          onChange={(e) => setDestinationCityId(e.target.value)}
-        >
-          <option value="" disabled>
-            Select a city
-          </option>
-          {citiesByRegion.map((group) => (
-            <optgroup key={group.regionName} label={group.regionName}>
-              {group.cities.map((city) => (
-                <option key={city.id} value={city.id}>
-                  {city.name}
-                </option>
-              ))}
-            </optgroup>
-          ))}
-          <option value={WRITE_IN_DESTINATION}>Other (type it in)</option>
-        </select>
-        {destinationCityId === WRITE_IN_DESTINATION && (
-          <input
-            id="destinationText"
-            type="text"
-            required
-            maxLength={100}
-            placeholder="e.g. LAX Airport"
-            value={destinationText}
-            onChange={(e) => setDestinationText(e.target.value)}
-          />
+        {destinationCityId !== WRITE_IN_DESTINATION ? (
+          <>
+            <CityAutocomplete
+              id="destinationCityId"
+              value={destinationCity}
+              onChange={(city) => {
+                setDestinationCity(city);
+                setDestinationCityId(city?.id ?? "");
+              }}
+              required
+              placeholder="Search for a city"
+            />
+            <button
+              type="button"
+              className="btn-link"
+              onClick={() => setDestinationCityId(WRITE_IN_DESTINATION)}
+            >
+              Can&apos;t find it? Type a destination instead
+            </button>
+          </>
+        ) : (
+          <>
+            <input
+              id="destinationText"
+              type="text"
+              required
+              maxLength={100}
+              placeholder="e.g. LAX Airport"
+              value={destinationText}
+              onChange={(e) => setDestinationText(e.target.value)}
+            />
+            <button
+              type="button"
+              className="btn-link"
+              onClick={() => {
+                setDestinationCityId("");
+                setDestinationCity(null);
+              }}
+            >
+              Pick a city instead
+            </button>
+          </>
         )}
       </div>
       <div>

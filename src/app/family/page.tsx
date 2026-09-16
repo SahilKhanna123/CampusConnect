@@ -4,6 +4,7 @@ import { getCurrentUser, isUniversityVerified } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { ApproveLinkButton } from "@/components/ApproveLinkButton";
 import { InviteParentForm } from "@/components/InviteParentForm";
+import { FadeIn } from "@/components/FadeIn";
 
 // Maps a ParentStudentLink/ParentStudentInvite status onto the existing
 // connection-status-label-* palette (pending=amber, accepted=green,
@@ -51,11 +52,17 @@ export default async function FamilyPage() {
   if (user.signedUpAsParent) {
     return (
       <div>
-        <span className="eyebrow">Family</span>
-        <h1 className="heading-tight">Family</h1>
-        <p>
-          Your linked students are shown on <Link href="/profile">your profile</Link>.
-        </p>
+        <FadeIn mode="mount" delay={0}>
+          <span className="eyebrow">Family</span>
+        </FadeIn>
+        <FadeIn mode="mount" delay={90}>
+          <h1 className="heading-tight">Family</h1>
+        </FadeIn>
+        <FadeIn mode="mount" delay={180}>
+          <p>
+            Your linked students are shown on <Link href="/profile">your profile</Link>.
+          </p>
+        </FadeIn>
       </div>
     );
   }
@@ -63,9 +70,15 @@ export default async function FamilyPage() {
   if (!user.studentRecord) {
     return (
       <div>
-        <span className="eyebrow">Family</span>
-        <h1 className="heading-tight">Family</h1>
-        <p>This page is for managing parent connections to a student account.</p>
+        <FadeIn mode="mount" delay={0}>
+          <span className="eyebrow">Family</span>
+        </FadeIn>
+        <FadeIn mode="mount" delay={90}>
+          <h1 className="heading-tight">Family</h1>
+        </FadeIn>
+        <FadeIn mode="mount" delay={180}>
+          <p>This page is for managing parent connections to a student account.</p>
+        </FadeIn>
       </div>
     );
   }
@@ -84,80 +97,98 @@ export default async function FamilyPage() {
 
   return (
     <div>
-      <span className="eyebrow">Family</span>
-      <h1 className="heading-tight">Family</h1>
-      <p className="profile-meta">Manage the parents and guardians connected to your account.</p>
+      <FadeIn mode="mount" delay={0}>
+        <span className="eyebrow">Family</span>
+      </FadeIn>
+      <FadeIn mode="mount" delay={90}>
+        <h1 className="heading-tight">Family</h1>
+      </FadeIn>
+      <FadeIn mode="mount" delay={180}>
+        <p className="profile-meta">Manage the parents and guardians connected to your account.</p>
+      </FadeIn>
 
-      <section className="profile-section">
-        <h2 className="profile-section-title">Parents Connected to You</h2>
-        {links.length === 0 ? (
-          <p>No parent connections yet.</p>
-        ) : (
-          <ul className="connection-list">
-            {links.map((link) => (
-              <li key={link.id} className="connection-item">
-                {link.parent.name}
-                <div className="connection-item-meta">
-                  <span className={statusLabelClass(link.status)}>
-                    {statusLabelText(link.status)}
-                  </span>
-                  {link.status === "otp_verified" &&
-                    " (they proved access to your email — confirm this is really your parent/guardian)"}
-                </div>
-                {link.status === "otp_verified" && (
-                  <ApproveLinkButton linkId={link.id} />
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+      <FadeIn mode="viewport">
+        <section className="profile-section">
+          <h2 className="profile-section-title">Parents Connected to You</h2>
+          {links.length === 0 ? (
+            <p>No parent connections yet.</p>
+          ) : (
+            <ul className="connection-list">
+              {links.map((link) => (
+                <li key={link.id} className="connection-item">
+                  <FadeIn mode="viewport">
+                    {link.parent.name}
+                    <div className="connection-item-meta">
+                      <span className={statusLabelClass(link.status)}>
+                        {statusLabelText(link.status)}
+                      </span>
+                      {link.status === "otp_verified" &&
+                        " (they proved access to your email — confirm this is really your parent/guardian)"}
+                    </div>
+                    {link.status === "otp_verified" && (
+                      <ApproveLinkButton linkId={link.id} />
+                    )}
+                  </FadeIn>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      </FadeIn>
 
       {isUniversityVerified(user) ? (
         <>
-          <section className="profile-section">
-            <h2 className="profile-section-title">Invite a Parent/Guardian</h2>
-            <p className="profile-section-hint">
-              Invite a parent or guardian to connect with you. They&apos;ll be
-              able to see rides and package requests related to you and post
-              on your behalf, clearly labeled as posted by them, for you.
-            </p>
-            <InviteParentForm />
-          </section>
+          <FadeIn mode="viewport">
+            <section className="profile-section">
+              <h2 className="profile-section-title">Invite a Parent/Guardian</h2>
+              <p className="profile-section-hint">
+                Invite a parent or guardian to connect with you. They&apos;ll be
+                able to see rides and package requests related to you and post
+                on your behalf, clearly labeled as posted by them, for you.
+              </p>
+              <InviteParentForm />
+            </section>
+          </FadeIn>
 
-          <section className="profile-section">
-            <h2 className="profile-section-title">Sent Invites</h2>
-            {sentInvites.length === 0 ? (
-              <p>No invites sent yet.</p>
-            ) : (
-              <ul className="connection-list">
-                {sentInvites.map((invite) => {
-                  const isExpired =
-                    invite.status === "pending" && invite.expiresAt < new Date();
-                  const displayStatus = isExpired ? "expired" : invite.status;
-                  return (
-                    <li key={invite.id} className="connection-item">
-                      {invite.parentEmail}
-                      <div className="connection-item-meta">
-                        Sent {invite.createdAt.toLocaleDateString()} ·{" "}
-                        <span className={statusLabelClass(displayStatus)}>
-                          {statusLabelText(displayStatus)}
-                        </span>
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </section>
+          <FadeIn mode="viewport">
+            <section className="profile-section">
+              <h2 className="profile-section-title">Sent Invites</h2>
+              {sentInvites.length === 0 ? (
+                <p>No invites sent yet.</p>
+              ) : (
+                <ul className="connection-list">
+                  {sentInvites.map((invite) => {
+                    const isExpired =
+                      invite.status === "pending" && invite.expiresAt < new Date();
+                    const displayStatus = isExpired ? "expired" : invite.status;
+                    return (
+                      <li key={invite.id} className="connection-item">
+                        <FadeIn mode="viewport">
+                          {invite.parentEmail}
+                          <div className="connection-item-meta">
+                            Sent {invite.createdAt.toLocaleDateString()} ·{" "}
+                            <span className={statusLabelClass(displayStatus)}>
+                              {statusLabelText(displayStatus)}
+                            </span>
+                          </div>
+                        </FadeIn>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </section>
+          </FadeIn>
         </>
       ) : (
-        <div className="profile-section">
-          <p>Verify your university email to invite a parent or guardian.</p>
-          <Link href="/verify" className="btn-secondary">
-            Verify your university email
-          </Link>
-        </div>
+        <FadeIn mode="viewport">
+          <div className="profile-section">
+            <p>Verify your university email to invite a parent or guardian.</p>
+            <Link href="/verify" className="btn-secondary">
+              Verify your university email
+            </Link>
+          </div>
+        </FadeIn>
       )}
     </div>
   );

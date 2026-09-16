@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { PosterBadge } from "@/components/ExploreCard";
 import { RespondToConnectionRequestButtons } from "@/components/RespondToConnectionRequestButtons";
 import { CancelConnectionRequestButton } from "@/components/CancelConnectionRequestButton";
+import { FadeIn } from "@/components/FadeIn";
 
 const POSTER_SELECT = {
   id: true,
@@ -61,8 +62,12 @@ export default async function ConnectionsPage({
 
   return (
     <div>
-      <span className="eyebrow">Connections</span>
-      <h1 className="heading-tight">Connection Requests</h1>
+      <FadeIn mode="mount" delay={0}>
+        <span className="eyebrow">Connections</span>
+      </FadeIn>
+      <FadeIn mode="mount" delay={90}>
+        <h1 className="heading-tight">Connection Requests</h1>
+      </FadeIn>
 
       <div className="subtabs" aria-label="Connection requests view">
         <Link
@@ -85,64 +90,72 @@ export default async function ConnectionsPage({
         received.length === 0 ? (
           <p>No connection requests received yet.</p>
         ) : (
-          <div className="connection-list">
-            {received.map((r) => {
-              const destinationLabel =
-                r.trip.destinationCity?.name ?? r.trip.destinationText ?? "?";
-              return (
-                <div key={r.id} className="connection-item">
-                  <PosterBadge poster={r.requester} />
-                  <div className="connection-item-trip">
-                    <Link href={`/trips/${r.tripId}`}>
-                      {r.trip.title || "Untitled trip"}: {r.trip.originCity.name} →{" "}
-                      {destinationLabel}
-                    </Link>
-                  </div>
-                  <div className="connection-item-meta">
-                    Requested {r.createdAt.toLocaleDateString()} ·{" "}
-                    <span className={`connection-status-label connection-status-label-${r.status}`}>
-                      {r.status}
-                    </span>
-                  </div>
-                  {r.message && <p className="connection-item-message">&ldquo;{r.message}&rdquo;</p>}
-                  {r.status === "pending" && (
-                    <RespondToConnectionRequestButtons connectionRequestId={r.id} />
-                  )}
-                </div>
-              );
-            })}
-          </div>
+          <FadeIn mode="viewport">
+            <div className="connection-list">
+              {received.map((r) => {
+                const destinationLabel =
+                  r.trip.destinationCity?.name ?? r.trip.destinationText ?? "?";
+                return (
+                  <FadeIn key={r.id} mode="viewport">
+                    <div className="connection-item">
+                      <PosterBadge poster={r.requester} />
+                      <div className="connection-item-trip">
+                        <Link href={`/trips/${r.tripId}`}>
+                          {r.trip.title || "Untitled trip"}: {r.trip.originCity.name} →{" "}
+                          {destinationLabel}
+                        </Link>
+                      </div>
+                      <div className="connection-item-meta">
+                        Requested {r.createdAt.toLocaleDateString()} ·{" "}
+                        <span className={`connection-status-label connection-status-label-${r.status}`}>
+                          {r.status}
+                        </span>
+                      </div>
+                      {r.message && <p className="connection-item-message">&ldquo;{r.message}&rdquo;</p>}
+                      {r.status === "pending" && (
+                        <RespondToConnectionRequestButtons connectionRequestId={r.id} />
+                      )}
+                    </div>
+                  </FadeIn>
+                );
+              })}
+            </div>
+          </FadeIn>
         )
       ) : sent.length === 0 ? (
         <p>No connection requests sent yet.</p>
       ) : (
-        <div className="connection-list">
-          {sent.map((r) => {
-            const destinationLabel =
-              r.trip.destinationCity?.name ?? r.trip.destinationText ?? "?";
-            return (
-              <div key={r.id} className="connection-item">
-                <PosterBadge poster={r.recipient} />
-                <div className="connection-item-trip">
-                  <Link href={`/trips/${r.tripId}`}>
-                    {r.trip.title || "Untitled trip"}: {r.trip.originCity.name} →{" "}
-                    {destinationLabel}
-                  </Link>
-                </div>
-                <div className="connection-item-meta">
-                  Requested {r.createdAt.toLocaleDateString()} ·{" "}
-                  <span className={`connection-status-label connection-status-label-${r.status}`}>
-                    {r.status}
-                  </span>
-                </div>
-                {r.message && <p className="connection-item-message">&ldquo;{r.message}&rdquo;</p>}
-                {r.status === "pending" && (
-                  <CancelConnectionRequestButton connectionRequestId={r.id} />
-                )}
-              </div>
-            );
-          })}
-        </div>
+        <FadeIn mode="viewport">
+          <div className="connection-list">
+            {sent.map((r) => {
+              const destinationLabel =
+                r.trip.destinationCity?.name ?? r.trip.destinationText ?? "?";
+              return (
+                <FadeIn key={r.id} mode="viewport">
+                  <div className="connection-item">
+                    <PosterBadge poster={r.recipient} />
+                    <div className="connection-item-trip">
+                      <Link href={`/trips/${r.tripId}`}>
+                        {r.trip.title || "Untitled trip"}: {r.trip.originCity.name} →{" "}
+                        {destinationLabel}
+                      </Link>
+                    </div>
+                    <div className="connection-item-meta">
+                      Requested {r.createdAt.toLocaleDateString()} ·{" "}
+                      <span className={`connection-status-label connection-status-label-${r.status}`}>
+                        {r.status}
+                      </span>
+                    </div>
+                    {r.message && <p className="connection-item-message">&ldquo;{r.message}&rdquo;</p>}
+                    {r.status === "pending" && (
+                      <CancelConnectionRequestButton connectionRequestId={r.id} />
+                    )}
+                  </div>
+                </FadeIn>
+              );
+            })}
+          </div>
+        </FadeIn>
       )}
     </div>
   );

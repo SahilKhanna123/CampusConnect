@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { FadeIn } from "@/components/FadeIn";
 
 // University email verification — this single page covers both halves of
 // the flow: submitting the .edu address (no ?token in the URL) and landing
@@ -59,37 +60,45 @@ function RequestForm() {
   if (status === "sent") {
     return (
       <div className="auth-card">
-        <h1 className="heading-tight">Check your inbox</h1>
-        <p className="profile-meta">
-          We sent a verification link to <strong>{email}</strong>. Click it
-          to get your verified badge.
-        </p>
+        <FadeIn mode="mount" delay={0}>
+          <h1 className="heading-tight">Check your inbox</h1>
+        </FadeIn>
+        <FadeIn mode="mount" delay={90}>
+          <p className="profile-meta">
+            We sent a verification link to <strong>{email}</strong>. Click it
+            to get your verified badge.
+          </p>
+        </FadeIn>
       </div>
     );
   }
 
   return (
     <div className="auth-card">
-      <span className="eyebrow">Verification</span>
-      <h1 className="heading-tight">Verify your university email</h1>
-      <p className="profile-meta">Required to post, request, or message on CampusConnect.</p>
-      <form onSubmit={handleSubmit} className="app-form">
-        <div>
-          <label htmlFor="email">University email</label>
-          <input
-            id="email"
-            type="email"
-            placeholder="you@uci.edu"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-        </div>
-        {error && <p role="alert">{error}</p>}
-        <button type="submit" disabled={status === "submitting"}>
-          {status === "submitting" ? "Sending…" : "Send verification link"}
-        </button>
-      </form>
+      <FadeIn mode="mount" delay={0}>
+        <span className="eyebrow">Verification</span>
+        <h1 className="heading-tight">Verify your university email</h1>
+      </FadeIn>
+      <FadeIn mode="mount" delay={90}>
+        <p className="profile-meta">Required to post, request, or message on CampusConnect.</p>
+        <form onSubmit={handleSubmit} className="app-form">
+          <div>
+            <label htmlFor="email">University email</label>
+            <input
+              id="email"
+              type="email"
+              placeholder="you@uci.edu"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+          </div>
+          {error && <p role="alert">{error}</p>}
+          <button type="submit" disabled={status === "submitting"}>
+            {status === "submitting" ? "Sending…" : "Send verification link"}
+          </button>
+        </form>
+      </FadeIn>
     </div>
   );
 }
@@ -133,8 +142,12 @@ function ConfirmToken({ token }: { token: string }) {
   if (state === "confirming") {
     return (
       <div className="auth-card">
-        <h1 className="heading-tight">Verify your university email</h1>
-        <p className="profile-meta">Confirming your verification link…</p>
+        <FadeIn mode="mount" delay={0}>
+          <h1 className="heading-tight">Verify your university email</h1>
+        </FadeIn>
+        <FadeIn mode="mount" delay={90}>
+          <p className="profile-meta">Confirming your verification link…</p>
+        </FadeIn>
       </div>
     );
   }
@@ -142,16 +155,24 @@ function ConfirmToken({ token }: { token: string }) {
   if (state === "success") {
     return (
       <div className="auth-card">
-        <h1 className="heading-tight">✓ University Verified</h1>
-        <p className="profile-meta">Your badge is live. You can now post, request, and message.</p>
+        <FadeIn mode="mount" delay={0}>
+          <h1 className="heading-tight">✓ University Verified</h1>
+        </FadeIn>
+        <FadeIn mode="mount" delay={90}>
+          <p className="profile-meta">Your badge is live. You can now post, request, and message.</p>
+        </FadeIn>
       </div>
     );
   }
 
   return (
     <div className="auth-card">
-      <h1 className="heading-tight">Verification Failed</h1>
-      <p className="profile-meta">{message}</p>
+      <FadeIn mode="mount" delay={0}>
+        <h1 className="heading-tight">Verification Failed</h1>
+      </FadeIn>
+      <FadeIn mode="mount" delay={90}>
+        <p className="profile-meta">{message}</p>
+      </FadeIn>
     </div>
   );
 }

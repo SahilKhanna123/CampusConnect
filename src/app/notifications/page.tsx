@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { notificationLink } from "@/lib/notifications";
 import { NotificationItem } from "@/components/NotificationItem";
 import { MarkAllNotificationsReadButton } from "@/components/MarkAllNotificationsReadButton";
+import { FadeIn } from "@/components/FadeIn";
 
 // Notifications -- the caller's own rows, most recent first, same
 // server-component-queries-Prisma-directly convention as /messages and
@@ -26,8 +27,12 @@ export default async function NotificationsPage() {
     <div>
       <div className="page-header">
         <div>
-          <span className="eyebrow">Notifications</span>
-          <h1 className="heading-tight">Notifications</h1>
+          <FadeIn mode="mount" delay={0}>
+            <span className="eyebrow">Notifications</span>
+          </FadeIn>
+          <FadeIn mode="mount" delay={90}>
+            <h1 className="heading-tight">Notifications</h1>
+          </FadeIn>
         </div>
         {hasUnread && <MarkAllNotificationsReadButton />}
       </div>
@@ -38,22 +43,25 @@ export default async function NotificationsPage() {
           new messages will show up here.
         </p>
       ) : (
-        <div className="notification-list">
-          {notifications.map((n) => (
-            <NotificationItem
-              key={n.id}
-              notification={{
-                id: n.id,
-                type: n.type,
-                title: n.title,
-                message: n.message,
-                isRead: n.isRead,
-                createdAt: n.createdAt.toISOString(),
-                href: notificationLink(n),
-              }}
-            />
-          ))}
-        </div>
+        <FadeIn mode="viewport">
+          <div className="notification-list">
+            {notifications.map((n) => (
+              <FadeIn key={n.id} mode="viewport">
+                <NotificationItem
+                  notification={{
+                    id: n.id,
+                    type: n.type,
+                    title: n.title,
+                    message: n.message,
+                    isRead: n.isRead,
+                    createdAt: n.createdAt.toISOString(),
+                    href: notificationLink(n),
+                  }}
+                />
+              </FadeIn>
+            ))}
+          </div>
+        </FadeIn>
       )}
     </div>
   );

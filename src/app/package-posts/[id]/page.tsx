@@ -9,6 +9,7 @@ import { PosterBadge } from "@/components/ExploreCard";
 import { ReportButton } from "@/components/ReportButton";
 import { BlockButton } from "@/components/BlockButton";
 import { isBlockedBetween } from "@/lib/blocks";
+import { FadeIn } from "@/components/FadeIn";
 
 // PackagePost detail -- mirrors the shape of /trips/[id] (gated for a
 // logged-out visitor, studentsOnly 404 gate, owner actions, Report/Block)
@@ -54,7 +55,7 @@ export default async function PackagePostDetailPage({
 
   return (
     <div>
-      <div className="detail-header">
+      <FadeIn mode="mount" delay={0} className="detail-header">
         {found.studentsOnly && <span className="badge-students-only">🎓 Students only</span>}
         <span className="eyebrow">Package space offered</span>
         <h1 className="heading-tight detail-route-headline">
@@ -69,8 +70,8 @@ export default async function PackagePostDetailPage({
         <p className={`trip-status-label trip-status-label-${found.status}`}>
           {found.status}
         </p>
-      </div>
-      <div className="detail-facts">
+      </FadeIn>
+      <FadeIn mode="mount" delay={90} className="detail-facts">
         {found.date && (
           <p>
             {found.date.toLocaleDateString()}
@@ -79,14 +80,14 @@ export default async function PackagePostDetailPage({
           </p>
         )}
         {found.notes && <p>{found.notes}</p>}
-      </div>
-      <div className="detail-poster-row">
+      </FadeIn>
+      <FadeIn mode="mount" delay={180} className="detail-poster-row">
         <Link href={`/profile/${found.postedBy.id}`} className="plain-link">
           <PosterBadge poster={found.postedBy} />
         </Link>
-      </div>
+      </FadeIn>
       {!isOwner && (
-        <div className="button-row">
+        <FadeIn mode="viewport" className="button-row">
           <ReportButton
             reportedUserId={found.postedBy.id}
             contextType="package"
@@ -96,10 +97,10 @@ export default async function PackagePostDetailPage({
             blockedUserId={found.postedBy.id}
             initialBlocked={initialBlocked}
           />
-        </div>
+        </FadeIn>
       )}
       {isOwner && found.status === "open" && (
-        <div className="button-row">
+        <FadeIn mode="viewport" className="button-row">
           <Link href={`/package-posts/${found.id}/edit`} className="btn-secondary">
             Edit
           </Link>
@@ -110,10 +111,12 @@ export default async function PackagePostDetailPage({
             actionLabel="Cancel post"
             confirmMessage="Cancel this post? This can't be undone."
           />
-        </div>
+        </FadeIn>
       )}
       {!isOwner && found.status === "open" && (
-        <PackageMessageForm packagePostId={found.id} />
+        <FadeIn mode="viewport">
+          <PackageMessageForm packagePostId={found.id} />
+        </FadeIn>
       )}
     </div>
   );

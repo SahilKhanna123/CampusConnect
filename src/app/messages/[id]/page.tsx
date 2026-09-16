@@ -7,6 +7,7 @@ import { ReportButton } from "@/components/ReportButton";
 import { BlockButton } from "@/components/BlockButton";
 import { isBlockedBetween } from "@/lib/blocks";
 import { tripDisplayStatus } from "@/lib/postStatus";
+import { FadeIn } from "@/components/FadeIn";
 
 // A single conversation thread -- reached from /messages or from the
 // "Register for a seat" flow on /trips/[id]. 404s (not a permission error
@@ -74,16 +75,16 @@ export default async function ConversationPage({
           this app has no payment/escrow infrastructure (see CLAUDE.md,
           "No payment fields"), so any money changing hands is strictly an
           in-person, off-platform arrangement between the two riders. */}
-      <p className="chat-safety-notice">
+      <FadeIn mode="mount" delay={0} className="chat-safety-notice">
         <span aria-hidden="true">⚠️</span>
         <span>
           Handle any payment (gas money, delivery fees, etc.) in person, at
           the time of the ride or pickup. CampusConnect doesn&apos;t process
           payments and can&apos;t help recover money sent to someone here.
         </span>
-      </p>
+      </FadeIn>
 
-      <div className="chat-header">
+      <FadeIn mode="mount" delay={90} className="chat-header">
         <div className="chat-header-identity">
           {counterpart?.photoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -117,31 +118,33 @@ export default async function ConversationPage({
             />
           </div>
         )}
-      </div>
+      </FadeIn>
 
       {counterpart && (
-        <MessageThread
-          conversationId={conversation.id}
-          currentUserId={user.id}
-          isOwner={isOwner}
-          counterpartId={counterpart.id}
-          seatsAvailable={seatsAvailable}
-          initialMessages={conversation.messages.map((m) => ({
-            id: m.id,
-            body: m.body,
-            sentAt: m.sentAt.toISOString(),
-            senderId: m.senderId,
-            sender: m.sender,
-          }))}
-          initialSeatOffers={conversation.seatOffers.map((o) => ({
-            id: o.id,
-            status: o.status,
-            recipientId: o.recipientId,
-            createdAt: o.createdAt.toISOString(),
-            respondedAt: o.respondedAt ? o.respondedAt.toISOString() : null,
-            seatConfirmedAt: o.seatConfirmedAt ? o.seatConfirmedAt.toISOString() : null,
-          }))}
-        />
+        <FadeIn mode="viewport">
+          <MessageThread
+            conversationId={conversation.id}
+            currentUserId={user.id}
+            isOwner={isOwner}
+            counterpartId={counterpart.id}
+            seatsAvailable={seatsAvailable}
+            initialMessages={conversation.messages.map((m) => ({
+              id: m.id,
+              body: m.body,
+              sentAt: m.sentAt.toISOString(),
+              senderId: m.senderId,
+              sender: m.sender,
+            }))}
+            initialSeatOffers={conversation.seatOffers.map((o) => ({
+              id: o.id,
+              status: o.status,
+              recipientId: o.recipientId,
+              createdAt: o.createdAt.toISOString(),
+              respondedAt: o.respondedAt ? o.respondedAt.toISOString() : null,
+              seatConfirmedAt: o.seatConfirmedAt ? o.seatConfirmedAt.toISOString() : null,
+            }))}
+          />
+        </FadeIn>
       )}
     </div>
   );

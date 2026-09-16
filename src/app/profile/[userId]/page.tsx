@@ -5,6 +5,7 @@ import { lookingForLabel } from "@/lib/lookingFor";
 import { ReportButton } from "@/components/ReportButton";
 import { BlockButton } from "@/components/BlockButton";
 import { isBlockedBetween } from "@/lib/blocks";
+import { FadeIn } from "@/components/FadeIn";
 
 // Public profile view of another user -- only the fields getPublicProfile
 // (src/lib/profile.ts) allowlists: name, photo, university, general home
@@ -27,7 +28,7 @@ export default async function PublicProfilePage({
 
   return (
     <div>
-      <div className="profile-header">
+      <FadeIn mode="mount" delay={0} className="profile-header">
         {profile.photoUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -64,23 +65,25 @@ export default async function PublicProfilePage({
             )}
           </div>
         </div>
-      </div>
+      </FadeIn>
 
-      {profile.linkedStudentName && (
-        <p className="profile-meta">Connected to {profile.linkedStudentName}</p>
-      )}
-      {profile.travelPreferences && <p className="profile-meta">{profile.travelPreferences}</p>}
-      {profile.lookingFor.length > 0 && (
-        <p className="profile-meta">
-          Looking for: {profile.lookingFor.map(lookingForLabel).join(", ")}
-        </p>
-      )}
+      <FadeIn mode="mount" delay={90}>
+        {profile.linkedStudentName && (
+          <p className="profile-meta">Connected to {profile.linkedStudentName}</p>
+        )}
+        {profile.travelPreferences && <p className="profile-meta">{profile.travelPreferences}</p>}
+        {profile.lookingFor.length > 0 && (
+          <p className="profile-meta">
+            Looking for: {profile.lookingFor.map(lookingForLabel).join(", ")}
+          </p>
+        )}
+      </FadeIn>
 
       {viewer.id !== userId && (
-        <div className="button-row">
+        <FadeIn mode="viewport" className="button-row">
           <ReportButton reportedUserId={userId} contextType="profile" />
           <BlockButton blockedUserId={userId} initialBlocked={initialBlocked} />
-        </div>
+        </FadeIn>
       )}
     </div>
   );

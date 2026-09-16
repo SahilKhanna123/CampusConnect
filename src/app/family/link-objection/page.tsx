@@ -2,6 +2,7 @@
 
 import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { FadeIn } from "@/components/FadeIn";
 
 // Public, no-auth landing page for the "this wasn't me" link in the parent
 // connection notice email. Deliberately requires an explicit button click
@@ -48,8 +49,12 @@ function LinkObjectionContent() {
   if (!token) {
     return (
       <div className="auth-card">
-        <h1 className="heading-tight">Remove Parent Connection</h1>
-        <p>This link is missing information and can&apos;t be used.</p>
+        <FadeIn mode="mount" delay={0}>
+          <h1 className="heading-tight">Remove Parent Connection</h1>
+        </FadeIn>
+        <FadeIn mode="mount" delay={90}>
+          <p>This link is missing information and can&apos;t be used.</p>
+        </FadeIn>
       </div>
     );
   }
@@ -57,31 +62,39 @@ function LinkObjectionContent() {
   if (state === "done") {
     return (
       <div className="auth-card">
-        <h1 className="heading-tight">Connection Removed</h1>
-        <p>
-          That parent connection has been removed. If you create a
-          CampusConnect account later using this email, it won&apos;t be
-          affected.
-        </p>
+        <FadeIn mode="mount" delay={0}>
+          <h1 className="heading-tight">Connection Removed</h1>
+        </FadeIn>
+        <FadeIn mode="mount" delay={90}>
+          <p>
+            That parent connection has been removed. If you create a
+            CampusConnect account later using this email, it won&apos;t be
+            affected.
+          </p>
+        </FadeIn>
       </div>
     );
   }
 
   return (
     <div className="auth-card">
-      <h1 className="heading-tight">Remove Parent Connection</h1>
-      <p>
-        Someone claiming to be a parent/guardian connected with you on
-        CampusConnect using this email address. If you don&apos;t recognize
-        this or don&apos;t want the connection, click below to remove it. You
-        don&apos;t need a CampusConnect account to do this.
-      </p>
-      {error && <p role="alert">{error}</p>}
-      <button onClick={handleReject} disabled={state === "submitting"} className="btn-secondary">
-        {state === "submitting"
-          ? "Removing…"
-          : "This wasn't me — remove this connection"}
-      </button>
+      <FadeIn mode="mount" delay={0}>
+        <h1 className="heading-tight">Remove Parent Connection</h1>
+      </FadeIn>
+      <FadeIn mode="mount" delay={90}>
+        <p>
+          Someone claiming to be a parent/guardian connected with you on
+          CampusConnect using this email address. If you don&apos;t recognize
+          this or don&apos;t want the connection, click below to remove it. You
+          don&apos;t need a CampusConnect account to do this.
+        </p>
+        {error && <p role="alert">{error}</p>}
+        <button onClick={handleReject} disabled={state === "submitting"} className="btn-secondary">
+          {state === "submitting"
+            ? "Removing…"
+            : "This wasn't me — remove this connection"}
+        </button>
+      </FadeIn>
     </div>
   );
 }

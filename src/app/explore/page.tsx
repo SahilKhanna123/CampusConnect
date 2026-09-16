@@ -1,16 +1,17 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser, hasStudentRecord } from "@/lib/auth";
-import { getCitiesByRegion } from "@/lib/geo";
 import { tripDisplayStatus } from "@/lib/postStatus";
 import { type ExploreCardPost } from "@/components/ExploreCard";
 import { ExploreMapView } from "@/components/ExploreMapView";
 import { ExploreFilters } from "@/components/ExploreFilters";
+import type { SelectedCity } from "@/components/CityAutocomplete";
 import { ExploreViewTabs, type ExploreView } from "@/components/ExploreViewTabs";
 import type { ConnectionStatus } from "@/components/ConnectionRequestButton";
 import { getBlockedCounterpartIds } from "@/lib/blocks";
 import { getConfirmedRiderCounts } from "@/lib/tripParticipants";
 import { resolvePostCoordinates } from "@/lib/geocode";
+import { FadeIn } from "@/components/FadeIn";
 
 const PAGE_SIZE = 4;
 
@@ -128,6 +129,34 @@ async function resolvePosterStats(posterIds: string[]): Promise<Map<string, Post
   return result;
 }
 
+// Resolves the origin/destination filters (City ids from the URL) to the
+// {id, name, regionName} shape CityAutocomplete needs to show the currently-
+// selected city's name on a filtered page load, instead of a blank search
+// box -- getCitiesByRegion() (the old flat/grouped-<select> data source) is
+// gone now that the seeded city list is too large for that pattern. One
+// batched findMany rather than two findUnique calls, matching this file's
+// existing preference for batching (see resolvePosterStats/
+// getConfirmedRiderCounts) over one-query-per-thing.
+async function resolveSelectedCities(
+  originCityId?: string,
+  destinationCityId?: string,
+): Promise<{ origin: SelectedCity; destination: SelectedCity }> {
+  const ids = [originCityId, destinationCityId].filter((id): id is string => Boolean(id));
+  if (ids.length === 0) return { origin: null, destination: null };
+
+  const cities = await prisma.city.findMany({
+    where: { id: { in: ids } },
+    include: { region: true },
+  });
+  const byId = new Map(
+    cities.map((c) => [c.id, { id: c.id, name: c.name, regionName: c.region.name }]),
+  );
+  return {
+    origin: originCityId ? (byId.get(originCityId) ?? null) : null,
+    destination: destinationCityId ? (byId.get(destinationCityId) ?? null) : null,
+  };
+}
+
 function buildPoster<T extends PosterRow>(user: T, stats: Map<string, PosterStats>) {
   const s = stats.get(user.id);
   return {
@@ -187,8 +216,8 @@ export default async function ExplorePage({
   const isStudent = user ? hasStudentRecord(user) : false;
   const studentsOnlyFilter = isStudent ? {} : { studentsOnly: false };
 
-  const [citiesByRegion, trips, packagePosts] = await Promise.all([
-    getCitiesByRegion(),
+  const [selectedCities, trips, packagePosts] = await Promise.all([
+    resolveSelectedCities(originCityId, destinationCityId),
     showRides
       ? fetchTrips({
           status: "upcoming",
@@ -390,9 +419,15 @@ export default async function ExplorePage({
 
   return (
     <div>
-      <span className="eyebrow">Explore</span>
-      <h1 className="heading-tight">{heading}</h1>
-      <p>{subheading}</p>
+      <FadeIn mode="mount" delay={0}>
+        <span className="eyebrow">Explore</span>
+      </FadeIn>
+      <FadeIn mode="mount" delay={90}>
+        <h1 className="heading-tight">{heading}</h1>
+      </FadeIn>
+      <FadeIn mode="mount" delay={180}>
+        <p>{subheading}</p>
+      </FadeIn>
 
       <ExploreViewTabs
         activeView={view}
@@ -402,7 +437,8 @@ export default async function ExplorePage({
       />
 
       <ExploreFilters
-        citiesByRegion={citiesByRegion}
+        initialOriginCity={selectedCities.origin}
+        initialDestinationCity={selectedCities.destination}
         originCityId={originCityId}
         destinationCityId={destinationCityId}
         date={date}
@@ -410,7 +446,9 @@ export default async function ExplorePage({
         view={view}
       />
 
-      <ExploreMapView posts={posts} isLoggedIn={!!user} emptyMessage={emptyMessage} />
+      <FadeIn mode="viewport">
+        <ExploreMapView posts={posts} isLoggedIn={!!user} emptyMessage={emptyMessage} />
+      </FadeIn>
 
       {totalPages > 1 && (
         <div className="pagination-row">

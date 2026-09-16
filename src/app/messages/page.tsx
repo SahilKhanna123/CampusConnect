@@ -4,6 +4,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { isConversationUnread } from "@/lib/messaging";
 import { ConversationActions } from "@/components/ConversationActions";
+import { FadeIn } from "@/components/FadeIn";
 
 // Messages — conversation list, scoped to (trip, counterpart) pairs. Each
 // row links to /messages/[id], which polls for new messages while open
@@ -56,8 +57,12 @@ export default async function MessagesPage({
 
   return (
     <div>
-      <span className="eyebrow">Messages</span>
-      <h1 className="heading-tight">Messages</h1>
+      <FadeIn mode="mount" delay={0}>
+        <span className="eyebrow">Messages</span>
+      </FadeIn>
+      <FadeIn mode="mount" delay={90}>
+        <h1 className="heading-tight">Messages</h1>
+      </FadeIn>
 
       <div className="subtabs" aria-label="Messages view">
         <Link
@@ -83,62 +88,65 @@ export default async function MessagesPage({
             : "Your conversations will appear here."}
         </p>
       ) : (
-        <div className="conversation-list">
-          {conversations.map((c) => {
-            const counterpart = c.participants.find(
-              (p) => p.userId !== user.id,
-            )?.user;
-            const myParticipant = c.participants.find(
-              (p) => p.userId === user.id,
-            );
-            const lastMessage = c.messages[0];
-            const unread = isConversationUnread(
-              lastMessage,
-              user.id,
-              myParticipant?.lastReadAt,
-            );
-            const post = c.trip ?? c.packagePost!;
-            const destinationLabel =
-              post.destinationCity?.name ?? post.destinationText ?? "?";
-            const lastActivityAt = lastMessage?.sentAt ?? c.createdAt;
-            return (
-              <div
-                key={c.id}
-                className={
-                  unread ? "conversation-item conversation-item-unread" : "conversation-item"
-                }
-              >
-                <Link href={`/messages/${c.id}`} className="conversation-item-link">
+        <FadeIn mode="viewport">
+          <div className="conversation-list">
+            {conversations.map((c) => {
+              const counterpart = c.participants.find(
+                (p) => p.userId !== user.id,
+              )?.user;
+              const myParticipant = c.participants.find(
+                (p) => p.userId === user.id,
+              );
+              const lastMessage = c.messages[0];
+              const unread = isConversationUnread(
+                lastMessage,
+                user.id,
+                myParticipant?.lastReadAt,
+              );
+              const post = c.trip ?? c.packagePost!;
+              const destinationLabel =
+                post.destinationCity?.name ?? post.destinationText ?? "?";
+              const lastActivityAt = lastMessage?.sentAt ?? c.createdAt;
+              return (
+                <FadeIn key={c.id} mode="viewport">
                   <div
                     className={
-                      unread
-                        ? "conversation-item-title conversation-item-title-unread"
-                        : "conversation-item-title"
+                      unread ? "conversation-item conversation-item-unread" : "conversation-item"
                     }
                   >
-                    {counterpart?.name ?? "Unknown"}
-                    {unread && <span className="unread-badge">New</span>}
+                    <Link href={`/messages/${c.id}`} className="conversation-item-link">
+                      <div
+                        className={
+                          unread
+                            ? "conversation-item-title conversation-item-title-unread"
+                            : "conversation-item-title"
+                        }
+                      >
+                        {counterpart?.name ?? "Unknown"}
+                        {unread && <span className="unread-badge">New</span>}
+                      </div>
+                      <div className="conversation-item-route">
+                        {post.originCity.name} → {destinationLabel}
+                      </div>
+                      {lastMessage && (
+                        <div className="conversation-item-preview">
+                          {lastMessage.body}
+                        </div>
+                      )}
+                      <div className="message-meta">
+                        {lastActivityAt.toLocaleString()}
+                      </div>
+                    </Link>
+                    <ConversationActions
+                      conversationId={c.id}
+                      initialArchived={!!myParticipant?.archivedAt}
+                    />
                   </div>
-                  <div className="conversation-item-route">
-                    {post.originCity.name} → {destinationLabel}
-                  </div>
-                  {lastMessage && (
-                    <div className="conversation-item-preview">
-                      {lastMessage.body}
-                    </div>
-                  )}
-                  <div className="message-meta">
-                    {lastActivityAt.toLocaleString()}
-                  </div>
-                </Link>
-                <ConversationActions
-                  conversationId={c.id}
-                  initialArchived={!!myParticipant?.archivedAt}
-                />
-              </div>
-            );
-          })}
-        </div>
+                </FadeIn>
+              );
+            })}
+          </div>
+        </FadeIn>
       )}
     </div>
   );

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { AcceptFamilyInviteButton } from "@/components/AcceptFamilyInviteButton";
+import { FadeIn } from "@/components/FadeIn";
 
 // Landing page for the link in sendParentInviteEmail (the student-initiated
 // direction, see POST /api/family/invite). Unlike LinkObjectionPage, this
@@ -22,8 +23,12 @@ export default async function AcceptFamilyInvitePage({
   if (!token) {
     return (
       <div className="auth-card">
-        <h1 className="heading-tight">Accept Family Invitation</h1>
-        <p>This link is missing information and can&apos;t be used.</p>
+        <FadeIn mode="mount" delay={0}>
+          <h1 className="heading-tight">Accept Family Invitation</h1>
+        </FadeIn>
+        <FadeIn mode="mount" delay={90}>
+          <p>This link is missing information and can&apos;t be used.</p>
+        </FadeIn>
       </div>
     );
   }
@@ -36,8 +41,12 @@ export default async function AcceptFamilyInvitePage({
   if (!invite) {
     return (
       <div className="auth-card">
-        <h1 className="heading-tight">Accept Family Invitation</h1>
-        <p>This invite link isn&apos;t valid.</p>
+        <FadeIn mode="mount" delay={0}>
+          <h1 className="heading-tight">Accept Family Invitation</h1>
+        </FadeIn>
+        <FadeIn mode="mount" delay={90}>
+          <p>This invite link isn&apos;t valid.</p>
+        </FadeIn>
       </div>
     );
   }
@@ -45,8 +54,12 @@ export default async function AcceptFamilyInvitePage({
   if (invite.status === "accepted") {
     return (
       <div className="auth-card">
-        <h1 className="heading-tight">Already Accepted</h1>
-        <p>This invitation has already been accepted.</p>
+        <FadeIn mode="mount" delay={0}>
+          <h1 className="heading-tight">Already Accepted</h1>
+        </FadeIn>
+        <FadeIn mode="mount" delay={90}>
+          <p>This invitation has already been accepted.</p>
+        </FadeIn>
       </div>
     );
   }
@@ -54,8 +67,12 @@ export default async function AcceptFamilyInvitePage({
   if (invite.status === "revoked") {
     return (
       <div className="auth-card">
-        <h1 className="heading-tight">Invitation No Longer Available</h1>
-        <p>This invitation is no longer available.</p>
+        <FadeIn mode="mount" delay={0}>
+          <h1 className="heading-tight">Invitation No Longer Available</h1>
+        </FadeIn>
+        <FadeIn mode="mount" delay={90}>
+          <p>This invitation is no longer available.</p>
+        </FadeIn>
       </div>
     );
   }
@@ -69,8 +86,12 @@ export default async function AcceptFamilyInvitePage({
   if (isExpired) {
     return (
       <div className="auth-card">
-        <h1 className="heading-tight">Invitation Expired</h1>
-        <p>Ask {invite.student.name} to send a new invite.</p>
+        <FadeIn mode="mount" delay={0}>
+          <h1 className="heading-tight">Invitation Expired</h1>
+        </FadeIn>
+        <FadeIn mode="mount" delay={90}>
+          <p>Ask {invite.student.name} to send a new invite.</p>
+        </FadeIn>
       </div>
     );
   }
@@ -80,24 +101,28 @@ export default async function AcceptFamilyInvitePage({
   if (!user) {
     return (
       <div className="auth-card">
-        <h1 className="heading-tight">Accept Family Invitation</h1>
-        <p>
-          <strong>{invite.student.name}</strong> invited you to connect as
-          their parent/guardian on CampusConnect.
-        </p>
-        <p>
-          Log in or sign up using <strong>{invite.parentEmail}</strong> — the
-          exact email this invite was sent to — then come back to this link
-          to accept.
-        </p>
-        <div className="button-row">
-          <Link href="/login" className="btn-secondary">
-            Log in
-          </Link>
-          <Link href="/sign-up" className="btn-primary">
-            Sign up
-          </Link>
-        </div>
+        <FadeIn mode="mount" delay={0}>
+          <h1 className="heading-tight">Accept Family Invitation</h1>
+        </FadeIn>
+        <FadeIn mode="mount" delay={90}>
+          <p>
+            <strong>{invite.student.name}</strong> invited you to connect as
+            their parent/guardian on CampusConnect.
+          </p>
+          <p>
+            Log in or sign up using <strong>{invite.parentEmail}</strong> — the
+            exact email this invite was sent to — then come back to this link
+            to accept.
+          </p>
+          <div className="button-row">
+            <Link href="/login" className="btn-secondary">
+              Log in
+            </Link>
+            <Link href="/sign-up" className="btn-primary">
+              Sign up
+            </Link>
+          </div>
+        </FadeIn>
       </div>
     );
   }
@@ -105,26 +130,34 @@ export default async function AcceptFamilyInvitePage({
   if (user.email.toLowerCase() !== invite.parentEmail) {
     return (
       <div className="auth-card">
-        <h1 className="heading-tight">Wrong Account</h1>
-        <p>
-          This invite was sent to <strong>{invite.parentEmail}</strong>, but
-          you&apos;re signed in as {user.email}. Sign out and log in or sign
-          up with that exact email to accept it.
-        </p>
+        <FadeIn mode="mount" delay={0}>
+          <h1 className="heading-tight">Wrong Account</h1>
+        </FadeIn>
+        <FadeIn mode="mount" delay={90}>
+          <p>
+            This invite was sent to <strong>{invite.parentEmail}</strong>, but
+            you&apos;re signed in as {user.email}. Sign out and log in or sign
+            up with that exact email to accept it.
+          </p>
+        </FadeIn>
       </div>
     );
   }
 
   return (
     <div className="auth-card">
-      <h1 className="heading-tight">Accept Family Invitation</h1>
-      <p>
-        <strong>{invite.student.name}</strong> invited you to connect as
-        their parent/guardian on CampusConnect. Accepting lets you see rides
-        and package requests related to them and post on their behalf,
-        clearly labeled as posted by you, for them.
-      </p>
-      <AcceptFamilyInviteButton token={token} />
+      <FadeIn mode="mount" delay={0}>
+        <h1 className="heading-tight">Accept Family Invitation</h1>
+      </FadeIn>
+      <FadeIn mode="mount" delay={90}>
+        <p>
+          <strong>{invite.student.name}</strong> invited you to connect as
+          their parent/guardian on CampusConnect. Accepting lets you see rides
+          and package requests related to them and post on their behalf,
+          clearly labeled as posted by you, for them.
+        </p>
+        <AcceptFamilyInviteButton token={token} />
+      </FadeIn>
     </div>
   );
 }

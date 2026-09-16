@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { FadeIn } from "@/components/FadeIn";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -35,37 +36,43 @@ export default function LoginPage() {
 
   return (
     <div className="auth-card">
-      <span className="eyebrow">Welcome back</span>
-      <h1 className="heading-tight">Log in</h1>
-      <form onSubmit={handleSubmit} className="app-form">
-        <div>
-          <label htmlFor="email">Email</label>
-          <input
-            id="email"
-            type="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-        </div>
-        <div>
-          <label htmlFor="password">Password</label>
-          <input
-            id="password"
-            type="password"
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-        </div>
-        {error && <p role="alert">{error}</p>}
-        <button type="submit" disabled={submitting}>
-          {submitting ? "Logging in…" : "Log in"}
-        </button>
-      </form>
-      <p className="auth-footer">
-        Don&apos;t have an account? <Link href="/sign-up">Sign up</Link>
-      </p>
+      <FadeIn mode="mount" delay={0}>
+        <span className="eyebrow">Welcome back</span>
+        <h1 className="heading-tight">Log in</h1>
+      </FadeIn>
+      <FadeIn mode="mount" delay={90}>
+        <form onSubmit={handleSubmit} className="app-form">
+          <div>
+            <label htmlFor="email">Email</label>
+            <input
+              id="email"
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+          </div>
+          <div>
+            <label htmlFor="password">Password</label>
+            <input
+              id="password"
+              type="password"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+          </div>
+          {error && <p role="alert">{error}</p>}
+          <button type="submit" disabled={submitting}>
+            {submitting ? "Logging in…" : "Log in"}
+          </button>
+        </form>
+      </FadeIn>
+      <FadeIn mode="mount" delay={180}>
+        <p className="auth-footer">
+          Don&apos;t have an account? <Link href="/sign-up">Sign up</Link>
+        </p>
+      </FadeIn>
     </div>
   );
 }
