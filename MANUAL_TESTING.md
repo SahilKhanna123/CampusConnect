@@ -11,6 +11,61 @@ functions — see the Automated Tests section of CLAUDE.md. Everything else
 automated coverage yet, so this file remains the actual test coverage for
 those.
 
+## Open Posting/Discovery to Any US City + Trip Detail Redesign + Site-Wide Fade-In (2026-09-16)
+
+Three changes shipped together in one pass:
+
+**Fade-in on page load.** Every page now fades in on entry (staggered for
+above-the-fold content, on-scroll for content further down) via a new
+`useFadeIn` hook + `FadeIn` component, applied to all 24 pages.
+
+**Trip detail page redesign** (`/trips/[id]`): two-column layout — route
+illustration banner, icon-based fact rows (date/seats/fare/notes), and a
+Riders section on the left; a poster card with a colored avatar,
+verification badges, bio line, and action buttons (Request to Connect /
+owner Edit-Complete-Cancel) in a sticky sidebar on the right. Avatars
+site-wide (Explore/Home/Connections/etc.) now get a deterministic color
+instead of plain gray when there's no photo.
+
+**Removed the Bay Area <-> UC Irvine geographic restriction.** Origin city
+selection (previously a 7-city dropdown) is now a search-as-you-type
+`CityAutocomplete` backed by a much broader seeded list (~150 cities across
+~27 US metro regions) and a new `GET /api/cities/search` endpoint. Applied
+everywhere a city picker existed: Trip/PackagePost origin+destination,
+Explore's filters, home-city on profile/onboarding/parent-connect, and
+Home's own hero search bar. Home's signed-in "near you" feed no longer
+scopes to one curated corridor — it sorts by proximity to the viewer's own
+home city (falling back to a global recent-activity feed with no home city
+set), and the logged-out landing page always shows recent activity.
+University verification (`uci.edu`-only) was intentionally left unchanged.
+
+- [ ] Every page fades in on load (staggered hero/header content, then
+      scrolled-to sections as you scroll) — no flash-of-unstyled-content,
+      no layout shift.
+- [ ] `/post/trip` and `/post/package`: typing a partial city name in
+      From/To shows a live search dropdown (city + region), arrow
+      keys/Enter select a result, typing after a selection clears it, and
+      submitting without picking a real city is blocked (required field).
+- [ ] Destination's "Can't find it? Type a destination instead" /
+      "Pick a city instead" toggle still works exactly as before.
+- [ ] `/explore`: origin/destination filters use the same search box, and
+      selecting a city updates the URL/results without a full reload.
+- [ ] `/profile`, `/onboarding`, `/family/connect-student` (parent step 0):
+      home-city field pre-fills correctly and can be searched/changed.
+- [ ] Editing an existing Trip/PackagePost (`/trips/[id]/edit`,
+      `/package-posts/[id]/edit`) pre-fills origin/destination with the
+      real current city.
+- [ ] `/trips/[id]`: matches the new two-column layout — route banner,
+      icon fact rows, sidebar poster card with colored avatar and working
+      Request to Connect / owner actions; Report/Block and the payment
+      safety notice still present for non-owners.
+- [ ] `/` signed in with a home city set: hero says "Near {city}", and the
+      "Near {city}" results section shows trips/packages sorted with
+      nearer ones first (e.g. same-city posts ahead of cross-country ones).
+- [ ] `/` signed in with no home city, and `/` signed out: shows "Recent
+      activity" copy and a plain chronological feed, no errors.
+- [ ] `npx tsc --noEmit`, `npm test`, and `npm run build` all pass.
+
 ## Gate Trip/Package Detail Pages for Logged-Out Visitors (2026-09-15)
 
 Product decision (reported live): a logged-out visitor could view full
