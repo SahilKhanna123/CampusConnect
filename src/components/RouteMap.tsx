@@ -35,6 +35,16 @@ import type { ExploreCardPost } from "@/components/ExploreCard";
 // assets (a well-known Leaflet+webpack/Next.js gotcha) that a plain circle
 // sidesteps entirely, and a small dot matches this app's existing flat
 // visual language better than a literal map pin anyway.
+// MapContainer's own initial center/zoom, before FitBounds' effect (below)
+// runs on mount and re-fits to whatever coordinates actually resolved --
+// a rough Bay Area <-> Irvine midpoint, wide enough to show the whole
+// state, so that inert first frame is never Leaflet's own [0,0]/zoom-0
+// world view. In practice `points[0]` (the value this used to default to)
+// is already a real resolved coordinate by the time MapContainer mounts,
+// so this is defensive polish, not a fix for an observed bug.
+const CALIFORNIA_FALLBACK_CENTER: [number, number] = [35.5, -119.5];
+const CALIFORNIA_FALLBACK_ZOOM = 6;
+
 type PlottablePost = ExploreCardPost & {
   originLat: number;
   originLng: number;
@@ -193,8 +203,8 @@ export function RouteMap({
     <div className="schematic-map">
       <div className="eyebrow schematic-map-eyebrow">Campus Routes</div>
       <MapContainer
-        center={points[0]}
-        zoom={9}
+        center={CALIFORNIA_FALLBACK_CENTER}
+        zoom={CALIFORNIA_FALLBACK_ZOOM}
         scrollWheelZoom={false}
         style={{ height: "100%", width: "100%", borderRadius: "12px" }}
       >
