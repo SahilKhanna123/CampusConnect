@@ -106,107 +106,66 @@ function timeOfDayGreeting(): string {
   return "Good evening";
 }
 
-// A static campus-scene illustration for the signed-in Home hero -- per
-// product decision, the moving-dot-along-a-line motif this replaced doesn't
-// read as meaningful without a route to anchor it to. Explore's own route
-// visualization has since moved on too, from an illustrative hover-linked
-// schematic to a real map (see RouteMap.tsx). Colors here are deliberately
-// restricted to the approved black/white/blue system (globals.css :root
-// tokens) -- no green, since that's reserved for verified/trust badges, not
-// decorative art.
+// A campus-skyline illustration for the signed-in Home hero, redone as a
+// single clear "your route, over the city" scene -- direct feedback on the
+// previous version (a car + a standalone walking figure + a flag + a
+// lamppost, none of them relating to each other) was that it didn't read as
+// meaningful and leaned on blue far too heavily. This keeps the same
+// approved black/white/blue system (globals.css :root tokens; no green,
+// reserved for verified/trust badges) but now spends blue on exactly one
+// thing -- the route from the origin dot to the destination pin -- mirroring
+// the two-dot-and-a-curve motif LandingPage's own hero illustration below
+// already uses, so the two hero scenes read as the same visual language
+// instead of two unrelated ones.
 function HomeHeroIllustration() {
+  const routePath = "M15,205 C95,158 190,112 285,92";
+  const buildings = [
+    { x: 28, y: 145, width: 56, height: 65, cols: 2, rows: 3 },
+    { x: 104, y: 84, width: 72, height: 126, cols: 2, rows: 5 },
+    { x: 206, y: 124, width: 58, height: 86, cols: 2, rows: 3 },
+  ];
+
   return (
     <svg viewBox="0 0 320 240" width="100%" height="100%">
-      <ellipse cx="58" cy="34" rx="20" ry="11" fill="#ffffff" />
-      <ellipse cx="76" cy="28" rx="14" ry="9" fill="#ffffff" />
-      <ellipse cx="250" cy="46" rx="18" ry="10" fill="#ffffff" />
+      <ellipse cx="56" cy="32" rx="18" ry="10" fill="#ffffff" />
+      <ellipse cx="72" cy="27" rx="12" ry="8" fill="#ffffff" />
 
-      <rect x="0" y="205" width="320" height="35" fill="#dbe8ff" />
-      <line
-        x1="0"
-        y1="222"
-        x2="320"
-        y2="222"
-        stroke="#ffffff"
-        strokeWidth="3"
-        strokeDasharray="12 10"
-      />
-
-      <rect x="81" y="196" width="4" height="12" fill="#000000" />
-      <circle cx="83" cy="185" r="9" fill="#eff6ff" stroke="#1D6FFF" strokeWidth="1.5" />
-
-      <rect x="16" y="118" width="56" height="92" rx="4" fill="#ffffff" stroke="#ebebeb" strokeWidth="1.5" />
-      {[0, 1].map((col) =>
-        [0, 1, 2, 3].map((row) => (
+      {buildings.map((b, i) => (
+        <g key={i}>
           <rect
-            key={`a-${col}-${row}`}
-            x={26 + col * 22}
-            y={130 + row * 20}
-            width="10"
-            height="10"
-            fill="#eff6ff"
+            x={b.x}
+            y={b.y}
+            width={b.width}
+            height={b.height}
+            fill="#ffffff"
+            stroke="#000000"
+            strokeWidth="1.5"
           />
-        )),
-      )}
+          {Array.from({ length: b.cols }).map((_, col) =>
+            Array.from({ length: b.rows }).map((_, row) => (
+              <rect
+                key={`${col}-${row}`}
+                x={b.x + 10 + col * (b.width / b.cols)}
+                y={b.y + 12 + row * 18}
+                width="9"
+                height="9"
+                fill="#f3f3f3"
+              />
+            )),
+          )}
+        </g>
+      ))}
 
-      <polygon points="95,50 132,50 150,20 168,50" fill="#ffffff" stroke="#ebebeb" strokeWidth="1.5" />
-      <rect x="95" y="50" width="73" height="160" fill="#ffffff" stroke="#ebebeb" strokeWidth="1.5" />
-      <line x1="150" y1="20" x2="150" y2="6" stroke="#000000" strokeWidth="2" />
-      <polygon points="150,6 150,16 162,11" fill="#1D6FFF" />
-      {[0, 1, 2].map((col) =>
-        [0, 1, 2, 3, 4, 5].map((row) => (
-          <rect
-            key={`b-${col}-${row}`}
-            x={104 + col * 20}
-            y={64 + row * 20}
-            width="10"
-            height="10"
-            fill="#eff6ff"
-          />
-        )),
-      )}
+      <rect x="0" y="210" width="320" height="30" fill="#f3f3f3" />
+      <line x1="0" y1="210" x2="320" y2="210" stroke="#ebebeb" strokeWidth="1.5" />
 
-      <rect x="196" y="94" width="62" height="116" rx="4" fill="#ffffff" stroke="#ebebeb" strokeWidth="1.5" />
-      {[0, 1].map((col) =>
-        [0, 1, 2, 3].map((row) => (
-          <rect
-            key={`c-${col}-${row}`}
-            x={206 + col * 24}
-            y={106 + row * 20}
-            width="11"
-            height="11"
-            fill="#eff6ff"
-          />
-        )),
-      )}
-
-      <path
-        d="M178,166 Q225,120 292,62"
-        stroke="#1D6FFF"
-        strokeWidth="2"
-        strokeDasharray="5 5"
-        fill="none"
-        opacity="0.55"
-      />
-      <circle cx="292" cy="62" r="7" fill="#1D6FFF" />
-      <polygon points="285,68 299,68 292,82" fill="#1D6FFF" />
-
-      <line x1="178" y1="171" x2="178" y2="182" stroke="#1D6FFF" strokeWidth="3" />
-      <circle cx="178" cy="165" r="7" fill="#1D6FFF" />
-      <path
-        d="M150,205 L150,197 Q150,191 158,191 L168,179 L193,179 L201,191 Q206,191 206,197 L206,205 Z"
-        fill="#000000"
-      />
-      <circle cx="162" cy="207" r="7" fill="#000000" />
-      <circle cx="162" cy="207" r="2.5" fill="#ffffff" />
-      <circle cx="195" cy="207" r="7" fill="#000000" />
-      <circle cx="195" cy="207" r="2.5" fill="#ffffff" />
-
-      <rect x="245" y="184" width="6" height="11" rx="2" fill="#000000" />
-      <rect x="249" y="180" width="15" height="23" rx="4" fill="#1D6FFF" />
-      <circle cx="256" cy="173" r="8" fill="#ffffff" stroke="#000000" strokeWidth="1.5" />
-      <rect x="250" y="203" width="4" height="13" fill="#000000" />
-      <rect x="259" y="203" width="4" height="13" fill="#000000" />
+      <path d={routePath} stroke="#1D6FFF" strokeWidth="2.5" fill="none" strokeLinecap="round" />
+      <circle cx="15" cy="205" r="6" fill="#000000" />
+      <circle cx="286" cy="80" r="9" fill="#1D6FFF" />
+      <polygon points="277,86 295,86 286,100" fill="#1D6FFF" />
+      <circle r="4" fill="#1D6FFF">
+        <animateMotion dur="3.5s" repeatCount="indefinite" path={routePath} />
+      </circle>
     </svg>
   );
 }
