@@ -950,7 +950,8 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
 }
 
 .message-compose textarea:focus {
-  outline: none;
+  outline: 2px solid var(--color-blue);
+  outline-offset: -1px;
   border-color: var(--color-blue);
   background: var(--color-white);
 }
