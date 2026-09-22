@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { isConversationUnread } from "@/lib/messaging";
+import { isConversationUnread, formatConversationTimestamp } from "@/lib/messaging";
 import { ConversationActions } from "@/components/ConversationActions";
 import { FadeIn } from "@/components/FadeIn";
 
@@ -115,15 +115,20 @@ export default async function MessagesPage({
                     }
                   >
                     <Link href={`/messages/${c.id}`} className="conversation-item-link">
-                      <div
-                        className={
-                          unread
-                            ? "conversation-item-title conversation-item-title-unread"
-                            : "conversation-item-title"
-                        }
-                      >
-                        {counterpart?.name ?? "Unknown"}
-                        {unread && <span className="unread-badge">New</span>}
+                      <div className="conversation-item-header">
+                        <div
+                          className={
+                            unread
+                              ? "conversation-item-title conversation-item-title-unread"
+                              : "conversation-item-title"
+                          }
+                        >
+                          {counterpart?.name ?? "Unknown"}
+                          {unread && <span className="unread-badge">New</span>}
+                        </div>
+                        <div className="conversation-item-meta">
+                          {formatConversationTimestamp(lastActivityAt)}
+                        </div>
                       </div>
                       <div className="conversation-item-route">
                         {post.originCity.name} → {destinationLabel}
@@ -133,9 +138,6 @@ export default async function MessagesPage({
                           {lastMessage.body}
                         </div>
                       )}
-                      <div className="message-meta">
-                        {lastActivityAt.toLocaleString()}
-                      </div>
                     </Link>
                     <ConversationActions
                       conversationId={c.id}

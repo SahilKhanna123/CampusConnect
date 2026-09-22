@@ -79,6 +79,31 @@ export function isConversationUnread(
 }
 
 /**
+ * Formats a conversation's last-activity time for the /messages list row:
+ * a bare time today ("2:30 PM"), "Yesterday", a weekday name out to 6 days
+ * ("Monday"), then a plain date once it's 7+ days old ("9/15/2026") --
+ * matches the granularity a reader actually cares about (exact time only
+ * stays useful for the last day or so) instead of always showing a full
+ * date+time stamp. `now` is injectable for deterministic testing.
+ */
+export function formatConversationTimestamp(date: Date, now: Date = new Date()): string {
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const startOfDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const dayDiff = Math.round((startOfToday.getTime() - startOfDate.getTime()) / 86_400_000);
+
+  if (dayDiff === 0) {
+    return date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  }
+  if (dayDiff === 1) {
+    return "Yesterday";
+  }
+  if (dayDiff > 1 && dayDiff < 7) {
+    return date.toLocaleDateString(undefined, { weekday: "long" });
+  }
+  return date.toLocaleDateString();
+}
+
+/**
  * Count of the caller's conversations with an unread message -- powers the
  * badge next to "Messages" in src/app/layout.tsx's nav. Recomputed on every
  * page load, no caching -- same tradeoff the rest of this app already makes

@@ -975,7 +975,7 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
 }
 
 .conversation-item {
-  padding: 0.75rem 1rem;
+  padding: 1.125rem 1.375rem;
   border: 1.5px solid var(--color-border);
   border-radius: 12px;
   background: #fff;
@@ -996,26 +996,43 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
 }
 
 .conversation-item-actions {
-  margin-top: 0.5rem;
-  padding-top: 0.5rem;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
   border-top: 1px solid #e5e5e5;
   font-size: 0.8125rem;
+  justify-content: flex-end;
+}
+
+.conversation-item-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
 }
 
 .conversation-item-title {
   font-weight: 600;
+  font-size: 1.0625rem;
+}
+
+.conversation-item-meta {
+  flex-shrink: 0;
+  font-size: 0.8125rem;
+  color: var(--color-gray-meta);
+  white-space: nowrap;
 }
 
 .conversation-item-route {
   font-size: 0.875rem;
   color: #444;
-  margin-top: 0.125rem;
+  margin-top: 0.1875rem;
 }
 
 .conversation-item-preview {
-  font-size: 0.8125rem;
-  color: #666;
-  margin-top: 0.25rem;
+  font-size: 1rem;
+  font-weight: 500;
+  color: #222;
+  margin-top: 0.625rem;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
