@@ -106,67 +106,61 @@ function timeOfDayGreeting(): string {
   return "Good evening";
 }
 
-// A campus-skyline illustration for the signed-in Home hero, redone as a
-// single clear "your route, over the city" scene -- direct feedback on the
-// previous version (a car + a standalone walking figure + a flag + a
-// lamppost, none of them relating to each other) was that it didn't read as
-// meaningful and leaned on blue far too heavily. This keeps the same
-// approved black/white/blue system (globals.css :root tokens; no green,
-// reserved for verified/trust badges) but now spends blue on exactly one
-// thing -- the route from the origin dot to the destination pin -- mirroring
-// the two-dot-and-a-curve motif LandingPage's own hero illustration below
-// already uses, so the two hero scenes read as the same visual language
-// instead of two unrelated ones.
+// A USA map illustration for the signed-in Home hero -- replaces an earlier
+// campus-skyline scene per direct feedback ("create a map of America and
+// add multiple blue curves, from place to place"), matching what the app
+// actually offers post-launch: posting from any US city, not just the
+// Bay Area <-> UC Irvine corridor. The map itself (public/usa-map.svg) is a
+// real, accurate 50-state outline -- CC0/public-domain "Blank US Map
+// (states only).svg" by Heitordp on Wikimedia Commons, recolored here (see
+// its own <style> block) to this app's cream/blue palette rather than
+// hand-drawn, since freehand state borders would only look approximately
+// right. `routes` are drawn as a separate SVG overlay on top (rather than
+// baked into the map file) so they can stay ordinary React-driven markup;
+// coordinates are eyeballed city-ish positions within the map's own
+// 959x593 viewBox, not real geocoding. Origin dots stay black, destination
+// pins stay blue, mirroring the same two-color route motif already used by
+// LandingPage's own hero below and the Explore route map.
+const HOME_HERO_ROUTES: { from: [number, number]; to: [number, number] }[] = [
+  { from: [95, 220], to: [820, 180] }, // Bay Area -> New York
+  { from: [130, 75], to: [570, 195] }, // Seattle -> Chicago
+  { from: [140, 290], to: [400, 370] }, // Los Angeles -> Dallas
+  { from: [330, 240], to: [660, 340] }, // Denver -> Atlanta
+  { from: [570, 195], to: [860, 130] }, // Chicago -> Boston
+  { from: [400, 370], to: [740, 520] }, // Dallas -> Miami
+];
+
+function homeHeroRoutePath([x1, y1]: [number, number], [x2, y2]: [number, number]): string {
+  const midX = (x1 + x2) / 2;
+  return `M${x1},${y1} C${midX},${y1} ${midX},${y2} ${x2},${y2}`;
+}
+
 function HomeHeroIllustration() {
-  const routePath = "M15,205 C95,158 190,112 285,92";
-  const buildings = [
-    { x: 28, y: 145, width: 56, height: 65, cols: 2, rows: 3 },
-    { x: 104, y: 84, width: 72, height: 126, cols: 2, rows: 5 },
-    { x: 206, y: 124, width: 58, height: 86, cols: 2, rows: 3 },
-  ];
-
   return (
-    <svg viewBox="0 0 320 240" width="100%" height="100%">
-      <ellipse cx="56" cy="32" rx="18" ry="10" fill="#ffffff" />
-      <ellipse cx="72" cy="27" rx="12" ry="8" fill="#ffffff" />
-
-      {buildings.map((b, i) => (
-        <g key={i}>
-          <rect
-            x={b.x}
-            y={b.y}
-            width={b.width}
-            height={b.height}
-            fill="#ffffff"
-            stroke="#000000"
-            strokeWidth="1.5"
+    <>
+      {/* eslint-disable-next-line @next/next/no-img-element -- static local
+          asset, not a next/image candidate anywhere else in this app */}
+      <img src="/usa-map.svg" alt="" className="home-hero-map" />
+      <svg viewBox="0 0 959 593" className="home-hero-routes" aria-hidden="true">
+        {HOME_HERO_ROUTES.map((route, i) => (
+          <path
+            key={i}
+            d={homeHeroRoutePath(route.from, route.to)}
+            stroke="#1D6FFF"
+            strokeWidth="2"
+            strokeDasharray="1 8"
+            strokeLinecap="round"
+            fill="none"
           />
-          {Array.from({ length: b.cols }).map((_, col) =>
-            Array.from({ length: b.rows }).map((_, row) => (
-              <rect
-                key={`${col}-${row}`}
-                x={b.x + 10 + col * (b.width / b.cols)}
-                y={b.y + 12 + row * 18}
-                width="9"
-                height="9"
-                fill="#f3f3f3"
-              />
-            )),
-          )}
-        </g>
-      ))}
-
-      <rect x="0" y="210" width="320" height="30" fill="#f3f3f3" />
-      <line x1="0" y1="210" x2="320" y2="210" stroke="#ebebeb" strokeWidth="1.5" />
-
-      <path d={routePath} stroke="#1D6FFF" strokeWidth="2.5" fill="none" strokeLinecap="round" />
-      <circle cx="15" cy="205" r="6" fill="#000000" />
-      <circle cx="286" cy="80" r="9" fill="#1D6FFF" />
-      <polygon points="277,86 295,86 286,100" fill="#1D6FFF" />
-      <circle r="4" fill="#1D6FFF">
-        <animateMotion dur="3.5s" repeatCount="indefinite" path={routePath} />
-      </circle>
-    </svg>
+        ))}
+        {HOME_HERO_ROUTES.map((route, i) => (
+          <g key={i}>
+            <circle cx={route.from[0]} cy={route.from[1]} r="5.5" fill="#000000" />
+            <circle cx={route.to[0]} cy={route.to[1]} r="5.5" fill="#1D6FFF" />
+          </g>
+        ))}
+      </svg>
+    </>
   );
 }
 
