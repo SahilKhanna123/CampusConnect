@@ -1,0 +1,7 @@
+/* Additive Tailwind layer for the scoped UI-polish components -- see
+   tailwind.config.ts's `content` list. `base` is intentionally omitted
+   (redundant with `corePlugins.preflight: false` there) so this never
+   resets element defaults on the rest of the app, which stays on
+   globals.css. */
+@tailwind components;
+@tailwind utilities;

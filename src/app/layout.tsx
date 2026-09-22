@@ -4,6 +4,7 @@ import { Inter } from "next/font/google";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import "./globals.css";
+import "./tailwind.css";
 import {
   getCurrentUser,
   universityBadgeLabel,
