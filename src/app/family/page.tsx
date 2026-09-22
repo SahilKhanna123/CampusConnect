@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { ApproveLinkButton } from "@/components/ApproveLinkButton";
 import { InviteParentForm } from "@/components/InviteParentForm";
 import { FadeIn } from "@/components/FadeIn";
+import { EmptyState } from "@/components/EmptyState";
 
 // Maps a ParentStudentLink/ParentStudentInvite status onto the existing
 // connection-status-label-* palette (pending=amber, accepted=green,
@@ -111,7 +112,7 @@ export default async function FamilyPage() {
         <section className="profile-section">
           <h2 className="profile-section-title">Parents Connected to You</h2>
           {links.length === 0 ? (
-            <p>No parent connections yet.</p>
+            <EmptyState icon="👪">No parent connections yet.</EmptyState>
           ) : (
             <ul className="connection-list">
               {links.map((link) => (
@@ -154,7 +155,7 @@ export default async function FamilyPage() {
             <section className="profile-section">
               <h2 className="profile-section-title">Sent Invites</h2>
               {sentInvites.length === 0 ? (
-                <p>No invites sent yet.</p>
+                <EmptyState icon="✉️">No invites sent yet.</EmptyState>
               ) : (
                 <ul className="connection-list">
                   {sentInvites.map((invite) => {

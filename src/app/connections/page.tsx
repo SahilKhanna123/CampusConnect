@@ -6,6 +6,7 @@ import { PosterBadge } from "@/components/ExploreCard";
 import { RespondToConnectionRequestButtons } from "@/components/RespondToConnectionRequestButtons";
 import { CancelConnectionRequestButton } from "@/components/CancelConnectionRequestButton";
 import { FadeIn } from "@/components/FadeIn";
+import { EmptyState } from "@/components/EmptyState";
 
 const POSTER_SELECT = {
   id: true,
@@ -88,7 +89,7 @@ export default async function ConnectionsPage({
 
       {activeTab === "received" ? (
         received.length === 0 ? (
-          <p>No connection requests received yet.</p>
+          <EmptyState icon="🤝">No connection requests received yet.</EmptyState>
         ) : (
           <FadeIn mode="viewport">
             <div className="connection-list">
@@ -123,7 +124,7 @@ export default async function ConnectionsPage({
           </FadeIn>
         )
       ) : sent.length === 0 ? (
-        <p>No connection requests sent yet.</p>
+        <EmptyState icon="🤝">No connection requests sent yet.</EmptyState>
       ) : (
         <FadeIn mode="viewport">
           <div className="connection-list">

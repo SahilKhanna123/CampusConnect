@@ -7,6 +7,7 @@ import { DeletePostButton } from "@/components/DeletePostButton";
 import { MarkTripCompleteButton } from "@/components/MarkTripCompleteButton";
 import { MarkPackagePostCompleteButton } from "@/components/MarkPackagePostCompleteButton";
 import { FadeIn } from "@/components/FadeIn";
+import { EmptyState } from "@/components/EmptyState";
 
 // Lists the current user's own Trip and PackagePost posts -- travelerId /
 // postedById are the ownership fields the API routes enforce too (see
@@ -164,14 +165,23 @@ export default async function MyPostsPage({
         <h2 className="list-section-title">Trips You&apos;re Offering</h2>
         {activeTab === "upcoming" ? (
           upcomingTrips.length === 0 ? (
-            <p>No upcoming trips posted yet.</p>
+            <EmptyState
+              icon="🚗"
+              action={
+                <Link href="/post" className="btn-secondary">
+                  Post a trip
+                </Link>
+              }
+            >
+              No upcoming trips posted yet.
+            </EmptyState>
           ) : (
             upcomingTrips.map((trip) => tripCard(trip, "upcoming", "Upcoming"))
           )
         ) : (
           <>
             {completedTrips.length === 0 && cancelledTrips.length === 0 && expiredTrips.length === 0 ? (
-              <p>No trip history yet.</p>
+              <EmptyState icon="🕓">No trip history yet.</EmptyState>
             ) : (
               <>
                 {completedTrips.length > 0 && (
@@ -207,11 +217,11 @@ export default async function MyPostsPage({
       <div className="list-section">
         <h2 className="list-section-title">Package Posts</h2>
         {shownPackagePosts.length === 0 ? (
-          <p>
+          <EmptyState icon="📦">
             {activeTab === "history"
               ? "No past package posts."
               : "No open package posts yet."}
-          </p>
+          </EmptyState>
         ) : (
           shownPackagePosts.map((p) => (
             <FadeIn key={p.id} mode="viewport">

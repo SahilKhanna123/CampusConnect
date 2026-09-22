@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { isConversationUnread, formatConversationTimestamp } from "@/lib/messaging";
 import { ConversationActions } from "@/components/ConversationActions";
 import { FadeIn } from "@/components/FadeIn";
+import { EmptyState } from "@/components/EmptyState";
 
 // Messages — conversation list, scoped to (trip, counterpart) pairs. Each
 // row links to /messages/[id], which polls for new messages while open
@@ -82,11 +83,11 @@ export default async function MessagesPage({
       </div>
 
       {conversations.length === 0 ? (
-        <p>
+        <EmptyState icon="💬">
           {activeTab === "archived"
             ? "No archived conversations."
             : "Your conversations will appear here."}
-        </p>
+        </EmptyState>
       ) : (
         <FadeIn mode="viewport">
           <div className="conversation-list">
