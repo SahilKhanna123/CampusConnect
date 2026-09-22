@@ -6,6 +6,7 @@ import { ReportButton } from "@/components/ReportButton";
 import { BlockButton } from "@/components/BlockButton";
 import { isBlockedBetween } from "@/lib/blocks";
 import { FadeIn } from "@/components/FadeIn";
+import { VerificationBadge } from "@/components/VerificationBadge";
 
 // Public profile view of another user -- only the fields getPublicProfile
 // (src/lib/profile.ts) allowlists: name, photo, university, general home
@@ -53,15 +54,17 @@ export default async function PublicProfilePage({
           )}
           {profile.homeArea && <p className="profile-meta">{profile.homeArea}</p>}
           <div className="profile-badges">
-            {profile.badges.email && <span className="badge-verified">✓ Email Verified</span>}
-            {profile.badges.university && (
-              <span className="badge-verified">✓ University Verified</span>
-            )}
+            <VerificationBadge verified={profile.badges.email}>
+              {profile.badges.email ? "Email Verified" : "Email not verified"}
+            </VerificationBadge>
+            <VerificationBadge verified={profile.badges.university}>
+              {profile.badges.university ? "University Verified" : "University not verified"}
+            </VerificationBadge>
             {profile.badges.parentRelationship && (
-              <span className="badge-verified">✓ Parent Relationship Verified</span>
+              <VerificationBadge verified>Parent Relationship Verified</VerificationBadge>
             )}
             {profile.badges.identity && (
-              <span className="badge-verified">✓ Identity Verified</span>
+              <VerificationBadge verified>Identity Verified</VerificationBadge>
             )}
           </div>
         </div>

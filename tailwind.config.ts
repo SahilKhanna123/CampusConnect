@@ -9,6 +9,7 @@ const config: Config = {
   content: [
     "./src/components/ExploreCard.tsx",
     "./src/components/EmptyState.tsx",
+    "./src/components/VerificationBadge.tsx",
     "./src/app/messages/page.tsx",
     "./src/app/connections/page.tsx",
     "./src/app/family/page.tsx",

@@ -10,6 +10,7 @@ import { ProfileEditForm } from "@/components/ProfileEditForm";
 import { BlockButton } from "@/components/BlockButton";
 import { prisma } from "@/lib/prisma";
 import { FadeIn } from "@/components/FadeIn";
+import { VerificationBadge } from "@/components/VerificationBadge";
 
 // Self profile view + edit. Name/photo/home-area are editable here (per
 // "students should eventually be able to edit non-verification
@@ -62,15 +63,12 @@ export default async function ProfilePage() {
             {primaryRoute && <p className="profile-meta">{primaryRoute}</p>}
             <div className="profile-badges">
               {badge && (
-                <span
-                  className={
-                    badge === "Not university-verified yet"
-                      ? "badge-students-only"
-                      : "badge-verified"
-                  }
-                >
-                  {badge}
-                </span>
+                // Strips universityBadgeLabel/parentRelationshipBadgeLabel's
+                // own leading "✓ " -- VerificationBadge renders its own
+                // check icon now, so keeping both would show two checkmarks.
+                <VerificationBadge verified={badge !== "Not university-verified yet"}>
+                  {badge.replace(/^✓\s*/, "")}
+                </VerificationBadge>
               )}
             </div>
           </div>
