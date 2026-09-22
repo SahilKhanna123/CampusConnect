@@ -85,7 +85,10 @@ function posterIsVerified(poster: Poster): boolean {
 // Exported -- lets a caller that needs just the circular photo/initials
 // (e.g. the trip detail page's larger sidebar avatar) reuse the exact same
 // photo-or-colored-initials logic as PosterBadge below, at a different
-// size, without duplicating it.
+// size, without duplicating it. Still uses the shared `avatar-circle`
+// plain-CSS class (not converted to Tailwind) -- it's relied on by every
+// other avatar in the app (profile pages, trip detail), so forking it here
+// would only create a second copy that can drift.
 export function PosterAvatar({
   poster,
   size = 34,
@@ -102,12 +105,12 @@ export function PosterAvatar({
       alt=""
       width={size}
       height={size}
-      className={`explore-card-avatar avatar-circle ${className}`}
+      className={`avatar-circle flex-shrink-0 ${className}`}
       style={{ width: size, height: size }}
     />
   ) : (
     <span
-      className={`explore-card-avatar avatar-circle explore-card-avatar-placeholder ${className}`}
+      className={`avatar-circle flex-shrink-0 text-[0.6875rem] ${className}`}
       style={{
         width: size,
         height: size,
@@ -137,25 +140,27 @@ export function PosterBadge({ poster }: { poster: Poster }) {
     `${shortenUniversityName(poster.universityName)}${poster.year ? ` ${formatYearLabel(poster.year)}` : ""}`;
 
   return (
-    <div className="explore-card-poster">
+    <div className="flex items-center gap-2.5 min-w-0 flex-1">
       <PosterAvatar poster={poster} />
-      <div className="explore-card-poster-info">
-        <div className="explore-card-poster-name-row">
-          <span className="explore-card-poster-name">{poster.name}</span>
+      <div className="min-w-0">
+        <div className="flex items-center gap-[7px] mb-[2px]">
+          <span className="font-semibold text-[0.8125rem] text-black truncate">
+            {poster.name}
+          </span>
           {posterIsVerified(poster) && (
-            <span className="badge-verified">
-              <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+            <span className="inline-flex items-center gap-1 rounded-full bg-green-bg py-0.5 px-2 text-[0.6875rem] font-bold text-green align-middle">
+              <svg className="h-3 w-3" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
                 <path d="M13.5 4.5 6 12 2.5 8.5l1-1L6 10l6.5-6.5z" />
               </svg>
               Verified
             </span>
           )}
         </div>
-        <div className="explore-card-poster-role">
+        <div className="flex min-w-0 flex-wrap items-center gap-x-[6px] gap-y-[2px] text-[0.71875rem] text-gray-body">
           <span>{posterRoleLabel(poster)}</span>
           {schoolYear && (
             <>
-              <span className="explore-card-poster-role-sep" aria-hidden="true">
+              <span className="flex-shrink-0 text-[#d4d4d4]" aria-hidden="true">
                 ·
               </span>
               <span>{schoolYear}</span>
@@ -163,7 +168,7 @@ export function PosterBadge({ poster }: { poster: Poster }) {
           )}
           {!!poster.completedTripCount && (
             <>
-              <span className="explore-card-poster-role-sep" aria-hidden="true">
+              <span className="flex-shrink-0 text-[#d4d4d4]" aria-hidden="true">
                 ·
               </span>
               <span>
@@ -190,7 +195,7 @@ function formatCardDate(date: Date | null): string {
 // The top-right seats badge -- always the same neutral gray, matching the
 // reference exactly: a post with only one seat left doesn't turn the badge
 // amber, it appends " · Last seat" onto the date/time line instead (see
-// .explore-card-last-seat below).
+// the amber last-seat span below).
 function seatsBadgeText(post: ExploreCardPost): string {
   if (post.kind === "package") return "📦 Package space";
   if (post.seatsRemaining <= 0) return "Full";
@@ -209,7 +214,7 @@ function RouteArrow() {
       height="8"
       viewBox="0 0 16 8"
       fill="none"
-      className="explore-card-route-arrow"
+      className="flex-shrink-0 text-[#bebebe]"
       aria-hidden="true"
     >
       <path
@@ -310,6 +315,18 @@ export type ExploreCardPost = TripCardPost | PackageCardPost;
 // ConnectionRequestButton can sit as a sibling, not nested inside the
 // anchor -- HTML disallows interactive content (a <button>) inside an <a>,
 // and nesting them would also make clicks ambiguous.
+//
+// Styled with Tailwind (see tailwind.config.ts's theme.extend, mapped onto
+// this app's existing CSS custom properties) rather than the plain-CSS
+// .explore-card* rules that used to live in globals.css -- those rules
+// still exist there for two other still-unconverted callers of
+// .badge-verified (Home, trip detail). The card's root keeps no class name
+// of its own; the one exception is the footer div, which keeps the literal
+// "explore-card-footer" class alongside its Tailwind layout classes purely
+// so globals.css's `.explore-card-footer .connection-request-button,
+// .explore-card-footer .btn-secondary` compact-sizing rule -- which targets
+// the shared, unconverted ConnectionRequestButton/btn-secondary primitives
+// -- keeps matching.
 export function ExploreCard({
   post,
   isLoggedIn = true,
@@ -325,27 +342,31 @@ export function ExploreCard({
   const isLastSeat = post.kind === "offer" && post.seatsRemaining === 1;
 
   return (
-    <div className="explore-card">
-      <Link href={href} className="explore-card-link">
-        <div className="explore-card-top">
-          <div className="explore-card-route-headline">
-            <span>{post.originName}</span>
+    <div className="border-solid border-[1.5px] border-border rounded-card bg-white px-5 py-[18px] shadow-card transition-[border-color,box-shadow,transform] duration-[180ms] ease-in-out hover:-translate-y-0.5 hover:border-blue hover:shadow-hover">
+      <Link href={href} className="block text-inherit no-underline">
+        <div className="mb-[10px] flex items-start justify-between gap-2">
+          <div className="mb-[3px] flex min-w-0 items-center gap-2 text-base font-extrabold tracking-tight text-black">
+            <span className="truncate">{post.originName}</span>
             <RouteArrow />
-            <span>{post.destinationName}</span>
+            <span className="truncate">{post.destinationName}</span>
           </div>
-          <span className="explore-card-seats-badge">{seatsBadgeText(post)}</span>
+          <span className="ml-3 flex-shrink-0 whitespace-nowrap text-right text-[0.6875rem] font-medium text-gray-meta">
+            {seatsBadgeText(post)}
+          </span>
         </div>
 
         {post.studentsOnly && (
-          <div className="explore-card-students-only">🎓 Students only</div>
+          <div className="mb-1 inline-block rounded-full bg-blue-bg px-2 py-0.5 text-xs font-semibold text-blue">
+            🎓 Students only
+          </div>
         )}
 
         {post.kind === "offer" && post.title && (
-          <div className="explore-card-title">{post.title}</div>
+          <div className="mb-1 line-clamp-1 break-words font-semibold">{post.title}</div>
         )}
 
         {(post.originRegionName || post.destinationRegionName) && (
-          <div className="explore-card-route-subtitle">
+          <div className="mt-0.5 truncate text-[0.71875rem] text-gray-meta">
             {post.originName}
             {post.originRegionName ? `, ${post.originRegionName}` : ""} →{" "}
             {post.destinationName}
@@ -353,26 +374,26 @@ export function ExploreCard({
           </div>
         )}
 
-        <div className="explore-card-meta">
+        <div className="mb-3 text-[0.78125rem] text-gray-body">
           {formatCardDate(post.date)}
           {post.time && ` · ${post.time}`}
           {post.flexibleTime && " (flexible)"}
-          {isLastSeat && <span className="explore-card-last-seat"> · Last seat</span>}
+          {isLastSeat && <span className="font-semibold text-amber-500"> · Last seat</span>}
         </div>
 
         {post.kind === "offer" && !!post.confirmedRiderCount && (
-          <div className="explore-card-riders">
+          <div className="-mt-2 mb-3 text-[0.78125rem] text-[#1a7a3a]">
             🎫 {post.confirmedRiderCount} confirmed rider
             {post.confirmedRiderCount === 1 ? "" : "s"}
           </div>
         )}
       </Link>
 
-      <div className="explore-card-divider" />
+      <div className="mb-3 h-px bg-gray-section" />
 
-      <div className="explore-card-footer">
+      <div className="explore-card-footer flex items-center justify-between gap-2">
         <PosterBadge poster={post.poster} />
-        <div className="explore-card-actions">
+        <div className="flex-shrink-0">
           {post.kind === "offer" ? (
             isLoggedIn ? (
               <ConnectionRequestButton
@@ -400,7 +421,11 @@ export function ExploreCard({
         </div>
       </div>
 
-      {post.note && <p className="explore-card-note">&ldquo;{post.note}&rdquo;</p>}
+      {post.note && (
+        <p className="mt-[10px] line-clamp-2 break-words border-solid border-t border-gray-section pt-[10px] text-xs italic leading-normal text-gray-meta">
+          &ldquo;{post.note}&rdquo;
+        </p>
+      )}
     </div>
   );
 }
